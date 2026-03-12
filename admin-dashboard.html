@@ -1071,6 +1071,39 @@ function resetFilters() {
   renderFeedbackTable();
 }
 
+function toggleAllFeedbackCb(el) {
+  document.querySelectorAll('.fb-select-cb').forEach(function(cb){ cb.checked = el.checked; });
+}
+
+function clearSelectedFeedback() {
+  var selected = [];
+  document.querySelectorAll('.fb-select-cb:checked').forEach(function(cb){ selected.push(cb.value); });
+  if (!selected.length) { showToast('No feedback selected.', 'error'); return; }
+  if (!confirm('Delete ' + selected.length + ' selected feedback response(s)? This cannot be undone.')) return;
+  var idSet = {};
+  selected.forEach(function(id){ idSet[id] = true; });
+  var all = getResponses();
+  var remaining = all.filter(function(r){ return !idSet[r.id]; });
+  if (typeof fsDeleteDoc === 'function') {
+    selected.forEach(function(id){ fsDeleteDoc('responses', id); });
+  }
+  localStorage.setItem('sfft_responses', JSON.stringify(remaining));
+  renderFeedbackTable();
+  showToast('Deleted ' + selected.length + ' feedback response(s).', 'success');
+}
+
+function clearAllFeedback() {
+  var all = getResponses();
+  if (!all.length) { showToast('No feedback to clear.', 'info'); return; }
+  if (!confirm('Delete ALL ' + all.length + ' feedback responses? This will also erase them from the database. This cannot be undone.')) return;
+  if (typeof fsDeleteDoc === 'function') {
+    all.forEach(function(r){ fsDeleteDoc('responses', r.id); });
+  }
+  localStorage.setItem('sfft_responses', JSON.stringify([]));
+  renderFeedbackTable();
+  showToast('All ' + all.length + ' feedback responses cleared from app and database!', 'success');
+}
+
 // ==================== REPORTS TAB ====================
 let _deptChart = null, _instDistChart = null;
 function renderReports() {
