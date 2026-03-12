@@ -231,9 +231,8 @@
             </div>
             <div class="section-card-body">
               <div class="form-group" style="margin-bottom:14px;">
-                <label>Select Section</label>
-                <select id="attSectionSelect"
-                  style="width:100%;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-light);background:var(--surface);color:var(--text);">
+                <div style="font-size:12px;color:var(--text-muted);padding:8px 12px;background:var(--surface2);border-radius:8px;">Include a <strong>section</strong> column in your CSV to upload all sections at once.</div>
+                <select id="attSectionSelect" style="display:none;">
                   <option value="">– All Sections –</option>
                 </select>
               </div>
@@ -244,7 +243,7 @@
                 style="border:2px dashed var(--border);border-radius:var(--radius-sm);padding:28px 20px;text-align:center;cursor:pointer;transition:var(--transition);margin-bottom:12px;">
                 <div style="font-size:32px;margin-bottom:6px;">&#128193;</div>
                 <div style="font-weight:700;font-size:14px;margin-bottom:3px;">Drop CSV here or click to browse</div>
-                <div style="font-size:11px;color:var(--text-muted);">Required columns: <code>email</code>,
+                <div style="font-size:11px;color:var(--text-muted);">Required columns: <code>email</code>, <code>section</code>,
                   <code>attendance_percentage</code>
                 </div>
                 <input type="file" id="attCSVInput" accept=".csv" style="display:none"
@@ -1299,24 +1298,22 @@ function handleAttCSVFile(input) {
 }
 
 function processAttCSV(file) {
-  const section = document.getElementById('attSectionSelect').value;
-  if (!section) { showAttErr('Please select a section first before uploading.'); return; }
-  
   const reader = new FileReader();
-  reader.onload = e => parseAttCSV(e.target.result, section);
+  reader.onload = e => parseAttCSV(e.target.result);
   reader.readAsText(file);
 }
 
-function parseAttCSV(text, targetSection) {
+function parseAttCSV(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) { showAttErr('CSV must have a header and data rows.'); return; }
   
   const header = parseCSVLine(lines[0]).map(h => h.replace(/"/g,'').toLowerCase().trim());
-  if (!header.includes('email') || !header.includes('attendance_percentage')) {
-    showAttErr('Missing required columns: "email", "attendance_percentage"'); return;
+  if (!header.includes('email') || !header.includes('section') || !header.includes('attendance_percentage')) {
+    showAttErr('Missing required columns: "email", "section", "attendance_percentage"'); return;
   }
   
   const eIdx = header.indexOf('email');
+  const sIdx = header.indexOf('section');
   const pIdx = header.indexOf('attendance_percentage');
   const students = Object.fromEntries(getStudents().map(s => [s.email.toLowerCase(), s]));
   
@@ -1328,14 +1325,16 @@ function parseAttCSV(text, targetSection) {
     if (!cols[eIdx] && !cols[pIdx]) return;
     
     const email = (cols[eIdx] || '').toLowerCase();
+    const rowSection = (cols[sIdx] || '').trim();
     const pctStr = cols[pIdx] || '0';
     const pct = parseFloat(pctStr);
     
-    const row = { rowNum: i+2, email, pct, error: null, studentId: null, name: '' };
+    const row = { rowNum: i+2, email, section: rowSection, pct, error: null, studentId: null, name: '' };
     
     const student = students[email];
     if (!student) row.error = 'Student not found in system';
-    else if (student.section !== targetSection) row.error = `Student is in section ${student.section || 'None'}, not ${targetSection}`;
+    else if (!rowSection) row.error = 'Section is missing for this row';
+    else if (student.section && student.section !== rowSection) row.error = `Student is in section ${student.section || 'None'}, not ${rowSection}`;
     else if (isNaN(pct) || pct < 0 || pct > 100) row.error = 'Invalid percentage (must be 0-100)';
     else { row.studentId = student.id; row.name = student.name; }
     
@@ -1382,12 +1381,12 @@ function cancelAttPreview() {
 function saveAttendanceUpload() {
   const valid = attParsedRows.filter(r => !r.error);
   if (!valid.length) { showToast('No valid records to save.', 'error'); return; }
-  const section = document.getElementById('attSectionSelect').value;
   
-  const recordsToSave = valid.map(r => ({ studentId: r.studentId, percentage: r.pct, section }));
+  const recordsToSave = valid.map(r => ({ studentId: r.studentId, percentage: r.pct, section: r.section }));
   saveAttendanceRecords(recordsToSave);
   
-  showToast(`&#10004; Saved ${valid.length} attendance records for ${section}`, 'success');
+  const savedSections = [...new Set(valid.map(r => r.section))].join(', ');
+  showToast(`&#10004; Saved ${valid.length} attendance records for sections: ${savedSections}`, 'success');
   cancelAttPreview();
   renderAttendanceRecords();
 }
@@ -1422,7 +1421,7 @@ function renderAttendanceRecords() {
 }
 
 function downloadAttendanceTemplate() {
-  const csv = "email,attendance_percentage\nstudent1@college.edu,85\nstudent2@college.edu,60\n";
+  const csv = "email,section,attendance_percentage\nstudent1@college.edu,CSE-A,85\nstudent2@college.edu,CSE-B,60\n";
   const blob = new Blob([csv], {type:'text/csv'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `attendance_template.csv`; a.click();
