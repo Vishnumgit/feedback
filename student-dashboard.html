@@ -207,6 +207,13 @@
       if (m) el.classList.toggle('active', m[1] === sec);
     });
     if (sec === 'teachers') renderTeachers();
+
+  // Re-render after Firestore sync to show correct submission status
+  window.addEventListener('firestore-synced', function() {
+    console.log('[Dashboard] Re-rendering after Firestore sync...');
+    renderTeachers();
+    renderDashboard();
+  });
     if (sec === 'history') renderHistory();
     if (sec === 'dashboard') renderDashboard();
     if (sec === 'academics') renderAcademics();
@@ -416,7 +423,7 @@
           btnHtml = `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.6; cursor:not-allowed;">Feedback Locked</button>`;
         } else {
           statusHtml = done ? '<span class="badge badge-green">&#x2705; Submitted</span>' : '<span class="badge badge-orange">&#x23F3; Pending</span>';
-          btnHtml = done ? '' : `<button class="btn btn-primary btn-sm" onclick="goToFeedback('${t.id}')">&#x1F4DD; Give Feedback</button>`;
+          btnHtml = `<button class="btn ${done ? 'btn-secondary' : 'btn-primary'} btn-sm" onclick="goToFeedback('${t.id}')">${done ? '🔄 Re-Submit' : '&#x1F4DD; Give Feedback'}</button>`;
         }
 
         return `
