@@ -1520,7 +1520,9 @@ function parseAndPreviewCSV(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) { showBulkErr('CSV file must have a header row and at least one data row.'); return; }
 
-  const header = parseCSVLine(lines[0]).map(h => h.replace(/"/g,'').toLowerCase().trim());
+  const rawHeader = parseCSVLine(lines[0]).map(h => h.replace(/"/g,'').replace(/\ufeff/g,'').toLowerCase().trim());
+  const colAliases = { 'dept':'department', 'departmart':'department', 'deparment':'department', 'rollno':'roll_no', 'roll_number':'roll_no', 'rollnumber':'roll_no', 'subject':'subject_name', 'subjectname':'subject_name' };
+  const header = rawHeader.map(h => colAliases[h] || h);
   const required = ['name','email','password','role'];
   const missing = required.filter(f => !header.includes(f));
   if (missing.length) { showBulkErr(`Missing required columns: ${missing.join(', ')}. Please use the template.`); return; }
@@ -1595,9 +1597,9 @@ function renderBulkPreview() {
         <td style="font-weight:600;">${r.name}</td>
         <td style="font-size:12px; color:var(--text-muted);">${r.email}</td>
         <td>${r.role === 'student' ? "<span class=\"badge badge-blue\">&#127891; Student</span>" : "<span class=\"badge badge-green\">&#128104;‍&#127979; Teacher</span>"}</td>
-        <td>${r.department || '?"'}</td>
-        <td>${r.section ? `<span class="badge badge-purple" style="font-size:11px;">${r.section}</span>` : '?"'}</td>
-        <td>${r.subjectName || '?"'}</td>
+        <td>${r.department || '\u2014'}</td>
+        <td>${r.section ? `<span class="badge badge-purple" style="font-size:11px;">${r.section}</span>` : '\u2014'}</td>
+        <td>${r.subjectName || '\u2014'}</td>
         <td>${statusHtml}</td>
       </tr>`;
     }).join('')}</tbody>
