@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Project Report — Feedback System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.6;}
+  .container{max-width:880px;margin:0 auto;padding:30px 28px;}
+  .header{text-align:center;padding:36px 24px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(59,130,246,0.1));border:1.5px solid rgba(124,58,237,0.3);border-radius:20px;margin-bottom:32px;}
+  .header h1{font-size:26px;font-weight:900;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px;}
+  .header .sub{font-size:14px;color:#94a3b8;margin-top:6px;}
+  .header .badges{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+  .header .badge{padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;}
+  .bg-purple{background:rgba(124,58,237,0.2);color:#c4b5fd;}
+  .bg-blue{background:rgba(59,130,246,0.2);color:#93c5fd;}
+  .bg-green{background:rgba(34,197,94,0.2);color:#86efac;}
+  .bg-amber{background:rgba(245,158,11,0.2);color:#fcd34d;}
+  .section{margin-bottom:28px;}
+  .section-title{font-size:18px;font-weight:800;color:#f1f5f9;margin-bottom:14px;display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:2px solid rgba(124,58,237,0.3);}
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+  .stat-card{background:rgba(30,41,59,0.8);border:1px solid rgba(100,116,139,0.2);border-radius:14px;padding:16px;text-align:center;}
+  .stat-card .num{font-size:28px;font-weight:900;color:#a78bfa;}
+  .stat-card .lbl{font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+  .info-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .info-table td{padding:10px 14px;border-bottom:1px solid rgba(100,116,139,0.15);}
+  .info-table td:first-child{font-weight:700;color:#94a3b8;width:180px;}
+  .info-table td:last-child{color:#e2e8f0;}
+  .file-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .file-table th{background:rgba(124,58,237,0.2);color:#c4b5fd;padding:10px 12px;text-align:left;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.3px;}
+  .file-table td{padding:9px 12px;border-bottom:1px solid rgba(100,116,139,0.1);}
+  .file-table tr:hover{background:rgba(124,58,237,0.05);}
+  .file-name{font-weight:600;color:#e2e8f0;}
+  .arch-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px;}
+  .arch-card{background:rgba(30,41,59,0.8);border:1px solid rgba(100,116,139,0.2);border-radius:14px;padding:18px;}
+  .arch-card h4{font-size:13px;font-weight:800;color:#c4b5fd;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;}
+  .arch-card ul{list-style:none;font-size:12px;}
+  .arch-card li{padding:3px 0;color:#cbd5e1;}
+  .arch-card li::before{content:'&#9654; ';color:#7c3aed;font-weight:700;}
+  .feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .feat-card{background:rgba(30,41,59,0.8);border:1px solid rgba(100,116,139,0.2);border-radius:14px;padding:18px;}
+  .feat-card h4{font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:6px;}
+  .feat-card p{font-size:12px;color:#94a3b8;}
+  .feat-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-right:4px;margin-top:6px;}
+  .flow{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:18px 0;}
+  .flow-box{background:rgba(124,58,237,0.15);border:1.5px solid rgba(124,58,237,0.3);border-radius:12px;padding:10px 18px;font-size:12px;font-weight:700;color:#c4b5fd;text-align:center;}
+  .flow-arrow{color:#7c3aed;font-size:18px;font-weight:900;}
+  .commit-list{font-size:12px;}
+  .commit{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid rgba(100,116,139,0.1);}
+  .commit-dot{width:10px;height:10px;border-radius:50%;background:#7c3aed;margin-top:5px;flex-shrink:0;}
+  .commit-msg{color:#cbd5e1;font-weight:500;}
+  .commit-type{font-size:10px;padding:1px 6px;border-radius:8px;font-weight:700;margin-left:6px;}
+  .ct-feat{background:rgba(34,197,94,0.2);color:#86efac;}
+  .ct-fix{background:rgba(239,68,68,0.2);color:#fca5a5;}
+  .back-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;background:rgba(124,58,237,0.2);border:1.5px solid rgba(124,58,237,0.4);color:#c4b5fd;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;margin-bottom:20px;transition:all 0.2s;}
+  .back-btn:hover{background:rgba(124,58,237,0.35);}
+  .footer{text-align:center;padding:24px 0;margin-top:16px;border-top:2px solid rgba(124,58,237,0.2);font-size:11px;color:#64748b;}
+  @media(max-width:700px){.stats-grid,.arch-grid{grid-template-columns:1fr 1fr;}.feat-grid{grid-template-columns:1fr;}}
+  @media print{body{background:#fff;color:#1e293b;}.stat-card,.arch-card,.feat-card{border-color:#e2e8f0;background:#f8fafc;}.stat-card .num{color:#7c3aed;}.section-title{color:#1e293b;}.back-btn{display:none;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="index.html" class="back-btn">&#8592; Back to Home</a>
+  <div class="header">
+    <h1>&#128202; Feedback System &mdash; Project Report</h1>
+    <div class="sub">Student, Teacher &amp; Admin Portal &middot; Built by P Vishnuvardhan Reddy</div>
+    <div class="badges">
+      <span class="badge bg-purple">HTML / CSS / JS</span>
+      <span class="badge bg-blue">Firebase Firestore</span>
+      <span class="badge bg-green">Chart.js</span>
+      <span class="badge bg-amber">5,434 Lines of Code</span>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">&#128203; Project Overview</div>
+    <table class="info-table">
+      <tr><td>&#128230; Repository</td><td><a href="https://github.com/Vishnumgit/feedback" style="color:#a78bfa;">Vishnumgit/feedback</a></td></tr>
+      <tr><td>&#128221; Description</td><td>A multi-role feedback collection and analytics system for educational institutions with Student, Teacher, and Admin portals</td></tr>
+      <tr><td>&#128100; Author</td><td>P Vishnuvardhan Reddy (Vishnumgit)</td></tr>
+      <tr><td>&#127979; Institution</td><td>MGIT &mdash; Mahatma Gandhi Institute of Technology</td></tr>
+      <tr><td>&#128197; Created</td><td>12 March 2026</td></tr>
+      <tr><td>&#127760; Visibility</td><td>Public</td></tr>
+      <tr><td>&#128451; Total Size</td><td>137 KB (15 files + 2 folders)</td></tr>
+      <tr><td>&#128187; Language</td><td>HTML, CSS, JavaScript (Vanilla &mdash; No frameworks)</td></tr>
+      <tr><td>&#128452; Database</td><td>Firebase Firestore (Cloud) + localStorage (Offline)</td></tr>
+      <tr><td>&#128202; Charts</td><td>Chart.js 4.4.0 (Radar, Bar, Doughnut, Trend)</td></tr>
+    </table>
+  </div>
+  <div class="section">
+    <div class="section-title">&#128200; Project Statistics</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="num">5,434</div><div class="lbl">Lines of Code</div></div>
+      <div class="stat-card"><div class="num">15</div><div class="lbl">Source Files</div></div>
+      <div class="stat-card"><div class="num">20</div><div class="lbl">Git Commits</div></div>
+      <div class="stat-card"><div class="num">3</div><div class="lbl">User Roles</div></div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="num" style="font-size:22px;color:#60a5fa;">7</div><div class="lbl">Admin Tabs</div></div>
+      <div class="stat-card"><div class="num" style="font-size:22px;color:#60a5fa;">6</div><div class="lbl">Teacher Views</div></div>
+      <div class="stat-card"><div class="num" style="font-size:22px;color:#60a5fa;">7</div><div class="lbl">Firestore Collections</div></div>
+      <div class="stat-card"><div class="num" style="font-size:22px;color:#60a5fa;">2</div><div class="lbl">Report Generators</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">&#127959; System Architecture</div>
+    <div class="flow">
+      <div class="flow-box">&#128100; Student Portal</div><div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">&#128221; Feedback Form</div><div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">&#128452; localStorage</div><div class="flow-arrow">&hArr;</div>
+      <div class="flow-box">&#128293; Firebase Firestore</div>
+    </div>
+    <div class="flow">
+      <div class="flow-box">&#128104;&zwj;&#127979; Teacher Dashboard</div><div class="flow-arrow">&larr;</div>
+      <div class="flow-box">&#128202; Analytics Engine</div><div class="flow-arrow">&larr;</div>
+      <div class="flow-box">&#128452; data.js</div><div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">&#128196; HTML Report</div>
+    </div>
+    <div class="flow">
+      <div class="flow-box">&#128273; Admin Panel</div><div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">&#128101; User Mgmt</div><div class="flow-arrow">+</div>
+      <div class="flow-box">&#128203; Assignments</div><div class="flow-arrow">+</div>
+      <div class="flow-box">&#128202; Reports</div>
+    </div>
+    <div class="arch-grid" style="margin-top:18px;">
+      <div class="arch-card"><h4>&#128421; Frontend</h4><ul><li>Vanilla HTML/CSS/JS</li><li>Dark theme UI (CSS vars)</li><li>Chart.js 4.4.0</li><li>Responsive sidebar layout</li><li>SVG inline charts for reports</li><li>Inter font (Google Fonts)</li></ul></div>
+      <div class="arch-card"><h4>&#128452; Data Layer</h4><ul><li>localStorage primary store</li><li>Firebase Firestore cloud sync</li><li>Background non-blocking sync</li><li>Auto-seed on first visit</li><li>Offline-first architecture</li><li>7 data collections</li></ul></div>
+      <div class="arch-card"><h4>&#128274; Auth System</h4><ul><li>Role-based (Admin/Teacher/Student)</li><li>Session via localStorage</li><li>Login page per role</li><li>Protected dashboard routes</li><li>Email domain validation</li><li>Password-based login</li></ul></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">&#128293; Firebase Firestore Schema</div>
+    <table class="file-table"><thead><tr><th>Collection</th><th>localStorage Key</th><th>Purpose</th></tr></thead><tbody>
+      <tr><td class="file-name">users</td><td>sfft_users</td><td>All student, teacher, admin accounts</td></tr>
+      <tr><td class="file-name">subjects</td><td>sfft_subjects</td><td>Academic subjects (Math, Physics, etc.)</td></tr>
+      <tr><td class="file-name">questionnaires</td><td>sfft_questionnaires</td><td>Subject-specific feedback question sets</td></tr>
+      <tr><td class="file-name">enrollments</td><td>sfft_enrollments</td><td>Student-teacher assignment mappings</td></tr>
+      <tr><td class="file-name">responses</td><td>sfft_responses</td><td>Submitted feedback with scores &amp; comments</td></tr>
+      <tr><td class="file-name">attendance</td><td>sfft_attendance</td><td>Student attendance records per section</td></tr>
+      <tr><td class="file-name">settings</td><td>sfft_settings</td><td>College name, domain, min threshold</td></tr>
+    </tbody></table>
+  </div>
+  <div class="section">
+    <div class="section-title">&#128193; File Structure</div>
+    <table class="file-table"><thead><tr><th>File</th><th>Lines</th><th>Size</th><th>Purpose</th></tr></thead><tbody>
+      <tr><td class="file-name">admin-dashboard.html</td><td>1,968</td><td>104 KB</td><td>Full admin panel (7 tabs, reports, user mgmt)</td></tr>
+      <tr><td class="file-name">teacher-dashboard.html</td><td>877</td><td>49 KB</td><td>Teacher portal (analytics, charts, report gen)</td></tr>
+      <tr><td class="file-name">student-dashboard.html</td><td>489</td><td>25 KB</td><td>Student portal (profile, feedback status)</td></tr>
+      <tr><td class="file-name">feedback-form.html</td><td>261</td><td>12 KB</td><td>Feedback submission form</td></tr>
+      <tr><td class="file-name">style.css</td><td>523</td><td>24 KB</td><td>Global dark theme styles</td></tr>
+      <tr><td class="file-name">data.js</td><td>309</td><td>17 KB</td><td>localStorage data layer (CRUD, analytics)</td></tr>
+      <tr><td class="file-name">firebase-sync.js</td><td>237</td><td>10 KB</td><td>Firestore background sync</td></tr>
+      <tr><td class="file-name">charts.js</td><td>125</td><td>4 KB</td><td>Chart.js rendering helpers</td></tr>
+      <tr><td class="file-name">auth.js</td><td>76</td><td>3 KB</td><td>Authentication &amp; session management</td></tr>
+      <tr><td class="file-name">firebase-config.js</td><td>18</td><td>646 B</td><td>Firebase initialization</td></tr>
+      <tr><td class="file-name">fix_emojis.js</td><td>99</td><td>3 KB</td><td>Emoji compatibility fixes</td></tr>
+      <tr><td class="file-name">index.html</td><td>63</td><td>3 KB</td><td>Landing page / role selection</td></tr>
+      <tr><td class="file-name">admin-login.html</td><td>127</td><td>6 KB</td><td>Admin login page</td></tr>
+      <tr><td class="file-name">teacher-login.html</td><td>125</td><td>6 KB</td><td>Teacher login page</td></tr>
+      <tr><td class="file-name">student-login.html</td><td>137</td><td>6 KB</td><td>Student login page</td></tr>
+    </tbody></table>
+  </div>
+  <div class="section">
+    <div class="section-title">&#128640; Features by Portal</div>
+    <h3 style="color:#c4b5fd;font-size:14px;margin:16px 0 10px;">&#128273; Admin Panel (7 Tabs)</h3>
+    <div class="feat-grid">
+      <div class="feat-card"><h4>&#128101; User Management</h4><p>Create, edit, delete students/teachers. Bulk CSV import. Select All + Delete Selected with Firestore sync.</p><span class="feat-tag bg-green">CRUD</span><span class="feat-tag bg-blue">Bulk Import</span></div>
+      <div class="feat-card"><h4>&#128218; Subjects &amp; Questionnaires</h4><p>Add/remove subjects. Build multi-section feedback questionnaires per subject.</p><span class="feat-tag bg-green">Dynamic Forms</span><span class="feat-tag bg-blue">Multi-Section</span></div>
+      <div class="feat-card"><h4>&#128101; Teacher Assignment</h4><p>Assign students to teachers with visual checklist cards. Roll No display. Section grouping.</p><span class="feat-tag bg-green">Visual Cards</span><span class="feat-tag bg-amber">Roll No</span></div>
+      <div class="feat-card"><h4>&#128172; Feedback Oversight</h4><p>View all submissions with filters. Select All checkbox. Delete Selected + Clear All with Firestore sync.</p><span class="feat-tag bg-green">Filters</span><span class="feat-tag bg-purple">Firestore Delete</span></div>
+      <div class="feat-card"><h4>&#128202; Reports &amp; Analytics</h4><p>Institution-wide charts. Per-teacher breakdown. Downloadable HTML report with SVG charts.</p><span class="feat-tag bg-green">Charts</span><span class="feat-tag bg-blue">Download Report</span></div>
+      <div class="feat-card"><h4>&#128203; Attendance + &#9881; Settings</h4><p>Upload CSV attendance. 75% threshold gate. College name, domain, min threshold config.</p><span class="feat-tag bg-green">CSV Upload</span><span class="feat-tag bg-blue">Config</span></div>
+    </div>
+    <h3 style="color:#c4b5fd;font-size:14px;margin:20px 0 10px;">&#128104;&zwj;&#127979; Teacher Dashboard</h3>
+    <div class="feat-grid">
+      <div class="feat-card"><h4>&#128202; Performance Overview</h4><p>Score cards, radar chart, bar chart, trend line. Status banner. Category breakdown.</p></div>
+      <div class="feat-card"><h4>&#128196; Report Generator</h4><p>Beautiful HTML report with SVG charts, summary cards, data table, comments. Print/PDF.</p></div>
+    </div>
+    <h3 style="color:#c4b5fd;font-size:14px;margin:20px 0 10px;">&#127891; Student Portal</h3>
+    <div class="feat-grid">
+      <div class="feat-card"><h4>&#128221; Feedback Submission</h4><p>Multi-section questionnaire with 1-5 star ratings. Anonymous option. Attendance-gated.</p></div>
+      <div class="feat-card"><h4>&#128100; Student Dashboard</h4><p>Profile with Roll No. Assigned teachers list. Submission status per teacher.</p></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">&#128295; Development History</div>
+    <div class="commit-list">
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Show Roll No in student dashboard profile</span><span class="commit-type ct-feat">FEAT</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Add Roll No to user modal + Delete Selected users</span><span class="commit-type ct-feat">FEAT</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Normalize CSV column names for bulk import</span><span class="commit-type ct-fix">FIX</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Unique user IDs to prevent overwrites</span><span class="commit-type ct-fix">FIX</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Batch insert for bulk import &mdash; single write</span><span class="commit-type ct-fix">FIX</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Batch delete users + clean all related Firestore data</span><span class="commit-type ct-fix">FIX</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Enhanced CSV export with section scores &amp; summary row</span><span class="commit-type ct-feat">FEAT</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Clear All Enrollments + Clear All Attendance buttons</span><span class="commit-type ct-feat">FEAT</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Feedback clear buttons + checkboxes + Firestore sync</span><span class="commit-type ct-feat">FEAT</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Rich HTML reports with SVG charts (Teacher + Admin)</span><span class="commit-type ct-feat">FEAT</span></div></div>
+      <div class="commit"><div class="commit-dot"></div><div><span class="commit-msg">Roll No in Teacher Assignment student cards</span><span class="commit-type ct-feat">FEAT</span></div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">&#128736; Technology Stack</div>
+    <div class="arch-grid">
+      <div class="arch-card"><h4>Frontend</h4><ul><li>HTML5 (Semantic)</li><li>CSS3 (Custom Properties)</li><li>Vanilla JavaScript (ES6+)</li><li>Chart.js 4.4.0</li><li>SVG (Inline Charts)</li><li>Google Fonts (Inter)</li></ul></div>
+      <div class="arch-card"><h4>Backend / Database</h4><ul><li>Firebase Firestore (NoSQL)</li><li>Firebase Compat SDK</li><li>localStorage (Offline)</li><li>Background Sync Pattern</li><li>Batch Write Operations</li><li>Auto-seed on First Run</li></ul></div>
+      <div class="arch-card"><h4>DevOps / Tools</h4><ul><li>GitHub (Version Control)</li><li>CodeWords (AI Automation)</li><li>Pipedream (GitHub API)</li><li>20 Commits in 1 Day</li><li>Zero-framework approach</li><li>No build step needed</li></ul></div>
+    </div>
+  </div>
+  <div class="footer">
+    <div style="font-weight:600;color:#94a3b8;">&#128202; Feedback System Project Report</div>
+    <div style="margin-top:4px;">Generated via CodeWords &middot; 12 March 2026 &middot; github.com/Vishnumgit/feedback</div>
+  </div>
+</div>
+</body>
+</html>
