@@ -423,7 +423,7 @@
           btnHtml = `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.6; cursor:not-allowed;">Feedback Locked</button>`;
         } else {
           statusHtml = done ? '<span class="badge badge-green">&#x2705; Submitted</span>' : '<span class="badge badge-orange">&#x23F3; Pending</span>';
-          btnHtml = done ? '<span style="font-size:12px; color:var(--text-muted);">Already submitted</span>' : `<button class="btn btn-primary btn-sm" onclick="goToFeedback('${t.id}')">&#x1F4DD; Give Feedback</button>`; Give Feedback'}</button>`;
+          btnHtml = done ? '<span style="font-size:12px; color:var(--text-muted);">Already submitted</span>' : `<button class="btn btn-primary btn-sm" onclick="goToFeedback('${t.id}')">&#x1F4DD; Give Feedback</button>`;
         }
 
         return `
