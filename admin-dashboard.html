@@ -1617,16 +1617,40 @@ function toggleSelectAll(masterCb) {
 }
 
 function deleteSelectedUsers() {
-  const selected = [...document.querySelectorAll('.user-select-cb:checked')].map(cb => cb.value);
-  if (!selected.length) { showToast('No users selected.', 'error'); return; }
-  if (!confirm(`Delete ${selected.length} selected user(s)? This cannot be undone.`)) return;
-  let deleted = 0;
-  selected.forEach(id => {
-    try { deleteUser(id); deleted++; } catch(e) {}
-  });
+  const selected = new Set([...document.querySelectorAll('.user-select-cb:checked')].map(cb => cb.value));
+  if (!selected.size) { showToast('No users selected.', 'error'); return; }
+  if (!confirm('Delete ' + selected.size + ' selected user(s)? This will also remove their enrollments and responses.')) return;
+
+  // BATCH DELETE: single read, filter, single write
+  const users = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+  const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+  const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+  const attendance = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
+
+  // Find enrollments to clean from Firestore
+  const enrollsToDelete = enrollments.filter(e => selected.has(e.studentId) || selected.has(e.teacherId));
+
+  // Filter out deleted users and their related data
+  const newUsers = users.filter(u => !selected.has(u.id));
+  const newEnrollments = enrollments.filter(e => !selected.has(e.studentId) && !selected.has(e.teacherId));
+  const newResponses = responses.filter(r => !selected.has(r.studentId) && !selected.has(r.teacherId));
+  const newAttendance = attendance.filter(a => !selected.has(a.studentId));
+
+  // Single batch write to localStorage
+  localStorage.setItem('sfft_users', JSON.stringify(newUsers));
+  localStorage.setItem('sfft_enrollments', JSON.stringify(newEnrollments));
+  localStorage.setItem('sfft_responses', JSON.stringify(newResponses));
+  localStorage.setItem('sfft_attendance', JSON.stringify(newAttendance));
+
+  // Sync deletes to Firestore
+  if (typeof fsDeleteDoc === 'function') {
+    selected.forEach(id => fsDeleteDoc('users', id));
+    enrollsToDelete.forEach(e => fsDeleteDoc('enrollments', e.studentId + '_' + e.teacherId));
+  }
+
   refreshUserCounts();
   renderUserTable(currentUserRole);
-  showToast(`Deleted ${deleted} user(s).`, 'info');
+  showToast('Deleted ' + selected.size + ' user(s) and cleaned up enrollments.', 'info');
 }
 
 function executeBulkImport() {
