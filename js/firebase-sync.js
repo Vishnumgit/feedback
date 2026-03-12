@@ -53,6 +53,7 @@ function syncFromFirestoreInBackground() {
       if (settings)                           localStorage.setItem('sfft_settings',        JSON.stringify(settings));
 
       console.log('[Firebase] Background sync complete ✅');
+      window.dispatchEvent(new Event('firestore-synced'));
     } catch(e) {
       console.warn('[Firebase] Background sync failed (offline?):', e.message);
     }
@@ -158,9 +159,9 @@ function patchDataFunctions() {
   };
 
   // ---- Responses ----
-  const _addResponse = window.addResponse;
-  window.addResponse = function(responseData) {
-    const result = _addResponse(responseData);
+  const _saveResponse = window.saveResponse;
+  window.saveResponse = function(responseData) {
+    const result = _saveResponse(responseData);
     const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
     const newResp = responses[responses.length - 1];
     if (newResp) fsSetDoc('responses', newResp.id, newResp);
