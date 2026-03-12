@@ -214,6 +214,13 @@
     if (sec === 'settings') renderSettings();
   }
 
+  // Re-render after Firestore sync to show correct submission status on new devices
+  window.addEventListener('firestore-synced', function() {
+    console.log('[Dashboard] Re-rendering after Firestore sync...');
+    renderTeachers();
+    renderDashboard();
+  });
+
   function renderDashboard() {
     const teachers = getTeachersForStudent(session.userId);
     const responses = getResponses().filter(r => r.studentId === session.userId);
