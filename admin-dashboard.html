@@ -645,6 +645,7 @@
 
   wrap.innerHTML = filterBar + `<table><thead><tr>
       <th>Name</th><th>Email</th><th>Dept / Section</th>
+      ${role==='student' ? '<th>Roll No</th>' : ''}
       ${role==='teacher' ? '<th>Subject</th>' : ''}
       <th>Status</th><th>Actions</th>
     </tr></thead>
@@ -659,6 +660,7 @@
             ${u.section ? `<span class="badge badge-purple" style="font-size:11px;">&#127991; ${u.section}</span>` : ''}
           </div>
         </td>
+        ${role==='student' ? `<td style="font-weight:600;font-size:13px;">${u.rollNo || '—'}</td>` : ''}
         ${role==='teacher' ? `<td>${sub ? `<span class="badge badge-purple">&#128218; ${sub.name}</span>` : '<span class="badge badge-gray">No subject</span>'}</td>` : ''}
         <td>${u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -1435,12 +1437,12 @@ function downloadCSVTemplate() {
   const subs = getSubjects();
   const subExample = subs.length ? subs[0].name : 'Mathematics';
   const rows = [
-    ['name','email','password','role','department','section','subject_name'],
-    ['Amit Sharma',`amit@${domain}`,'Amit@123','student','CSE','CSE1',''],
-    ['Sneha Patel',`sneha@${domain}`,'Sneha@123','student','CSE','CSE2',''],
-    ['Ravi Kumar',`ravi@${domain}`,'Ravi@123','student','EEE','EEE1',''],
-    ['Dr. Meera Joshi',`meera@${domain}`,'Meera@123','teacher','CSE','CSE1',subExample],
-    ['Prof. Suresh R.',`suresh@${domain}`,'Suresh@123','teacher','Humanities','ENG1','English'],
+    ['name','email','password','role','department','section','roll_no','subject_name'],
+    ['Amit Sharma',`amit@${domain}`,'Amit@123','student','CSE','CSE1','21CS101',''],
+    ['Sneha Patel',`sneha@${domain}`,'Sneha@123','student','CSE','CSE2','21CS102',''],
+    ['Ravi Kumar',`ravi@${domain}`,'Ravi@123','student','EEE','EEE1','21EE201',''],
+    ['Dr. Meera Joshi',`meera@${domain}`,'Meera@123','teacher','CSE','CSE1','',subExample],
+    ['Prof. Suresh R.',`suresh@${domain}`,'Suresh@123','teacher','Humanities','ENG1','','English'],
   ];
   const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
@@ -1525,6 +1527,7 @@ function parseAndPreviewCSV(text) {
       role: (cols[idx('role')] || '').toLowerCase(),
       department: idx('department') >= 0 ? cols[idx('department')] : '',
       section:    idx('section')    >= 0 ? cols[idx('section')]    : '',
+      rollNo:      idx('roll_no')      >= 0 ? cols[idx('roll_no')]      : '',
       subjectName: idx('subject_name') >= 0 ? cols[idx('subject_name')] : '',
       errors: [], warnings: [], skip: false,
     };
@@ -1598,7 +1601,7 @@ function executeBulkImport() {
   let imported = 0, failed = 0;
   toImport.forEach(r => {
     try {
-      addUser({ role: r.role, name: r.name, email: r.email, password: r.password, department: r.department, section: r.section || '', subjectId: r.subjectId || null });
+      addUser({ role: r.role, name: r.name, email: r.email, password: r.password, department: r.department, section: r.section || '', rollNo: r.rollNo || '', subjectId: r.subjectId || null });
       imported++;
     } catch(e) { failed++; }
   });
