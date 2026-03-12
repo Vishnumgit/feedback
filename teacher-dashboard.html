@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard — Feedback System</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="bg-orbs"></div>
+<div class="page-wrapper dashboard-layout">
+
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">SF</div>
+      <div>
+        <div class="sidebar-title">Feedback System</div>
+        <div class="sidebar-subtitle" id="collegeName">Portal</div>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-group-label">My Dashboard</div>
+      <div class="nav-item active" onclick="showSection('overview')"><span class="nav-icon">&#x1F4CA;</span> Overview</div>
+      <div class="nav-item" onclick="showSection('comments')"><span class="nav-icon">&#x1F4AC;</span> Student Comments</div>
+      <div class="nav-item" onclick="showSection('breakdown')"><span class="nav-icon">&#x1F4CB;</span> Score Breakdown</div>
+      <div class="nav-group-label" style="margin-top:16px;">Analytics</div>
+      <div class="nav-item" onclick="showSection('department')"><span class="nav-icon">&#x1F3DB;</span> Department Feedback</div>
+      <div class="nav-item" onclick="showSection('sections')"><span class="nav-icon">&#x1F4DB;</span> Section-wise Feedback</div>
+      <div class="nav-group-label" style="margin-top:16px;">Account</div>
+      <div class="nav-item" onclick="showSection('profile')"><span class="nav-icon">&#x1F464;</span> My Profile</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebarAvatar">T</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebarName">Teacher</div>
+        <div class="user-role" id="sidebarSubject">Teacher</div>
+        <div id="sidebarDeptSection" style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;"></div>
+      </div>
+      <button class="btn-logout" onclick="logout()" title="Logout">⬡</button>
+    </div>
+
+  </nav>
+
+    <!-- Profile Section -->
+    <div id="sectionProfile" style="display:none;">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Teacher Dashboard › <span>My Profile</span></div>
+          <div class="page-title">&#x1F464; Teacher Profile</div>
+          <div class="page-subtitle">Your personal and academic information</div>
+        </div>
+      </div>
+      <div id="profileContent"></div>
+    </div>
+  <main class="main-content">
+
+    <!-- Overview -->
+    <div id="sectionOverview">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Teacher Dashboard › <span>Overview</span></div>
+          <div class="page-title" id="welcomeTitle">My Feedback Dashboard</div>
+          <div class="page-subtitle" id="subjectBadgeWrap"></div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="downloadReport()">&#x2B07; Download CSV</button>
+      </div>
+
+      <div id="noDataMsg" class="empty-state" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">No Feedback Yet</div>
+        <div class="empty-desc">No students have submitted feedback yet. Results will appear here once submissions come in.</div>
+      </div>
+
+      <div id="dashboardData">
+        <!-- Performance Alert Banner -->
+        <div id="improvementWarning" style="display:none; margin-bottom:24px;">
+          <div style="
+            background: linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.05) 100%);
+            border: 1.5px solid rgba(239,68,68,0.35);
+            border-radius: 16px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(239,68,68,0.12);
+            animation: warnPulse 3s ease-in-out infinite;
+          ">
+            <!-- Top stripe -->
+            <div style="height:4px; background:linear-gradient(90deg,#ef4444,#f97316,#ef4444); background-size:200% 100%; animation: shiftGrad 2s linear infinite;"></div>
+            <div style="padding:20px 24px;">
+              <div style="display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap;">
+                <!-- Icon -->
+                <div style="
+                  width:52px; height:52px; border-radius:14px; flex-shrink:0;
+                  background:linear-gradient(135deg,#ef4444,#dc2626);
+                  display:flex; align-items:center; justify-content:center;
+                  font-size:22px; box-shadow:0 4px 12px rgba(239,68,68,0.4);
+                ">&#x26A0;&#xFE0F;</div>
+                <!-- Text -->
+                <div style="flex:1; min-width:220px;">
+                  <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
+                    <span style="font-weight:800; font-size:16px; color:#f87171; letter-spacing:0.3px;">Improvement Required</span>
+                    <span id="thresholdBadge" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);">Below Target</span>
+                  </div>
+                  <p style="font-size:13px; color:var(--text-sub); line-height:1.6; margin:0 0 14px;">
+                    Your current average score is <strong id="warnScoreText" style="color:#f87171;"></strong> — below the institution's minimum of <strong id="warnThreshText" style="color:var(--warning);"></strong>. Focus on your lowest-rated categories to improve.
+                  </p>
+                  <!-- Gap progress bar -->
+                  <div style="margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:11px; color:var(--text-muted);">
+                      <span>Your Score</span><span>Minimum Target</span>
+                    </div>
+                    <div style="height:8px; border-radius:6px; background:rgba(255,255,255,0.05); overflow:hidden; position:relative;">
+                      <div id="warnProgressBar" style="height:100%; border-radius:6px; background:linear-gradient(90deg,#ef4444,#f97316); transition:width 0.8s ease;"></div>
+                      <div id="warnTargetLine" style="position:absolute; top:0; bottom:0; width:2px; background:rgba(251,191,36,0.8);"></div>
+                    </div>
+                  </div>
+                  <!-- Tips -->
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <span style="font-size:11px; padding:4px 10px; border-radius:20px; background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.2);">&#x1F4CB; Review Score Breakdown</span>
+                    <span style="font-size:11px; padding:4px 10px; border-radius:20px; background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.2);">&#x1F4AC; Read Student Comments</span>
+                    <span style="font-size:11px; padding:4px 10px; border-radius:20px; background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.2);">&#x1F464; Meet with HOD</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <style>
+          @keyframes warnPulse { 0%,100%{box-shadow:0 4px 24px rgba(239,68,68,0.12)} 50%{box-shadow:0 4px 32px rgba(239,68,68,0.25)} }
+          @keyframes shiftGrad { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        </style>
+
+
+        <div class="stats-grid animate-in">
+          <div class="stat-card"><div class="stat-icon">&#x1F4E8;</div><div class="stat-value" id="statResponses">0</div><div class="stat-label">Total Responses</div></div>
+          <div class="stat-card"><div class="stat-icon">&#x2B50;</div><div class="stat-value" id="statAvg">—</div><div class="stat-label">Overall Average</div></div>
+          <div class="stat-card"><div class="stat-icon">&#x1F3C6;</div><div class="stat-value" id="statBest">—</div><div class="stat-label">Best Category</div></div>
+          <div class="stat-card"><div class="stat-icon">&#x1F4C8;</div><div class="stat-value" id="statTrend">—</div><div class="stat-label">Latest Trend</div></div>
+        </div>
+
+        <div class="charts-grid animate-in delay-1">
+          <!-- Row 1: Radar + Doughnut -->
+          <div class="chart-card">
+            <div class="chart-title">&#x1F4E1; Category Performance Radar</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">How you score across each evaluation area</div>
+            <div class="chart-canvas-wrap"><canvas id="radarChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">🍩 Score Distribution</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">How many students rated 1–5 overall</div>
+            <div class="chart-canvas-wrap"><canvas id="doughnutChart"></canvas></div>
+          </div>
+          <!-- Row 2: Polar Area + Bar -->
+          <div class="chart-card">
+            <div class="chart-title">📍 Polar: Category Comparison</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Relative strength of each feedback category</div>
+            <div class="chart-canvas-wrap"><canvas id="polarChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">&#x1F4CA; Rating Distribution by Category</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Average feedback score per category</div>
+            <div class="chart-canvas-wrap"><canvas id="barChart"></canvas></div>
+          </div>
+          <!-- Row 3: Full-width trend -->
+          <div class="chart-card" style="grid-column: 1 / -1;">
+            <div class="chart-title">&#x1F4C8; Average Score Trend Over Time</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Track whether your scores are improving per submission</div>
+            <div class="chart-canvas-wrap"><canvas id="trendChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comments -->
+    <div id="sectionComments" style="display:none;">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Teacher Dashboard › <span>Comments</span></div>
+          <div class="page-title">Student Feedback Comments</div>
+          <div class="page-subtitle">All qualitative feedback — identities protected per anonymity settings</div>
+        </div>
+      </div>
+      <div id="commentsList"></div>
+      <div id="noComments" class="empty-state" style="display:none;">
+        <div class="empty-icon">&#x1F4AC;</div>
+        <div class="empty-title">No Comments Yet</div>
+        <div class="empty-desc">Students haven't added open-ended comments yet.</div>
+      </div>
+    </div>
+
+    <!-- Breakdown -->
+    <div id="sectionBreakdown" style="display:none;">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Teacher Dashboard › <span>Score Breakdown</span></div>
+          <div class="page-title">Section-wise Score Breakdown</div>
+          <div class="page-subtitle">Average scores per evaluation category</div>
+        </div>
+      </div>
+      <div id="breakdownList"></div>
+    </div>
+
+    <!-- Department Feedback -->
+    <div id="sectionDepartment" style="display:none;">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Teacher Dashboard › <span>Department Feedback</span></div>
+          <div class="page-title">&#x1F3DB; Department-wide Analysis</div>
+          <div class="page-subtitle" id="deptFeedbackSubtitle">Comparison of all teachers in your department</div>
+        </div>
+      </div>
+      <div id="deptFeedbackContent"></div>
+    </div>
+
+    <!-- Section-wise Feedback -->
+    <div id="sectionSections" style="display:none;">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Teacher Dashboard › <span>Section-wise Feedback</span></div>
+          <div class="page-title">&#x1F4DB; Section-wise Score Analysis</div>
+          <div class="page-subtitle">Feedback breakdown from each student section</div>
+        </div>
+      </div>
+      <div id="sectionFeedbackContent"></div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/firebase-sync.js"></script>
+<script>
+  fbInit();
+  const session = requireAuth('teacher');
+  const teacher = getUserById(session.userId);
+  const subject = teacher ? getSubjectById(teacher.subjectId) : null;
+  const stats = getTeacherStats(session.userId);
+
+  document.getElementById('sidebarAvatar').textContent = session.name.charAt(0).toUpperCase();
+  document.getElementById('sidebarName').textContent = session.name;
+  document.getElementById('sidebarSubject').textContent = subject ? subject.name : 'Teacher';
+  document.getElementById('collegeName').textContent = getSettings().collegeName;
+  document.getElementById('welcomeTitle').textContent = 'Welcome, ' + session.name.split(' ')[0];
+  // Set subject badge in topbar (with dept + section)
+  if (teacher) {
+    let badgeHtml = subject ? `<span class="badge badge-purple">&#x1F4DA; ${subject.name}</span>` : '';
+    if (teacher.department) badgeHtml += ` <span class="badge badge-blue">&#x1F3DB; ${teacher.department}</span>`;
+    if (teacher.section)    badgeHtml += ` <span class="badge badge-purple" style="font-size:11px;">&#x1F4DB; ${teacher.section}</span>`;
+    document.getElementById('subjectBadgeWrap').innerHTML = badgeHtml;
+  }
+
+  const deptSection = teacher ? (teacher.section ? `${teacher.department || ''} · ${teacher.section}` : (teacher.department || '')) : '';
+  if (deptSection) document.getElementById('sidebarDeptSection').textContent = deptSection;
+
+  const ALL_SECTIONS = ['overview','comments','breakdown','department','sections','profile'];
+  function showSection(sec) {
+    ALL_SECTIONS.forEach(s => {
+      document.getElementById('section' + s.charAt(0).toUpperCase() + s.slice(1)).style.display = s === sec ? '' : 'none';
+    });
+    document.querySelectorAll('.nav-item').forEach(el => {
+      const m = el.getAttribute('onclick') && el.getAttribute('onclick').match(/'([^']+)'/);
+      if (m) el.classList.toggle('active', m[1] === sec);
+    });
+    if (sec === 'comments')   renderComments();
+    if (sec === 'breakdown')  renderBreakdown();
+    if (sec === 'department') renderDeptFeedback();
+    if (sec === 'sections')   renderSectionFeedback();
+    if (sec === 'profile')    renderProfile();
+  }
+
+  if (!stats) {
+    document.getElementById('noDataMsg').style.display = '';
+    document.getElementById('dashboardData').style.display = 'none';
+  } else {
+    const threshold = getSettings().minThreshold || 3.5;
+    const isUnder = stats.overallAvg < threshold;
+
+    if (isUnder) {
+      document.getElementById('improvementWarning').style.display = 'block';
+      document.getElementById('warnScoreText').textContent = stats.overallAvg + '/5';
+      document.getElementById('warnThreshText').textContent = threshold + '/5';
+      // Progress bar: your score as % of 5, target line as % of 5
+      const scorePct = (stats.overallAvg / 5 * 100).toFixed(1);
+      const threshPct = (threshold / 5 * 100).toFixed(1);
+      document.getElementById('warnProgressBar').style.width = scorePct + '%';
+      document.getElementById('warnTargetLine').style.left = threshPct + '%';
+    }
+
+    document.getElementById('statResponses').textContent = stats.totalResponses;
+
+    const avgEl = document.getElementById('statAvg');
+    avgEl.textContent = stats.overallAvg + '/5';
+    if (isUnder) avgEl.style.color = 'var(--danger)';
+
+    const bestCat = Object.entries(stats.sectionAverages).sort((a, b) => b[1] - a[1])[0];
+    document.getElementById('statBest').textContent = bestCat ? bestCat[1] + '/5' : '—';
+    const trendLast = stats.trendData.length ? stats.trendData[stats.trendData.length - 1].avg : null;
+    document.getElementById('statTrend').textContent = trendLast ? trendLast + '/5' : '—';
+    setTimeout(() => {
+      renderRadar('radarChart', session.userId);
+      renderBar('barChart', session.userId);
+      renderTrend('trendChart', session.userId);
+      renderDoughnutChart();
+      renderPolarChart();
+    }, 100);
+  }
+
+  // ─── New Chart: Doughnut (Score Distribution 1-5) ───────────────────────
+  function renderDoughnutChart() {
+    if (!stats) return;
+    const responses = getResponsesForTeacher(session.userId);
+    const freq = {1:0,2:0,3:0,4:0,5:0};
+    responses.forEach(r => Object.values(r.scores||{}).flat().forEach(v => { if (freq[v]!==undefined) freq[v]++; }));
+    const ctx = document.getElementById('doughnutChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['&#x2B50; 1 - Poor','&#x2B50;&#x2B50; 2 - Fair','&#x2B50;&#x2B50;&#x2B50; 3 - Good','&#x2B50;&#x2B50;&#x2B50;&#x2B50; 4 - Very Good','&#x2B50;&#x2B50;&#x2B50;&#x2B50;&#x2B50; 5 - Excellent'],
+        datasets: [{
+          data: Object.values(freq),
+          backgroundColor: ['rgba(239,68,68,0.8)','rgba(249,115,22,0.8)','rgba(234,179,8,0.8)','rgba(34,197,94,0.8)','rgba(124,58,237,0.8)'],
+          borderColor: 'rgba(0,0,0,0.2)',
+          borderWidth: 2,
+          hoverOffset: 8,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        plugins: {
+          legend: { position:'bottom', labels: { color:'rgba(255,255,255,0.7)', font:{size:10}, padding:10 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed} ratings` } }
+        },
+        cutout: '60%',
+      }
+    });
+  }
+
+  // ─── New Chart: Polar Area (Category Strengths) ──────────────────────────
+  function renderPolarChart() {
+    if (!stats) return;
+    const entries = Object.entries(stats.sectionAverages);
+    const ctx = document.getElementById('polarChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'polarArea',
+      data: {
+        labels: entries.map(([k]) => k),
+        datasets: [{
+          data: entries.map(([,v]) => v),
+          backgroundColor: entries.map((_, i) => `hsla(${i * 60 + 200},80%,65%,0.6)`),
+          borderColor: entries.map((_, i) => `hsla(${i * 60 + 200},80%,65%,1)`),
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        scales: { r: { ticks: { display: false }, grid: { color:'rgba(255,255,255,0.1)' }, pointLabels: { color:'rgba(255,255,255,0.7)', font:{size:10} }, min:0, max:5 } },
+        plugins: { legend: { position:'bottom', labels: { color:'rgba(255,255,255,0.7)', font:{size:10}, padding:10 } } }
+      }
+    });
+  }
+
+  // ─── Profile Section ─────────────────────────────────────────────────────
+  function renderProfile() {
+    const user = teacher || {};
+    const responses = getResponsesForTeacher(session.userId);
+    const allScores = responses.flatMap(r => Object.values(r.scores||{}).flat());
+    const overallAvg = allScores.length ? (allScores.reduce((a,b)=>a+b,0)/allScores.length).toFixed(2) : null;
+    const initials = (user.name||'T').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    const threshold = getSettings().minThreshold || 3.5;
+    const isUnder = overallAvg && parseFloat(overallAvg) < threshold;
+
+    const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments')||'[]').filter(e => e.teacherId === session.userId);
+    const students = enrollments.map(e => getUserById(e.studentId)).filter(Boolean);
+
+    document.getElementById('profileContent').innerHTML = `
+      <div style="display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:start;">
+        <!-- Left card: Avatar + quick stats -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="section-card animate-in" style="text-align:center;padding:28px 20px;">
+            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:30px;margin:0 auto 14px;">${initials}</div>
+            <div style="font-weight:800;font-size:16px;margin-bottom:4px;">${user.name||'Teacher'}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">${user.email||''}</div>
+            ${subject ? `<span class="badge badge-purple" style="margin-bottom:6px;display:inline-block;">&#x1F4DA; ${subject.name}</span>` : ''}
+            ${user.department ? `<span class="badge badge-blue" style="margin-bottom:6px;display:inline-block;">&#x1F3DB; ${user.department}</span>` : ''}
+            ${user.section ? `<span class="badge badge-purple" style="font-size:11px;display:inline-block;">&#x1F4DB; ${user.section}</span>` : ''}
+          </div>
+          <!-- Performance summary mini card -->
+          <div class="section-card animate-in" style="padding:16px 18px;">
+            <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:12px;">PERFORMANCE SUMMARY</div>
+            ${[
+              ['Total Responses', responses.length],
+              ['Overall Avg', overallAvg ? overallAvg + '/5' : '—'],
+              ['Students Enrolled', students.length],
+              ['Status', isUnder ? '&#x26A0;&#xFE0F; Needs Improvement' : '&#x2705; On Track'],
+            ].map(([k,v]) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px;">
+              <span style="color:var(--text-muted);">${k}</span>
+              <span style="font-weight:700;color:${k==='Status'?(isUnder?'var(--danger)':'var(--success)'):''}">${v}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+        <!-- Right card: Detailed info -->
+        <div class="section-card animate-in">
+          <div class="section-card-header"><div class="section-card-title">Personal & Academic Information</div></div>
+          <div class="section-card-body">
+            ${[
+              ['Full Name', user.name || '—'],
+              ['Email Address', user.email || '—'],
+              ['Department', user.department || '—'],
+              ['Section', user.section || '—'],
+              ['Subject', subject ? subject.name : '—'],
+              ['Role', 'Teacher'],
+            ].map(([k,v]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border-light);">
+              <span style="font-size:13px;color:var(--text-muted);">${k}</span>
+              <span style="font-weight:600;font-size:13px;">${v}</span>
+            </div>`).join('')}
+          </div>
+          <div class="section-card-header" style="border-top:1px solid var(--border-light);margin-top:8px;"><div class="section-card-title">Enrolled Students</div></div>
+          <div class="section-card-body" style="padding:0;">
+            ${students.length ? `<table><thead><tr><th>Name</th><th>Department</th><th>Section</th><th>Feedback</th></tr></thead><tbody>
+              ${students.map(s => `<tr>
+                <td style="font-weight:600;">${s.name}</td>
+                <td>${s.department||'—'}</td>
+                <td>${s.section ? `<span class="badge badge-purple" style="font-size:11px;">${s.section}</span>` : '—'}</td>
+                <td>${getResponses().find(r=>r.studentId===s.id&&r.teacherId===session.userId) ? '<span class="badge badge-green" style="font-size:10px;">&#x2705; Submitted</span>' : '<span class="badge badge-orange" style="font-size:10px;">&#x23F3; Pending</span>'}</td>
+              </tr>`).join('')}
+            </tbody></table>` : '<div class="empty-state" style="padding:20px;"><div class="empty-icon">&#x1F393;</div><div class="empty-title">No students enrolled yet</div></div>'}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderComments() {
+    const responses = getResponsesForTeacher(session.userId).filter(r => r.comments);
+    const list = document.getElementById('commentsList');
+    if (!responses.length) { list.innerHTML = ''; document.getElementById('noComments').style.display = ''; return; }
+    document.getElementById('noComments').style.display = 'none';
+    list.innerHTML = responses.map(r => {
+      const s = getUserById(r.studentId);
+      const label = r.anonymous ? 'Anonymous Student' : (s ? s.name : 'Unknown');
+      return `
+        <div class="section-card" style="margin-bottom:14px;">
+          <div class="section-card-body">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+              <div style="width:32px;height:32px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:13px;">
+                ${r.anonymous ? '&#x1F512;' : '&#x1F393;'}
+              </div>
+              <div>
+                <div style="font-size:13px; font-weight:600;">${label}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${new Date(r.submittedAt).toLocaleDateString()}</div>
+              </div>
+            </div>
+            <p style="font-size:14px; color:var(--text-sub); line-height:1.6; font-style:italic;">"${r.comments}"</p>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderBreakdown() {
+    if (!stats) { document.getElementById('breakdownList').innerHTML = '<div class="empty-state"><div class="empty-icon">&#x1F4CA;</div><div class="empty-title">No data yet</div></div>'; return; }
+    const entries = Object.entries(stats.sectionAverages);
+    document.getElementById('breakdownList').innerHTML = entries.map(([section, avg]) => {
+      const pct = ((avg / 5) * 100).toFixed(0);
+      const color = avg >= 4 ? 'var(--success)' : avg >= 3 ? 'var(--warning)' : 'var(--danger)';
+      return `
+        <div class="section-card" style="margin-bottom:14px;">
+          <div class="section-card-body">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <div style="font-weight:600; font-size:14px;">${section}</div>
+              <div style="font-size:18px; font-weight:800; color:${color};">${avg}/5</div>
+            </div>
+            <div class="progress-bar" style="height:8px; border-radius:4px;">
+              <div class="progress-fill" style="width:${pct}%; background:${color};"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderDeptFeedback() {
+    const myDept = teacher ? teacher.department : null;
+    const el = document.getElementById('deptFeedbackContent');
+    const subtitle = document.getElementById('deptFeedbackSubtitle');
+
+    if (!myDept) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">&#x1F3DB;</div><div class="empty-title">No Department Set</div><div class="empty-desc">Ask your admin to assign a department to your profile.</div></div>`;
+      return;
+    }
+    subtitle.textContent = `All teachers in the ${myDept} department`;
+
+    const deptTeachers = getTeachers().filter(t => t.department === myDept);
+    if (!deptTeachers.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">&#x1F3DB;</div><div class="empty-title">No data</div></div>`; return;
+    }
+
+    // Build department-wide stat table
+    const rows = deptTeachers.map(t => {
+      const s = getTeacherStats(t.id);
+      const sub = getSubjectById(t.subjectId);
+      const avg = s ? s.overallAvg : null;
+      const resp = s ? s.totalResponses : 0;
+      const threshold = getSettings().minThreshold || 3.5;
+      const isMe = t.id === session.userId;
+      const isUnder = avg !== null && avg < threshold;
+      const color = avg === null ? 'var(--text-muted)' : (isUnder ? 'var(--danger)' : 'var(--success)');
+      return `<tr style="${isMe ? 'background:rgba(124,58,237,0.07);' : ''}">
+        <td style="font-weight:${isMe?700:500};">${t.name}${isMe ? ' <span class="badge badge-purple" style="font-size:10px;">You</span>' : ''}</td>
+        <td>${sub ? sub.name : '—'}</td>
+        <td>${t.section ? `<span class="badge badge-purple" style="font-size:11px;">${t.section}</span>` : '—'}</td>
+        <td style="text-align:center;">${resp}</td>
+        <td style="font-weight:700;color:${color};text-align:center;">${avg !== null ? avg + '/5' : '—'}
+          ${isUnder ? ' <span style="font-size:10px;">&#x26A0;&#xFE0F;</span>' : ''}</td>
+      </tr>`;
+    }).join('');
+
+    // Dept average
+    const allAvgs = deptTeachers.map(t => getTeacherStats(t.id)?.overallAvg).filter(Boolean);
+    const deptAvg = allAvgs.length ? (allAvgs.reduce((a,b) => a+b,0)/allAvgs.length).toFixed(2) : null;
+
+    // Summary cards
+    const totalResps = deptTeachers.reduce((sum, t) => sum + (getTeacherStats(t.id)?.totalResponses || 0), 0);
+    const topT = deptTeachers.map(t => ({t, avg: getTeacherStats(t.id)?.overallAvg})).filter(x => x.avg).sort((a,b) => b.avg-a.avg)[0];
+
+    el.innerHTML = `
+      <div class="stats-grid animate-in" style="margin-bottom:20px;">
+        <div class="stat-card"><div class="stat-icon">👨‍&#x1F3EB;</div><div class="stat-value">${deptTeachers.length}</div><div class="stat-label">Teachers in ${myDept}</div></div>
+        <div class="stat-card"><div class="stat-icon">&#x2B50;</div><div class="stat-value">${deptAvg ? deptAvg+'/5' : '—'}</div><div class="stat-label">Dept. Average</div></div>
+        <div class="stat-card"><div class="stat-icon">&#x1F4E8;</div><div class="stat-value">${totalResps}</div><div class="stat-label">Total Responses</div></div>
+        <div class="stat-card"><div class="stat-icon">&#x1F3C6;</div><div class="stat-value" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topT ? topT.t.name.split(' ')[0] : '—'}</div><div class="stat-label">Top Rated Teacher</div></div>
+      </div>
+      <div class="section-card animate-in">
+        <div class="section-card-header"><div class="section-card-title">&#x1F4CA; ${myDept} Department Rankings</div></div>
+        <div class="section-card-body" style="padding:0;">
+          <table><thead><tr><th>Teacher</th><th>Subject</th><th>Section</th><th style="text-align:center;">Responses</th><th style="text-align:center;">Avg Score</th></tr></thead>
+          <tbody>${rows}</tbody></table>
+        </div>
+      </div>`;
+  }
+
+  function renderSectionFeedback() {
+    const myDept = teacher ? teacher.department : null;
+    const el = document.getElementById('sectionFeedbackContent');
+    const allResponses = getResponsesForTeacher(session.userId);
+
+    if (!allResponses.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">&#x1F4DB;</div><div class="empty-title">No Feedback Yet</div><div class="empty-desc">No students have submitted feedback so far.</div></div>`;
+      return;
+    }
+
+    // Group responses by student's section
+    const bySection = {};
+    allResponses.forEach(r => {
+      const student = getUserById(r.studentId);
+      const sec = (student && student.section) ? student.section : 'Unknown Section';
+      if (!bySection[sec]) bySection[sec] = [];
+      bySection[sec].push(r);
+    });
+
+    el.innerHTML = Object.entries(bySection).sort().map(([sec, resps]) => {
+      const allScores = resps.flatMap(r => Object.values(r.scores || {}).flat());
+      const avg = allScores.length ? (allScores.reduce((a,b) => a+b,0)/allScores.length).toFixed(2) : '—';
+      const pct = allScores.length ? ((parseFloat(avg)/5)*100).toFixed(0) : 0;
+      const color = parseFloat(avg) >= 4 ? 'var(--success)' : parseFloat(avg) >= 3 ? 'var(--warning)' : 'var(--danger)';
+
+      // Category breakdown for this section
+      const catData = {};
+      resps.forEach(r => {
+        Object.entries(r.scores || {}).forEach(([cat, scores]) => {
+          if (!catData[cat]) catData[cat] = [];
+          catData[cat].push(...scores);
+        });
+      });
+      const catRows = Object.entries(catData).map(([cat, scores]) => {
+        const catAvg = (scores.reduce((a,b) => a+b,0)/scores.length).toFixed(2);
+        const catPct = ((parseFloat(catAvg)/5)*100).toFixed(0);
+        const catColor = parseFloat(catAvg) >= 4 ? 'var(--success)' : parseFloat(catAvg) >= 3 ? 'var(--warning)' : 'var(--danger)';
+        return `<div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:12px;">
+            <span>${cat}</span><span style="font-weight:700;color:${catColor};">${catAvg}/5</span>
+          </div>
+          <div style="height:6px;background:var(--border-light);border-radius:6px;overflow:hidden;">
+            <div style="height:100%;width:${catPct}%;background:${catColor};border-radius:6px;"></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      return `
+        <div class="section-card animate-in" style="margin-bottom:18px;">
+          <div class="section-card-header">
+            <div class="section-card-title">&#x1F4DB; ${sec}</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span style="font-size:12px;color:var(--text-muted);">${resps.length} response${resps.length!==1?'s':''}</span>
+              <span style="font-size:16px;font-weight:800;color:${color};">${avg}/5</span>
+            </div>
+          </div>
+          <div class="section-card-body">
+            <div style="height:8px;background:var(--border-light);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+              <div style="height:100%;width:${pct}%;background:${color};border-radius:8px;transition:width 0.7s;"></div>
+            </div>
+            ${catRows}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function downloadReport() {
+    const responses = getResponsesForTeacher(session.userId);
+    if (!responses.length) { alert('No responses to export yet.'); return; }
+    const rows = [['Date','Anonymous','Overall Avg','Comments']];
+    responses.forEach(r => {
+      const all = Object.values(r.scores||{}).flat();
+      const avg = all.length ? (all.reduce((a,b)=>a+b,0)/all.length).toFixed(2) : 'N/A';
+      rows.push([new Date(r.submittedAt).toLocaleDateString(), r.anonymous?'Yes':'No', avg, (r.comments||'').replace(/,/g,';')]);
+    });
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `feedback_${session.name.replace(/ /g,'_')}.csv`; a.click();
+  }
+</script>
+</body>
+</html>
