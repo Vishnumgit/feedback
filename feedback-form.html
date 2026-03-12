@@ -91,6 +91,12 @@
   const isAnon = sessionStorage.getItem('sfft_feedback_anon') === '1';
   if (!teacherId) { window.location.href = 'student-dashboard.html'; }
 
+  // Block re-submission: if student already submitted for this teacher, redirect back
+  if (hasSubmitted(session.userId, teacherId)) {
+    alert('You have already submitted feedback for this teacher.');
+    window.location.href = 'student-dashboard.html';
+  }
+
   const teacher = getUserById(teacherId);
   const subject = teacher ? getSubjectById(teacher.subjectId) : null;
   const questionnaire = teacher && teacher.subjectId ? getQuestionnaire(teacher.subjectId) : { sections: [] };
