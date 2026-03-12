@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Feedback System</title>
+  <meta name="description" content="Student Feedback Form for Teachers — Enhance educational quality through structured, anonymous feedback." />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="bg-orbs"></div>
+<div class="page-wrapper">
+  <div style="min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 24px;">
+    
+    <div class="landing-hero animate-in">
+      <div class="hero-tag">&#x1F393; Educational Quality Platform</div>
+      <h1 class="hero-title">Student Feedback<br><span>for Teachers</span></h1>
+      <p class="hero-desc">A transparent, anonymous, and structured system for collecting student feedback to enhance teaching quality and professional development.</p>
+    </div>
+
+    <div class="role-cards animate-in delay-1" id="roleCards">
+      <a href="student-login.html" class="role-card" id="studentCard">
+        <div class="role-card-icon" style="background: rgba(59,130,246,0.15);">&#x1F393;</div>
+        <div class="role-card-title">Student</div>
+        <div class="role-card-desc">Submit feedback for your teachers anonymously and help improve the quality of education.</div>
+        <span class="role-card-arrow">→</span>
+      </a>
+
+      <a href="teacher-login.html" class="role-card" id="teacherCard">
+        <div class="role-card-icon" style="background: rgba(16,185,129,0.15);">👨‍&#x1F3EB;</div>
+        <div class="role-card-title">Teacher</div>
+        <div class="role-card-desc">View your personalized feedback dashboard with detailed analytics and student insights.</div>
+        <span class="role-card-arrow">→</span>
+      </a>
+
+      <a href="admin-login.html" class="role-card" id="adminCard">
+        <div class="role-card-icon" style="background: rgba(124,58,237,0.15);">&#x2699;️</div>
+        <div class="role-card-title">Administrator</div>
+        <div class="role-card-desc">Manage users, configure questionnaires, assign teachers, and generate institutional reports.</div>
+        <span class="role-card-arrow">→</span>
+      </a>
+    </div>
+
+    <p style="margin-top: 40px; font-size: 12px; color: var(--text-muted); text-align:center;">
+      All feedback is collected anonymously &nbsp;·&nbsp; Powered by your institution's secure portal
+    </p>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script>
+  initDB();
+  // Redirect if already logged in
+  const s = JSON.parse(sessionStorage.getItem('sfft_session') || 'null');
+  if (s) {
+    if (s.role === 'student') window.location.href = 'student-dashboard.html';
+    else if (s.role === 'teacher') window.location.href = 'teacher-dashboard.html';
+    else if (s.role === 'admin') window.location.href = 'admin-dashboard.html';
+  }
+</script>
+</body>
+</html>
