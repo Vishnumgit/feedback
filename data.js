@@ -222,6 +222,17 @@ function saveResponse({ teacherId, studentId, subjectId, anonymous, scores, comm
   set(DB.RESPONSES, all);
 }
 
+function deleteResponse(responseId) {
+  set(DB.RESPONSES, getResponses().filter(r => r.id !== responseId));
+}
+function deleteResponses(responseIds) {
+  const idSet = new Set(responseIds);
+  set(DB.RESPONSES, getResponses().filter(r => !idSet.has(r.id)));
+}
+function clearAllResponses() {
+  set(DB.RESPONSES, []);
+}
+
 // ---- Analytics Helpers --------------------------------------
 function getTeacherStats(teacherId) {
   const responses = getResponsesForTeacher(teacherId);
