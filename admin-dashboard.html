@@ -115,6 +115,7 @@
           </div>
           <button class="btn btn-primary btn-sm" onclick="saveAssignments()" id="saveAssignBtn"
             style="display:none;">&#128190; Save Assignments</button>
+          <button class="btn btn-sm" onclick="clearAllEnrollments()" style="background:var(--danger);color:#fff;">&#128465; Clear All Enrollments</button>
         </div>
 
         <!-- Step 1: Pick Teacher -->
@@ -1651,6 +1652,25 @@ function deleteSelectedUsers() {
   refreshUserCounts();
   renderUserTable(currentUserRole);
   showToast('Deleted ' + selected.size + ' user(s) and cleaned up enrollments.', 'info');
+}
+
+
+function clearAllEnrollments() {
+  const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+  if (!enrollments.length) { showToast('No enrollments to clear.', 'info'); return; }
+  if (!confirm('Clear ALL ' + enrollments.length + ' enrollments? Teachers will show 0 students. This cannot be undone.')) return;
+
+  // Delete from Firestore
+  if (typeof fsDeleteDoc === 'function') {
+    enrollments.forEach(e => fsDeleteDoc('enrollments', e.studentId + '_' + e.teacherId));
+  }
+
+  // Clear from localStorage
+  localStorage.setItem('sfft_enrollments', '[]');
+
+  // Refresh UI
+  renderAssignTab();
+  showToast('All enrollments cleared from localStorage and Firestore!', 'success');
 }
 
 function executeBulkImport() {
