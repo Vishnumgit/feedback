@@ -305,7 +305,10 @@
               <div class="page-title">Reports & Analytics</div>
               <div class="page-subtitle">Institution-wide performance overview</div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="exportResponsesCSV()">? Export All CSV</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="exportResponsesCSV()">&#128229; Export CSV</button>
+            <button class="btn btn-sm" onclick="downloadAdminReport()" style="background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;">&#128202; Download Report</button>
+          </div>
           </div>
           <div class="charts-grid animate-in">
             <div class="chart-card" style="grid-column:1/-1;">
@@ -1261,6 +1264,215 @@ function renderReports() {
       });
     });
   }, 150);
+}
+
+
+function downloadAdminReport() {
+  const stats = getInstitutionStats();
+  if (!stats.length) { showToast('No feedback data to generate report.', 'error'); return; }
+  const settings = getSettings();
+  const threshold = settings.minThreshold || 3.5;
+  const collegeName = settings.collegeName || 'Institution';
+  const reportDate = new Date().toLocaleDateString('en-IN', {year:'numeric',month:'long',day:'numeric'});
+  const allResponses = getResponses();
+  const totalResponses = allResponses.length;
+
+  // Institution-wide averages
+  const allScores = allResponses.flatMap(function(r){ return Object.values(r.scores||{}).flat(); });
+  const instAvg = allScores.length ? (allScores.reduce(function(a,b){return a+b;},0)/allScores.length).toFixed(2) : '0';
+  const isInstUnder = parseFloat(instAvg) < threshold;
+
+  // Dept aggregation
+  const deptMap = {};
+  stats.forEach(function(item){
+    var d = item.teacher.department || 'Unknown';
+    if(!deptMap[d]) deptMap[d]={total:0,count:0,teachers:0};
+    deptMap[d].total += item.stats.overallAvg;
+    deptMap[d].count++;
+    deptMap[d].teachers++;
+  });
+  var deptLabels = Object.keys(deptMap);
+  var deptAvgs = deptLabels.map(function(d){ return (deptMap[d].total/deptMap[d].count).toFixed(2); });
+
+  // Score distribution
+  var dist = [0,0,0,0,0];
+  allScores.forEach(function(v){ if(v>=1&&v<=5) dist[Math.round(v)-1]++; });
+  var maxDist = Math.max.apply(null, dist.concat([1]));
+
+  // Colors
+  var barColors = ['#ef4444','#f97316','#eab308','#22c55e','#10b981'];
+  var catColors = ['#7c3aed','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6'];
+
+  // Teacher perf bar chart (SVG)
+  var tBarH=28, tGap=10;
+  var tChartH = stats.length*(tBarH+tGap)+10;
+  var tSVG = '<svg width="100%" height="'+tChartH+'" viewBox="0 0 650 '+tChartH+'">';
+  stats.forEach(function(item,i){
+    var val=item.stats.overallAvg; var pct=(val/5)*400;
+    var y=i*(tBarH+tGap)+5;
+    var color=val>=4?'#22c55e':val>=threshold?'#f59e0b':'#ef4444';
+    tSVG+='<rect x="180" y="'+y+'" width="'+pct+'" height="'+tBarH+'" rx="5" fill="'+color+'" opacity="0.85"/>';
+    var nm=item.teacher.name; if(nm.length>22)nm=nm.slice(0,22)+'...';
+    tSVG+='<text x="175" y="'+(y+tBarH/2+5)+'" text-anchor="end" font-size="11" fill="#334155" font-weight="600">'+nm+'</text>';
+    tSVG+='<text x="'+(182+pct+6)+'" y="'+(y+tBarH/2+5)+'" font-size="12" fill="#1e293b" font-weight="700">'+val+'/5</text>';
+  });
+  tSVG+='</svg>';
+
+  // Dept bar chart (SVG)
+  var dBarH=32, dGap=14;
+  var dChartH=deptLabels.length*(dBarH+dGap)+10;
+  var dSVG='<svg width="100%" height="'+dChartH+'" viewBox="0 0 600 '+dChartH+'">';
+  deptLabels.forEach(function(d,i){
+    var val=parseFloat(deptAvgs[i]); var pct=(val/5)*380;
+    var y=i*(dBarH+dGap)+5;
+    var color=catColors[i%catColors.length];
+    dSVG+='<rect x="160" y="'+y+'" width="'+pct+'" height="'+dBarH+'" rx="6" fill="'+color+'" opacity="0.85"/>';
+    dSVG+='<text x="155" y="'+(y+dBarH/2+5)+'" text-anchor="end" font-size="12" fill="#334155" font-weight="600">'+d+'</text>';
+    dSVG+='<text x="'+(162+pct+6)+'" y="'+(y+dBarH/2+5)+'" font-size="13" fill="#1e293b" font-weight="700">'+val+'/5</text>';
+  });
+  dSVG+='</svg>';
+
+  // Distribution bar chart (SVG)
+  var distBarW=70,distGap=20,distHt=150;
+  var distChartW=5*(distBarW+distGap)+40;
+  var distSVG='<svg width="100%" height="'+(distHt+40)+'" viewBox="0 0 '+distChartW+' '+(distHt+40)+'">';
+  dist.forEach(function(count,i){
+    var h=maxDist>0?(count/maxDist)*(distHt-20):0;
+    var x=i*(distBarW+distGap)+30;
+    var y2=distHt-h;
+    distSVG+='<rect x="'+x+'" y="'+y2+'" width="'+distBarW+'" height="'+h+'" rx="6" fill="'+barColors[i]+'" opacity="0.85"/>';
+    distSVG+='<text x="'+(x+distBarW/2)+'" y="'+(y2-6)+'" text-anchor="middle" font-size="14" fill="#1e293b" font-weight="700">'+count+'</text>';
+    distSVG+='<text x="'+(x+distBarW/2)+'" y="'+(distHt+18)+'" text-anchor="middle" font-size="13" fill="#64748b">'+(i+1)+' Star'+(i>0?'s':'')+'</text>';
+  });
+  distSVG+='<line x1="25" y1="'+distHt+'" x2="'+(distChartW-10)+'" y2="'+distHt+'" stroke="#e2e8f0" stroke-width="1"/>';
+  distSVG+='</svg>';
+
+  // Per-teacher detail cards
+  var teacherCards = stats.map(function(item){
+    var t=item.teacher; var avg=item.stats.overallAvg;
+    var isUnder=avg<threshold;
+    var color=isUnder?'#ef4444':(avg>=4?'#22c55e':'#f59e0b');
+    var entries=Object.entries(item.stats.sectionAverages);
+    var best=entries.sort(function(a,b){return b[1]-a[1];})[0];
+    var worst=entries[entries.length-1];
+    // Category bars
+    var cBarH2=24,cGap2=8;
+    var cH2=entries.length*(cBarH2+cGap2)+10;
+    var cSVG2='<svg width="100%" height="'+cH2+'" viewBox="0 0 500 '+cH2+'">';
+    entries.forEach(function(e,j){
+      var nm2=e[0]; var v2=e[1]; var pct2=(v2/5)*300;
+      var y3=j*(cBarH2+cGap2)+5;
+      var c2=v2>=4?'#22c55e':v2>=3?'#f59e0b':'#ef4444';
+      cSVG2+='<rect x="140" y="'+y3+'" width="'+pct2+'" height="'+cBarH2+'" rx="5" fill="'+c2+'" opacity="0.8"/>';
+      var sn=nm2.length>18?nm2.slice(0,18)+'...':nm2;
+      cSVG2+='<text x="135" y="'+(y3+cBarH2/2+4)+'" text-anchor="end" font-size="11" fill="#334155" font-weight="500">'+sn+'</text>';
+      cSVG2+='<text x="'+(142+pct2+5)+'" y="'+(y3+cBarH2/2+4)+'" font-size="11" fill="#1e293b" font-weight="700">'+v2+'/5</text>';
+    });
+    cSVG2+='</svg>';
+
+    return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:18px;page-break-inside:avoid;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'+
+        '<div>'+
+          '<div style="font-size:16px;font-weight:700;color:#1e293b;">'+t.name+'</div>'+
+          '<div style="font-size:12px;color:#64748b;">'+(item.subject?item.subject.name:'')+
+            (t.department?' &middot; '+t.department:'')+
+            (t.section?' &middot; Section '+t.section:'')+'</div>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:10px;">'+
+          '<span style="font-size:22px;font-weight:800;color:'+color+';">'+avg+'/5</span>'+
+          '<span style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:'+(isUnder?'#fee2e2;color:#dc2626':'#dcfce7;color:#16a34a')+'">'+(isUnder?'Needs Improvement':'On Track')+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:auto auto auto;gap:14px;margin-bottom:14px;">'+
+        '<div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:18px;font-weight:800;color:#7c3aed;">'+item.stats.totalResponses+'</div><div style="font-size:10px;color:#64748b;font-weight:600;">RESPONSES</div></div>'+
+        '<div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:14px;font-weight:700;color:#10b981;">'+(best?best[0]:'N/A')+'</div><div style="font-size:10px;color:#64748b;font-weight:600;">BEST: '+(best?best[1]+'/5':'')+'</div></div>'+
+        '<div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:14px;font-weight:700;color:#ef4444;">'+(worst?worst[0]:'N/A')+'</div><div style="font-size:10px;color:#64748b;font-weight:600;">LOWEST: '+(worst?worst[1]+'/5':'')+'</div></div>'+
+      '</div>'+
+      '<div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;">CATEGORY-WISE PERFORMANCE</div>'+
+      cSVG2+
+    '</div>';
+  }).join('');
+
+  // Build final HTML
+  var html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>Institution Feedback Report - '+collegeName+'</title>'+
+  '<style>'+
+  "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');"+
+  '*{margin:0;padding:0;box-sizing:border-box;}'+
+  "body{font-family:'Inter',system-ui,sans-serif;color:#1e293b;background:#fff;padding:0;}"+
+  '@media print{body{padding:0;}.no-print{display:none!important;}}'+
+  '.container{max-width:900px;margin:0 auto;padding:30px 36px;}'+
+  '.report-header{text-align:center;padding:28px 20px;border-bottom:3px solid #7c3aed;margin-bottom:28px;}'+
+  '.report-header h1{font-size:22px;font-weight:800;color:#7c3aed;margin-bottom:4px;letter-spacing:-0.5px;}'+
+  '.report-header .college{font-size:18px;font-weight:700;color:#334155;}'+
+  '.report-header .subtitle{font-size:13px;color:#64748b;margin-top:6px;}'+
+  '.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}'+
+  '.card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;}'+
+  '.card .num{font-size:26px;font-weight:800;color:#7c3aed;}'+
+  '.card .lbl{font-size:11px;color:#64748b;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}'+
+  '.status-banner{padding:16px 20px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:14px;}'+
+  '.status-pass{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;}'+
+  '.status-fail{background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;}'+
+  '.section-title{font-size:16px;font-weight:700;color:#1e293b;margin:24px 0 14px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;display:flex;align-items:center;gap:8px;}'+
+  '.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}'+
+  '.chart-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px;}'+
+  '.chart-box h3{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}'+
+  'table{width:100%;border-collapse:collapse;font-size:12px;}'+
+  'th{background:#7c3aed;color:#fff;padding:10px 8px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.3px;}'+
+  'td{padding:9px 8px;border-bottom:1px solid #e2e8f0;}'+
+  'tr:nth-child(even){background:#f8fafc;}'+
+  '.report-footer{text-align:center;padding:20px 0;margin-top:24px;border-top:2px solid #e2e8f0;font-size:11px;color:#94a3b8;}'+
+  '.print-btn{position:fixed;top:16px;right:16px;background:#7c3aed;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;z-index:100;}'+
+  '.print-btn:hover{background:#6d28d9;}'+
+  '</style></head><body>'+
+  '<button class="print-btn no-print" onclick="window.print()">&#128424; Print / Save PDF</button>'+
+  '<div class="container">'+
+  '<div class="report-header"><h1>&#127979; Institution Feedback Report</h1><div class="college">'+collegeName+'</div><div class="subtitle">Generated on '+reportDate+'</div></div>'+
+
+  // Status Banner
+  '<div class="status-banner '+(isInstUnder?'status-fail':'status-pass')+'">'+
+    '<div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:'+(isInstUnder?'#fecaca':'#bbf7d0')+';">'+(isInstUnder?'&#9888;&#65039;':'&#9989;')+'</div>'+
+    '<div><div style="font-weight:700;font-size:15px;color:'+(isInstUnder?'#dc2626':'#16a34a')+';">'+(isInstUnder?'Institution Below Target':'Institution On Track')+'</div>'+
+    '<div style="font-size:13px;color:#475569;">Overall Average: <strong style="font-size:16px;color:'+(isInstUnder?'#dc2626':'#16a34a')+';">'+instAvg+'/5</strong> | Threshold: '+threshold+'/5 | '+stats.length+' teachers evaluated</div></div></div>'+
+
+  // Summary Cards
+  '<div class="cards">'+
+    '<div class="card"><div class="num">'+stats.length+'</div><div class="lbl">Teachers Evaluated</div></div>'+
+    '<div class="card"><div class="num">'+totalResponses+'</div><div class="lbl">Total Responses</div></div>'+
+    '<div class="card"><div class="num" style="color:'+(isInstUnder?'#ef4444':'#7c3aed')+';">'+instAvg+'/5</div><div class="lbl">Institution Average</div></div>'+
+    '<div class="card"><div class="num">'+deptLabels.length+'</div><div class="lbl">Departments</div></div>'+
+  '</div>'+
+
+  // Charts row
+  '<div class="chart-grid">'+
+    '<div class="chart-box"><h3>&#128202; Department Comparison</h3>'+dSVG+'</div>'+
+    '<div class="chart-box"><h3>&#127775; Score Distribution (1-5)</h3>'+distSVG+'</div>'+
+  '</div>'+
+
+  // Teacher Performance Chart (full width)
+  '<div class="chart-box" style="margin-bottom:24px;"><h3>&#127979; Teacher Performance Overview</h3>'+tSVG+'</div>'+
+
+  // Summary Table
+  '<div class="section-title">&#128203; Teacher Summary Table</div>'+
+  '<div style="overflow-x:auto;margin-bottom:24px;"><table><thead><tr><th>#</th><th>Teacher</th><th>Department</th><th>Subject</th><th>Responses</th><th>Avg Score</th><th>Best Category</th><th>Status</th></tr></thead><tbody>'+
+  stats.map(function(item,i){
+    var best2=Object.entries(item.stats.sectionAverages).sort(function(a,b){return b[1]-a[1];})[0];
+    var isU=item.stats.overallAvg<threshold;
+    var c3=isU?'#ef4444':(item.stats.overallAvg>=4?'#16a34a':'#f59e0b');
+    return '<tr'+(isU?' style="background:#fef2f2;"':'')+'><td style="text-align:center;font-weight:600;">'+(i+1)+'</td><td style="font-weight:600;">'+item.teacher.name+'</td><td>'+(item.teacher.department||'N/A')+'</td><td>'+(item.subject?item.subject.name:'N/A')+'</td><td style="text-align:center;">'+item.stats.totalResponses+'</td><td style="text-align:center;font-weight:700;color:'+c3+';">'+item.stats.overallAvg+'/5</td><td style="font-size:11px;">'+(best2?best2[0]+' ('+best2[1]+')':'N/A')+'</td><td><span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:600;background:'+(isU?'#fee2e2;color:#dc2626':'#dcfce7;color:#16a34a')+'">'+(isU?'Needs Improvement':'On Track')+'</span></td></tr>';
+  }).join('')+
+  '</tbody></table></div>'+
+
+  // Per-teacher detailed cards
+  '<div class="section-title">&#128100; Per-Teacher Detailed Breakdown</div>'+
+  teacherCards+
+
+  '<div class="report-footer"><div style="font-weight:600;color:#64748b;">This report was auto-generated by the '+collegeName+' Feedback System</div><div style="margin-top:4px;">Confidential &mdash; For authorized use only &mdash; '+reportDate+'</div></div>'+
+  '</div></body></html>';
+
+  var blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  showToast('Institution report opened! Use Print to save as PDF.', 'success');
 }
 
 // ==================== SETTINGS TAB ====================
