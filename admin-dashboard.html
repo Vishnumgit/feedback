@@ -1436,6 +1436,18 @@ function renderAttendanceRecords() {
     }).join('')}</tbody></table>`;
 }
 
+function clearAllAttendance() {
+  var records = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
+  if (!records.length) { showToast('No attendance records to clear.', 'info'); return; }
+  if (!confirm('Clear ALL ' + records.length + ' attendance records? This cannot be undone.')) return;
+  if (typeof fsDeleteDoc === 'function') {
+    records.forEach(function(r) { fsDeleteDoc('attendance', r.studentId); });
+  }
+  localStorage.setItem('sfft_attendance', '[]');
+  renderAttendanceRecords();
+  showToast('All attendance records cleared!', 'success');
+}
+
 function downloadAttendanceTemplate() {
   const csv = "email,section,attendance_percentage\nstudent1@college.edu,CSE-A,85\nstudent2@college.edu,CSE-B,60\n";
   const blob = new Blob([csv], {type:'text/csv'});
