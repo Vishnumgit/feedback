@@ -207,13 +207,6 @@
       if (m) el.classList.toggle('active', m[1] === sec);
     });
     if (sec === 'teachers') renderTeachers();
-
-  // Re-render after Firestore sync to show correct submission status
-  window.addEventListener('firestore-synced', function() {
-    console.log('[Dashboard] Re-rendering after Firestore sync...');
-    renderTeachers();
-    renderDashboard();
-  });
     if (sec === 'history') renderHistory();
     if (sec === 'dashboard') renderDashboard();
     if (sec === 'academics') renderAcademics();
