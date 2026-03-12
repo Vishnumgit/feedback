@@ -5,7 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Teacher Dashboard — Feedback System</title>
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+  function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:10px;color:#fff;font-size:14px;z-index:9999;animation:fadeIn 0.3s;';
+    t.style.background = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#7c3aed';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+</script>
 </head>
 <body>
 <div class="bg-orbs"></div>
@@ -610,16 +619,47 @@
   function downloadReport() {
     const responses = getResponsesForTeacher(session.userId);
     if (!responses.length) { alert('No responses to export yet.'); return; }
-    const rows = [['Date','Anonymous','Overall Avg','Comments']];
-    responses.forEach(r => {
-      const all = Object.values(r.scores||{}).flat();
-      const avg = all.length ? (all.reduce((a,b)=>a+b,0)/all.length).toFixed(2) : 'N/A';
-      rows.push([new Date(r.submittedAt).toLocaleDateString(), r.anonymous?'Yes':'No', avg, (r.comments||'').replace(/,/g,';')]);
+    
+    // Build detailed CSV with section-wise scores
+    const sections = Object.keys(responses[0].scores || {});
+    const headerRow = ['#', 'Date', 'Student Roll No', 'Student Section', 'Anonymous', ...sections.map(s => s + ' (Avg)'), 'Overall Avg', 'Comments'];
+    const dataRows = responses.map((r, i) => {
+      const student = r.anonymous ? null : getUserById(r.studentId);
+      const sectionScores = sections.map(s => {
+        const vals = r.scores[s] || [];
+        return vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(2) : 'N/A';
+      });
+      const all = Object.values(r.scores || {}).flat();
+      const avg = all.length ? (all.reduce((a,b) => a+b, 0) / all.length).toFixed(2) : 'N/A';
+      return [
+        i + 1,
+        r.submittedAt ? new Date(r.submittedAt).toLocaleDateString() : 'N/A',
+        r.anonymous ? 'Anonymous' : (student ? (student.rollNo || student.email) : 'Unknown'),
+        r.anonymous ? 'Hidden' : (student ? (student.section || 'N/A') : 'N/A'),
+        r.anonymous ? 'Yes' : 'No',
+        ...sectionScores,
+        avg,
+        '"' + (r.comments || '').replace(/"/g, '""') + '"'
+      ];
     });
-    const csv = rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `feedback_${session.name.replace(/ /g,'_')}.csv`; a.click();
+    
+    // Add summary row
+    const summaryRow = ['', 'AVERAGE', '', '', ''];
+    sections.forEach(s => {
+      const allVals = responses.flatMap(r => r.scores[s] || []);
+      summaryRow.push(allVals.length ? (allVals.reduce((a,b) => a+b, 0) / allVals.length).toFixed(2) : 'N/A');
+    });
+    const allScores = responses.flatMap(r => Object.values(r.scores || {}).flat());
+    summaryRow.push(allScores.length ? (allScores.reduce((a,b) => a+b, 0) / allScores.length).toFixed(2) : 'N/A');
+    summaryRow.push('');
+    
+    const csv = [headerRow, ...dataRows, summaryRow].map(r => r.join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'feedback_' + session.name.replace(/ /g, '_') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    showToast('Detailed feedback report downloaded!', 'success');
   }
 </script>
 </body>
