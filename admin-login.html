@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — Feedback System</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<div class="bg-orbs"></div>
+<div class="page-wrapper center-page">
+  <div class="login-card glass animate-in">
+    <div class="login-card-body">
+      <div class="login-logo-ring">&#x2699;️</div>
+      <h1 class="login-title">Admin Login</h1>
+      <p class="login-sub">System administration — full control panel</p>
+      <div style="text-align:center; margin-bottom:20px;">
+        <span class="role-badge badge-purple" style="background:rgba(124,58,237,0.15); color:var(--accent-light); border:1px solid rgba(124,58,237,0.3);">&#x2699;️ Admin Portal</span>
+      </div>
+
+      <!-- Google Sign-In -->
+      <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px;">
+        <div id="g_id_onload"
+          data-client_id="592918420084-qgj2566dvssfqboiv7bbassro1tui3eb.apps.googleusercontent.com"
+          data-callback="handleGoogleSignIn"
+          data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+          data-type="standard"
+          data-shape="rectangular"
+          data-theme="filled_black"
+          data-text="signin_with"
+          data-size="large"
+          data-logo_alignment="left"
+          data-width="320">
+        </div>
+        <div id="googleErr" style="margin-top:10px; font-size:12px; color:var(--danger); text-align:center; white-space:pre-line;"></div>
+      </div>
+
+      <!-- Divider -->
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <div style="flex:1; height:1px; background:var(--border);"></div>
+        <span style="font-size:12px; color:var(--text-muted);">or sign in with password</span>
+        <div style="flex:1; height:1px; background:var(--border);"></div>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="email">Admin Email</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">✉️</span>
+            <input type="email" id="email" placeholder="admin@college.edu" />
+          </div>
+          <div class="form-error" id="emailErr"></div>
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-icon-wrap">
+            <span class="input-icon">&#x1F512;</span>
+            <input type="password" id="password" placeholder="Admin password" />
+          </div>
+          <div class="form-error" id="passErr"></div>
+        </div>
+        <div class="form-error" id="loginErr" style="margin-bottom:12px; font-size:13px;"></div>
+        <button type="submit" class="btn btn-primary btn-full">Sign In as Admin</button>
+      </form>
+
+      <div style="margin-top:20px; padding:12px; background:rgba(124,58,237,0.07); border:1px solid rgba(124,58,237,0.2); border-radius:8px; font-size:12px; color:var(--text-muted);">
+        <strong style="color:var(--accent-light);">🔐 Default credentials:</strong><br/>
+        Email: <code style="color:#a78bfa;">admin@college.edu</code><br/>
+        Password: <code style="color:#a78bfa;">Admin@123</code><br/>
+        <span style="margin-top:6px; display:block;">For Google login, your Google account email must match the admin email above.</span>
+      </div>
+      <div style="text-align:center; margin-top:16px;">
+        <a href="index.html" style="color:var(--text-muted); font-size:12.5px; text-decoration:none;">← Back to Home</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/firebase-sync.js"></script>
+<script>
+  fbInit();
+  if (getSession()?.role === 'admin') window.location.href = 'admin-dashboard.html';
+
+  function handleGoogleSignIn(response) {
+    const errEl = document.getElementById('googleErr');
+    errEl.textContent = '';
+    try {
+      googleLogin(response.credential, 'admin');
+      window.location.href = 'admin-dashboard.html';
+    } catch(err) {
+      errEl.textContent = '&#x26A0;&#xFE0F; ' + err.message;
+    }
+  }
+  window.handleGoogleSignIn = handleGoogleSignIn;
+
+  document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const emailErr = document.getElementById('emailErr');
+    const passErr = document.getElementById('passErr');
+    const loginErr = document.getElementById('loginErr');
+    [emailErr, passErr, loginErr].forEach(el => el.classList.remove('show'));
+
+    let ok = true;
+    if (!email) { emailErr.textContent = 'Email is required.'; emailErr.classList.add('show'); ok = false; }
+    if (!password) { passErr.textContent = 'Password is required.'; passErr.classList.add('show'); ok = false; }
+    if (!ok) return;
+
+    try {
+      const s = login(email, password);
+      if (s.role !== 'admin') { loginErr.textContent = 'Access denied. Admin credentials required.'; loginErr.classList.add('show'); logout(); return; }
+      window.location.href = 'admin-dashboard.html';
+    } catch(err) { loginErr.textContent = err.message; loginErr.classList.add('show'); }
+  });
+</script>
+</body>
+</html>
