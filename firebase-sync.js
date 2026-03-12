@@ -168,6 +168,34 @@ function patchDataFunctions() {
     return result;
   };
 
+  const _deleteResponse = window.deleteResponse;
+  if (_deleteResponse) {
+    window.deleteResponse = function(responseId) {
+      const result = _deleteResponse(responseId);
+      fsDeleteDoc('responses', responseId);
+      return result;
+    };
+  }
+
+  const _deleteResponses = window.deleteResponses;
+  if (_deleteResponses) {
+    window.deleteResponses = function(responseIds) {
+      const result = _deleteResponses(responseIds);
+      responseIds.forEach(function(id) { fsDeleteDoc('responses', id); });
+      return result;
+    };
+  }
+
+  const _clearAllResponses = window.clearAllResponses;
+  if (_clearAllResponses) {
+    window.clearAllResponses = function() {
+      var responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+      var result = _clearAllResponses();
+      responses.forEach(function(r) { fsDeleteDoc('responses', r.id); });
+      return result;
+    };
+  }
+
   // ---- Settings ----
   const _saveSettings = window.saveSettings;
   window.saveSettings = function(settings) {
