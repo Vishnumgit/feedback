@@ -117,7 +117,7 @@ function deleteUser(userId) {
 }
 function addUser({ role, name, email, password, department, section, subjectId, rollNo }) {
   if (getUserByEmail(email)) throw new Error('Email already registered.');
-  const id = 'u_' + Date.now();
+  const id = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
   const user = { id, email, password, role, name, department: department || '', section: section || '', subjectId: subjectId || null, rollNo: rollNo || '', active: true };
   saveUser(user);
   return user;
