@@ -115,10 +115,10 @@ function deleteUser(userId) {
   // clean enrollments
   set(DB.ENROLLMENTS, get(DB.ENROLLMENTS).filter(e => e.studentId !== userId && e.teacherId !== userId));
 }
-function addUser({ role, name, email, password, department, section, subjectId }) {
+function addUser({ role, name, email, password, department, section, subjectId, rollNo }) {
   if (getUserByEmail(email)) throw new Error('Email already registered.');
-  const id = 'u_' + Date.now();
-  const user = { id, email, password, role, name, department: department || '', section: section || '', subjectId: subjectId || null, active: true };
+  const id = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  const user = { id, email, password, role, name, department: department || '', section: section || '', subjectId: subjectId || null, rollNo: rollNo || '', active: true };
   saveUser(user);
   return user;
 }
@@ -220,6 +220,17 @@ function saveResponse({ teacherId, studentId, subjectId, anonymous, scores, comm
   };
   if (idx > -1) all[idx] = rec; else all.push(rec);
   set(DB.RESPONSES, all);
+}
+
+function deleteResponse(responseId) {
+  set(DB.RESPONSES, getResponses().filter(r => r.id !== responseId));
+}
+function deleteResponses(responseIds) {
+  const idSet = new Set(responseIds);
+  set(DB.RESPONSES, getResponses().filter(r => !idSet.has(r.id)));
+}
+function clearAllResponses() {
+  set(DB.RESPONSES, []);
 }
 
 // ---- Analytics Helpers --------------------------------------
