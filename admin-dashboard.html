@@ -166,7 +166,11 @@
             <div class="page-title">Feedback Oversight</div>
             <div class="page-subtitle">View all submissions with filters</div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="exportResponsesCSV()">? Export CSV</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="exportResponsesCSV()">&#128229; Export CSV</button>
+            <button class="btn btn-sm" onclick="clearSelectedFeedback()" style="background:var(--danger);color:#fff;">&#128465; Delete Selected</button>
+            <button class="btn btn-sm" onclick="clearAllFeedback()" style="background:var(--danger);color:#fff;">&#128465; Clear All</button>
+          </div>
         </div>
         <div class="section-card" style="margin-bottom:20px;">
           <div class="section-card-body">
@@ -1041,12 +1045,13 @@ function renderFeedbackTable() {
 
   const wrap = document.getElementById('feedbackTable');
   if (!responses.length) { wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128172;</div><div class="empty-title">No feedback matching filters</div></div>'; return; }
-  wrap.innerHTML = `<table><thead><tr><th>Teacher</th><th>Student</th><th>Subject</th><th>Avg Score</th><th>Anonymous</th><th>Date</th></tr></thead>
+  wrap.innerHTML = `<table><thead><tr><th style="width:36px;"><input type="checkbox" onchange="toggleAllFeedbackCb(this)" title="Select All"></th><th>Teacher</th><th>Student</th><th>Subject</th><th>Avg Score</th><th>Anonymous</th><th>Date</th></tr></thead>
     <tbody>${responses.map(r => {
       const t = getUserById(r.teacherId); const s = getUserById(r.studentId); const sub = getSubjectById(r.subjectId);
       const all = Object.values(r.scores||{}).flat();
       const avg = all.length ? (all.reduce((a,b)=>a+b,0)/all.length).toFixed(1) : 'N/A';
       return `<tr>
+        <td><input type="checkbox" class="fb-select-cb" value="${r.id}"></td>
         <td>${t ? t.name : 'Unknown Teacher'}</td>
         <td>${r.anonymous ? "<span class=\"badge badge-blue\">&#128274; Anonymous</span>" : (s ? s.name : "&mdash;")}</td>
         <td>${sub ? sub.name : 'Unknown Subject'}</td>
@@ -1655,10 +1660,16 @@ function deleteSelectedUsers() {
   localStorage.setItem('sfft_responses', JSON.stringify(newResponses));
   localStorage.setItem('sfft_attendance', JSON.stringify(newAttendance));
 
+  // Find responses & attendance to delete from Firestore
+  const responsesToDelete = responses.filter(r => selected.has(r.studentId) || selected.has(r.teacherId));
+  const attendanceToDelete = attendance.filter(a => selected.has(a.studentId));
+
   // Sync deletes to Firestore
   if (typeof fsDeleteDoc === 'function') {
     selected.forEach(id => fsDeleteDoc('users', id));
     enrollsToDelete.forEach(e => fsDeleteDoc('enrollments', e.studentId + '_' + e.teacherId));
+    responsesToDelete.forEach(r => fsDeleteDoc('responses', r.id));
+    attendanceToDelete.forEach(a => fsDeleteDoc('attendance', a.studentId));
   }
 
   refreshUserCounts();
