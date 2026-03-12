@@ -63,6 +63,7 @@
             <button class="btn btn-secondary btn-sm" onclick="downloadCSVTemplate()">&#128229; Download Template</button>
             <button class="btn btn-success btn-sm" onclick="openBulkModal()">&#128513; Bulk Import CSV</button>
             <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">+ Add User</button>
+            <button class="btn btn-sm" onclick="deleteSelectedUsers()" style="background:var(--danger);color:#fff;">&#128465; Delete Selected</button>
           </div>
         </div>
         <div class="stats-grid animate-in">
@@ -436,6 +437,8 @@
           placeholder="e.g. CSE, EEE, Mech" /></div>
       <div class="form-group"><label>Section</label><input type="text" id="uSection"
           placeholder="e.g. CSE1, CSE-A, EEE2" /></div>
+      <div class="form-group" id="rollNoFieldWrap"><label>Roll No (Students only)</label><input type="text" id="uRollNo"
+          placeholder="e.g. 21CS101" /></div>
       <div class="form-group" id="subjectFieldWrap">
         <label>Subject (for Teachers)</label>
         <select id="uSubject">
@@ -644,7 +647,7 @@
   }
 
   wrap.innerHTML = filterBar + `<table><thead><tr>
-      <th>Name</th><th>Email</th><th>Dept / Section</th>
+      <th style="width:32px;"><input type="checkbox" onclick="toggleSelectAll(this)" title="Select All" /></th><th>Name</th><th>Email</th><th>Dept / Section</th>
       ${role==='student' ? '<th>Roll No</th>' : ''}
       ${role==='teacher' ? '<th>Subject</th>' : ''}
       <th>Status</th><th>Actions</th>
@@ -652,6 +655,7 @@
     <tbody>${users.map(u => {
       const sub = u.subjectId ? getSubjectById(u.subjectId) : null;
       return `<tr>
+        <td><input type="checkbox" class="user-select-cb" value="${u.id}" /></td>
         <td><div style="font-weight:600;">${u.name}</div></td>
         <td style="color:var(--text-muted);font-size:13px;">${u.email}</td>
         <td>
@@ -715,6 +719,7 @@ function submitUserModal() {
   const dept     = document.getElementById('uDept').value.trim();
   const section  = document.getElementById('uSection').value.trim();
   const subjectId = document.getElementById('uSubject').value || null;
+  const rollNo   = document.getElementById('uRollNo').value.trim();
   const editId   = document.getElementById('editUserId').value;
 
   if (!name || !email || !password) { errEl.textContent = 'Name, email and password are required.'; return; }
@@ -725,11 +730,12 @@ function submitUserModal() {
       const u = getUserById(editId);
       u.name = name; u.email = email; u.password = password;
       u.department = dept; u.section = section;
+      u.rollNo = role === 'student' ? rollNo : (u.rollNo || '');
       u.subjectId = role === 'teacher' ? subjectId : null;
       saveUser(u);
       showToast('User updated successfully.', 'success');
     } else {
-      addUser({ role, name, email, password, department: dept, section, subjectId: role === 'teacher' ? subjectId : null });
+      addUser({ role, name, email, password, department: dept, section, rollNo: role === 'student' ? rollNo : '', subjectId: role === 'teacher' ? subjectId : null });
       showToast('User created successfully.', 'success');
     }
     closeModal('userModal');
@@ -1594,6 +1600,24 @@ function renderBulkPreview() {
 function showBulkErr(msg) {
   const el = document.getElementById('bulkParseErr');
   el.textContent = 's&#9881;️ ' + msg; el.style.display = '';
+}
+
+
+function toggleSelectAll(masterCb) {
+  document.querySelectorAll('.user-select-cb').forEach(cb => cb.checked = masterCb.checked);
+}
+
+function deleteSelectedUsers() {
+  const selected = [...document.querySelectorAll('.user-select-cb:checked')].map(cb => cb.value);
+  if (!selected.length) { showToast('No users selected.', 'error'); return; }
+  if (!confirm(`Delete ${selected.length} selected user(s)? This cannot be undone.`)) return;
+  let deleted = 0;
+  selected.forEach(id => {
+    try { deleteUser(id); deleted++; } catch(e) {}
+  });
+  refreshUserCounts();
+  renderUserTable(currentUserRole);
+  showToast(`Deleted ${deleted} user(s).`, 'info');
 }
 
 function executeBulkImport() {
