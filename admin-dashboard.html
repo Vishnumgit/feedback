@@ -660,7 +660,7 @@
         <td style="color:var(--text-muted);font-size:13px;">${u.email}</td>
         <td>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            ${u.department ? `<span class="badge badge-blue" style="font-size:11px;">Y> ${u.department}</span>` : '<span style="color:var(--text-muted);font-size:12px">–</span>'}
+            ${u.department ? `<span class="badge badge-blue" style="font-size:11px;">&#127979; ${u.department}</span>` : '<span style="color:var(--text-muted);font-size:12px">–</span>'}
             ${u.section ? `<span class="badge badge-purple" style="font-size:11px;">&#127991; ${u.section}</span>` : ''}
           </div>
         </td>
@@ -1315,7 +1315,14 @@ function parseAttCSV(text) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) { showAttErr('CSV must have a header and data rows.'); return; }
   
-  const header = parseCSVLine(lines[0]).map(h => h.replace(/"/g,'').toLowerCase().trim());
+  const rawHeader = parseCSVLine(lines[0]).map(h => h.replace(/"/g,'').toLowerCase().trim());
+  // Normalize common column name variations
+  const colAliases = {
+    'dept': 'department', 'departmart': 'department', 'deparment': 'department', 'depart': 'department',
+    'rollno': 'roll_no', 'roll_number': 'roll_no', 'rollnumber': 'roll_no', 'roll': 'roll_no',
+    'subject': 'subject_name', 'subjectname': 'subject_name',
+  };
+  const header = rawHeader.map(h => colAliases[h] || h);
   if (!header.includes('email') || !header.includes('section') || !header.includes('attendance_percentage')) {
     showAttErr('Missing required columns: "email", "section", "attendance_percentage"'); return;
   }
