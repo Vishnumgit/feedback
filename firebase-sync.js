@@ -53,6 +53,7 @@ function syncFromFirestoreInBackground() {
       if (settings)                           localStorage.setItem('sfft_settings',        JSON.stringify(settings));
 
       console.log('[Firebase] Background sync complete ✅');
+      window.dispatchEvent(new Event('firestore-synced'));
     } catch(e) {
       console.warn('[Firebase] Background sync failed (offline?):', e.message);
     }
