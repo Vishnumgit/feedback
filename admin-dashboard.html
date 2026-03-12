@@ -1631,18 +1631,41 @@ function deleteSelectedUsers() {
 
 function executeBulkImport() {
   const toImport = bulkParsedRows.filter(r => !r.skip);
-  let imported = 0, failed = 0;
-  toImport.forEach(r => {
-    try {
-      addUser({ role: r.role, name: r.name, email: r.email, password: r.password, department: r.department, section: r.section || '', rollNo: r.rollNo || '', subjectId: r.subjectId || null });
-      imported++;
-    } catch(e) { failed++; }
+  if (!toImport.length) { showToast('No rows to import.', 'error'); return; }
+
+  // BATCH INSERT: read users once, add all, write once
+  const existingUsers = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+  const existingEmails = new Set(existingUsers.map(u => u.email.toLowerCase()));
+  let imported = 0, skipped = 0;
+  const newUsers = [];
+
+  toImport.forEach((r, i) => {
+    if (existingEmails.has(r.email.toLowerCase())) { skipped++; return; }
+    const id = 'u_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2,4);
+    const user = {
+      id, email: r.email, password: r.password, role: r.role, name: r.name,
+      department: r.department || '', section: r.section || '',
+      rollNo: r.rollNo || '', subjectId: r.subjectId || null, active: true
+    };
+    newUsers.push(user);
+    existingEmails.add(r.email.toLowerCase());
+    imported++;
   });
+
+  // Single write to localStorage
+  const allUsers = [...existingUsers, ...newUsers];
+  localStorage.setItem('sfft_users', JSON.stringify(allUsers));
+
+  // Sync all new users to Firestore in background
+  newUsers.forEach(u => {
+    if (typeof fsSetDoc === 'function') fsSetDoc('users', u.id, u);
+  });
+
   closeModal('bulkModal');
   refreshUserCounts();
   renderUserTable(currentUserRole);
-  if (imported) showToast(`&#10004; ${imported} user${imported>1?'s':''} imported successfully!`, 'success');
-  if (failed) showToast(`s&#9881;️ ${failed} row${failed>1?'s':''} failed during import.`, 'error');
+  if (imported) showToast('Imported ' + imported + ' user(s) successfully!', 'success');
+  if (skipped) showToast(skipped + ' duplicate(s) skipped.', 'info');
 }
   </script>
 </body>
