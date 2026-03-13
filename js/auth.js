@@ -4,24 +4,34 @@
 
 const SESSION_KEY = 'sfft_session';
 
+// ---- Session Token Generator ----
+function generateSessionToken() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
+
 function login(email, password) {
   const user = getUserByEmail(email);
   if (!user) throw new Error('No account found with this email.');
   if (!user.active) throw new Error('Your account has been deactivated. Contact admin.');
   if (user.password !== password) throw new Error('Incorrect password.');
-  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now() };
+  const sessionToken = generateSessionToken();
+  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  // Store session token in Firestore so other devices can detect this login
+  if (typeof db !== 'undefined') {
+    db.collection('users').doc(user.id).set({ sessionToken: sessionToken }, { merge: true })
+      .catch(function(e) { console.warn('[Auth] Failed to set session token:', e.message); });
+  }
   return session;
 }
 
 // ---- Google Sign-In ----
-// Decodes a Google Identity Services JWT (no library needed — payload is base64)
 function decodeGoogleJWT(credential) {
   try {
     const parts = credential.split('.');
     if (parts.length !== 3) throw new Error('Invalid JWT');
     const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-    return payload; // { email, name, picture, sub, ... }
+    return payload;
   } catch(e) {
     throw new Error('Failed to decode Google credential.');
   }
@@ -32,22 +42,54 @@ function googleLogin(credential, expectedRole) {
   const email    = (payload.email || '').toLowerCase();
   const name     = payload.name  || email;
 
-  // Special case: admin can log in with any Google account if email matches admin record
   const user = getUserByEmail(email);
-  if (!user) throw new Error(`No account found for ${email}.\nAsk your admin to register this Google email.`);
+  if (!user) throw new Error('No account found for ' + email + '.\nAsk your admin to register this Google email.');
   if (!user.active) throw new Error('Your account has been deactivated. Contact admin.');
   if (expectedRole && user.role !== expectedRole) {
-    throw new Error(`This portal is for ${expectedRole}s only.\nYour account role is: ${user.role}.`);
+    throw new Error('This portal is for ' + expectedRole + 's only.\nYour account role is: ' + user.role + '.');
   }
 
-  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), viaGoogle: true };
+  const sessionToken = generateSessionToken();
+  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), viaGoogle: true, sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  // Store session token in Firestore
+  if (typeof db !== 'undefined') {
+    db.collection('users').doc(user.id).set({ sessionToken: sessionToken }, { merge: true })
+      .catch(function(e) { console.warn('[Auth] Failed to set session token:', e.message); });
+  }
   return session;
 }
 
+// ---- Session Listener (single-session enforcement) ----
+var _sessionUnsub = null;
+
+function startSessionListener() {
+  var session = getSession();
+  if (!session || !session.sessionToken || !session.userId) return;
+  if (typeof db === 'undefined') return;
+
+  // Listen for changes to this user's Firestore document
+  _sessionUnsub = db.collection('users').doc(session.userId).onSnapshot(function(doc) {
+    if (!doc.exists) return;
+    var data = doc.data();
+    var localSession = getSession();
+    if (!localSession || !localSession.sessionToken) return;
+
+    // If the Firestore token doesn't match our local token, another device logged in
+    if (data.sessionToken && data.sessionToken !== localSession.sessionToken) {
+      if (_sessionUnsub) { _sessionUnsub(); _sessionUnsub = null; }
+      sessionStorage.removeItem(SESSION_KEY);
+      alert('You have been logged out because your account was signed in on another device.');
+      window.location.href = 'index.html';
+    }
+  }, function(err) {
+    console.warn('[Auth] Session listener error:', err.message);
+  });
+}
+
 function logout() {
+  if (_sessionUnsub) { _sessionUnsub(); _sessionUnsub = null; }
   sessionStorage.removeItem(SESSION_KEY);
-  // Also sign out from Google silently
   if (window.google && google.accounts && google.accounts.id) {
     google.accounts.id.disableAutoSelect();
   }
@@ -59,7 +101,7 @@ function getSession() {
 }
 
 function requireAuth(expectedRole) {
-  const session = getSession();
+  var session = getSession();
   if (!session) { window.location.href = 'index.html'; return null; }
   if (expectedRole && session.role !== expectedRole) {
     window.location.href = 'index.html';
@@ -69,7 +111,7 @@ function requireAuth(expectedRole) {
 }
 
 function validateCollegeEmail(email) {
-  const settings = getSettings();
-  const domain = settings.collegeDomain || 'college.edu';
+  var settings = getSettings();
+  var domain = settings.collegeDomain || 'college.edu';
   return email.toLowerCase().endsWith('@' + domain.toLowerCase());
 }
