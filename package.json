@@ -1,0 +1,19 @@
+{
+  "name": "student-feedback-system",
+  "version": "1.0.0",
+  "description": "Student Feedback Management System with Firebase Integration",
+  "type": "module",
+  "scripts": {
+    "dev": "python -m http.server 3000",
+    "build": "echo 'No build required for this project'",
+    "start": "python -m http.server 8080"
+  },
+  "keywords": [
+    "feedback",
+    "student",
+    "teacher",
+    "education"
+  ],
+  "author": "",
+  "license": "ISC"
+}
