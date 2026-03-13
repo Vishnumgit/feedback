@@ -489,7 +489,7 @@
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('qModal')">Cancel</button>
-        <button class="btn btn-primary" onclick="saveQuestionnaire()">&#128190; Save Questionnaire</button>
+        <button class="btn btn-primary" onclick="saveQEditorChanges()">&#128190; Save Questionnaire</button>
       </div>
     </div>
   </div>
@@ -855,6 +855,12 @@ function addQSection() {
   const subjectId = document.getElementById('qSubjectId').value;
   const q = getQuestionnaire(subjectId);
   q.sections.push({ title: 'New Section', questions: [''] });
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
+  renderQEditor(subjectId);
+});
   saveQuestionnaire(subjectId, q);
   renderQEditor(subjectId);
 }
@@ -863,7 +869,10 @@ function removeSection(si) {
   const subjectId = document.getElementById('qSubjectId').value;
   const q = getQuestionnaire(subjectId);
   q.sections.splice(si, 1);
-  saveQuestionnaire(subjectId, q);
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
   renderQEditor(subjectId);
 }
 
@@ -879,7 +888,10 @@ function removeQuestion(si, qi) {
   const subjectId = document.getElementById('qSubjectId').value;
   const q = getQuestionnaire(subjectId);
   q.sections[si].questions.splice(qi, 1);
-  saveQuestionnaire(subjectId, q);
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
   renderQEditor(subjectId);
 }
 
