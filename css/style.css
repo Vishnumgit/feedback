@@ -592,6 +592,27 @@ tbody tr:last-child td { border-bottom: none; }
   .nav-item { font-size: 13px; padding: 10px 12px; }
   .modal-content { width: 95%; margin: 20px auto; padding: 20px; max-height: 90vh; overflow-y: auto; }
   .badge { font-size: 10px; padding: 2px 7px; }
+  /* Mobile sidebar close when selecting */
+  .sidebar .nav-item { padding: 11px 14px; }
+  /* Better stat cards on mobile */
+  .stat-card { padding: 14px 10px; }
+  .stat-value { font-size: 20px; }
+  .stat-icon { font-size: 22px; margin-bottom: 6px; }
+  /* Better teacher cards */
+  .teachers-grid { grid-template-columns: 1fr; gap: 14px; }
+  .teacher-card { padding: 18px 16px; }
+  /* Better section cards */
+  .section-card-header { padding: 12px 14px; }
+  .section-card-body { padding: 12px 14px; }
+  /* Topbar spacing */
+  .topbar { gap: 8px; }
+  .page-title { font-size: 17px; }
+  .breadcrumb { font-size: 11px; }
+  /* Profile grids stack on mobile */
+  [style*="grid-template-columns:auto 1fr"],
+  [style*="grid-template-columns:240px 1fr"] { grid-template-columns: 1fr !important; }
+  /* Charts grid single column */
+  .charts-grid { grid-template-columns: 1fr; gap: 14px; }
 }
 
 /* ============================
