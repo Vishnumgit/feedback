@@ -895,7 +895,7 @@ function removeQuestion(si, qi) {
   renderQEditor(subjectId);
 }
 
-function saveQuestionnaire() {
+function saveQEditorChanges() {
   const subjectId = document.getElementById('qSubjectId').value;
   const q = getQuestionnaire(subjectId);
   q.sections.forEach((sec, si) => {
@@ -906,11 +906,10 @@ function saveQuestionnaire() {
       return el ? el.value.trim() : '';
     }).filter(Boolean);
   });
-  const fn = saveQuestionnaire; // reference
-  // use data.js saveQuestionnaire
   const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
   all[subjectId] = q;
   localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
   closeModal('qModal');
   showToast('Questionnaire saved!', 'success');
 }
