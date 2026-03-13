@@ -1040,6 +1040,18 @@ function saveAssignments() {
   });
   renderTeacherPicker(); // refresh count badges
   renderStudentChecklist(selectedTeacherId); // refresh enrolled badges
+  // Auto-clear old feedback for newly assigned students so they can submit fresh
+  if (added > 0) {
+    var allResponses = getResponses();
+    var cleared = 0;
+    checkboxes.forEach(function(cb) {
+      if (cb.checked) {
+        var oldResp = allResponses.filter(function(r) { return r.studentId === cb.value && r.teacherId === selectedTeacherId; });
+        oldResp.forEach(function(r) { deleteResponse(r.id); cleared++; });
+      }
+    });
+    if (cleared) console.log('[Admin] Cleared ' + cleared + ' old feedback response(s) for resubmission');
+  }
   let msg = [];
   if (added) msg.push(`&#10004; ${added} student${added>1?'s':''} enrolled`);
   if (removed) msg.push(`&#128465;&#65039; ${removed} student${removed>1?'s':''} removed`);
