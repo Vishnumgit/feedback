@@ -450,10 +450,8 @@
       <div class="form-group" id="rollNoFieldWrap"><label>Roll No (Students only)</label><input type="text" id="uRollNo"
           placeholder="e.g. 21CS101" /></div>
       <div class="form-group" id="subjectFieldWrap">
-        <label>Subject (for Teachers)</label>
-        <select id="uSubject">
-          <option value="">– Select Subject –</option>
-        </select>
+        <label>Subjects (for Teachers) — select multiple</label>
+        <div id="uSubjectCheckboxes" style="max-height:150px;overflow-y:auto;border:1px solid var(--border-light);border-radius:8px;padding:8px;background:var(--surface);"></div>
       </div>
       <div id="userModalErr" style="font-size:12px; color:var(--danger); margin-bottom:8px;"></div>
       <div class="modal-actions">
@@ -664,7 +662,7 @@
       <th>Status</th><th>Actions</th>
     </tr></thead>
     <tbody>${users.map(u => {
-      const sub = u.subjectId ? getSubjectById(u.subjectId) : null;
+      const subs = (u.subjectIds || (u.subjectId ? [u.subjectId] : [])).map(function(id){ return getSubjectById(id); }).filter(Boolean);
       return `<tr>
         <td><input type="checkbox" class="user-select-cb" value="${u.id}" /></td>
         <td><div style="font-weight:600;">${u.name}</div></td>
@@ -693,7 +691,7 @@ function openAddUserModal() {
   document.getElementById('uRole').value = 'student';
   document.getElementById('editUserId').value = '';
   document.getElementById('userModalErr').textContent = '';
-  populateSubjectDropdown('uSubject');
+  populateSubjectCheckboxes([]);
   toggleSubjectField();
   openModal('userModal');
 }
@@ -710,7 +708,7 @@ function openEditUser(userId) {
   document.getElementById('uSection').value = u.section || '';
   document.getElementById('editUserId').value = u.id;
   document.getElementById('userModalErr').textContent = '';
-  populateSubjectDropdown('uSubject', u.subjectId);
+  populateSubjectCheckboxes(u.subjectIds || (u.subjectId ? [u.subjectId] : []));
   toggleSubjectField();
   openModal('userModal');
 }
@@ -729,7 +727,7 @@ function submitUserModal() {
   const role     = document.getElementById('uRole').value;
   const dept     = document.getElementById('uDept').value.trim();
   const section  = document.getElementById('uSection').value.trim();
-  const subjectId = document.getElementById('uSubject').value || null;
+  const subjectIds = Array.from(document.querySelectorAll('.subj-cb:checked')).map(function(cb){ return cb.value; });
   const rollNo   = document.getElementById('uRollNo').value.trim();
   const editId   = document.getElementById('editUserId').value;
 
@@ -742,11 +740,11 @@ function submitUserModal() {
       u.name = name; u.email = email; u.password = password;
       u.department = dept; u.section = section;
       u.rollNo = role === 'student' ? rollNo : (u.rollNo || '');
-      u.subjectId = role === 'teacher' ? subjectId : null;
+      u.subjectIds = role === 'teacher' ? subjectIds : []; u.subjectId = (subjectIds.length ? subjectIds[0] : null);
       saveUser(u);
       showToast('User updated successfully.', 'success');
     } else {
-      addUser({ role, name, email, password, department: dept, section, rollNo: role === 'student' ? rollNo : '', subjectId: role === 'teacher' ? subjectId : null });
+      addUser({ role, name, email, password, department: dept, section, rollNo: role === 'student' ? rollNo : '', subjectIds: role === 'teacher' ? subjectIds : [], subjectId: role === 'teacher' && subjectIds.length ? subjectIds[0] : null });
       showToast('User created successfully.', 'success');
     }
     closeModal('userModal');
@@ -765,10 +763,17 @@ function removeUser(userId) {
   showToast('User deleted.', 'info');
 }
 
-function populateSubjectDropdown(selectId, selectedId = '') {
-  const sel = document.getElementById(selectId);
+function populateSubjectCheckboxes(selectedIds) {
+  if (!selectedIds) selectedIds = [];
+  if (typeof selectedIds === "string") selectedIds = selectedIds ? [selectedIds] : [];
+  const container = document.getElementById("uSubjectCheckboxes");
   const subs = getSubjects();
-  sel.innerHTML = '<option value="">– Select Subject –</option>' + subs.map(s => `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${s.name}</option>`).join('');
+  container.innerHTML = subs.map(function(s) {
+    var checked = selectedIds.indexOf(s.id) > -1 ? "checked" : "";
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:13px;">' +
+      '<input type="checkbox" class="subj-cb" value="' + s.id + '" ' + checked + '> ' + s.name + '</label>';
+  }).join("");
+  if (!subs.length) container.innerHTML = "<div style=\"font-size:12px;color:var(--text-muted);\">No subjects. Add subjects first.</div>";
 }
 
 // ==================== SUBJECTS TAB ====================
