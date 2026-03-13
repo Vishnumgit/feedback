@@ -1063,7 +1063,7 @@ function renderFeedbackTable() {
 
   const wrap = document.getElementById('feedbackTable');
   if (!responses.length) { wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128172;</div><div class="empty-title">No feedback matching filters</div></div>'; return; }
-  wrap.innerHTML = `<table><thead><tr><th style="width:36px;"><input type="checkbox" onchange="toggleAllFeedbackCb(this)" title="Select All"></th><th>Teacher</th><th>Student</th><th>Subject</th><th>Avg Score</th><th>Anonymous</th><th>Date</th><th>Action</th></tr></thead>
+  wrap.innerHTML = `<table><thead><tr><th style="width:36px;"><input type="checkbox" onchange="toggleAllFeedbackCb(this)" title="Select All"></th><th>Teacher</th><th>Student</th><th>Subject</th><th>Avg Score</th><th>Anonymous</th><th>Date</th></tr></thead>
     <tbody>${responses.map(r => {
       const t = getUserById(r.teacherId); const s = getUserById(r.studentId); const sub = getSubjectById(r.subjectId);
       const all = Object.values(r.scores||{}).flat();
@@ -1076,8 +1076,16 @@ function renderFeedbackTable() {
         <td><span class="badge badge-purple">&#x2B50; ${avg}/5</span></td>
         <td>${r.anonymous ? '<span class="badge badge-blue">Yes</span>' : '<span class="badge badge-gray">No</span>'}</td>
         <td>${new Date(r.submittedAt).toLocaleDateString()}</td>
+        <td><button class="btn btn-danger btn-xs" onclick="clearSingleFeedback('${r.id}')" title="Clear so student can resubmit">&#x1F5D1; Clear</button></td>
       </tr>`;
     }).join('')}</tbody></table>`;
+}
+
+function clearSingleFeedback(responseId) {
+  if (!confirm('Delete this feedback? The student will be able to resubmit.')) return;
+  deleteResponse(responseId);
+  renderFeedbackTable();
+  showToast('Feedback cleared. Student can now resubmit.', 'success');
 }
 
 function resetFilters() {
