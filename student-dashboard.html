@@ -188,6 +188,7 @@
 <script>
   fbInit();
   const session = requireAuth('student');
+    startSessionListener();
   if (!session) throw new Error('No session');
 
   const currentUser = getUserById(session.userId);
