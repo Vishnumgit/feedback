@@ -860,9 +860,6 @@ function addQSection() {
   localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
   fsSetDoc('questionnaires', subjectId, q);
   renderQEditor(subjectId);
-});
-  saveQuestionnaire(subjectId, q);
-  renderQEditor(subjectId);
 }
 
 function removeSection(si) {
