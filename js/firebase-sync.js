@@ -160,13 +160,28 @@ function patchDataFunctions() {
 
   // ---- Responses ----
   const _addResponse = window.addResponse;
-  window.addResponse = function(responseData) {
-    const result = _addResponse(responseData);
-    const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-    const newResp = responses[responses.length - 1];
-    if (newResp) fsSetDoc('responses', newResp.id, newResp);
-    return result;
-  };
+  if (_addResponse) {
+    window.addResponse = function(responseData) {
+      const result = _addResponse(responseData);
+      const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+      const newResp = responses[responses.length - 1];
+      if (newResp) fsSetDoc('responses', newResp.id, newResp);
+      return result;
+    };
+  }
+
+  // Patch saveResponse to also sync to Firestore
+  const _saveResponse = window.saveResponse;
+  if (_saveResponse) {
+    window.saveResponse = function(data) {
+      const result = _saveResponse(data);
+      // After saving, find the response in localStorage and sync to Firestore
+      const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+      const saved = responses.find(function(r) { return r.studentId === data.studentId && r.teacherId === data.teacherId; });
+      if (saved) fsSetDoc('responses', saved.id, saved);
+      return result;
+    };
+  }
 
   const _deleteResponse = window.deleteResponse;
   if (_deleteResponse) {
