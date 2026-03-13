@@ -528,6 +528,7 @@ tbody tr:last-child td { border-bottom: none; }
    Responsive: Tablet (≤900px)
    ============================ */
 @media (max-width: 900px) {
+  .page-wrapper { z-index: auto; }
   .mobile-menu-btn { display: flex; }
   .sidebar { transform: translateX(-100%); width: 270px; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
   .sidebar.open { transform: translateX(0); box-shadow: 8px 0 30px rgba(0,0,0,0.5); }
