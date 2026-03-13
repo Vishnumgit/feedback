@@ -877,7 +877,10 @@ function addQuestion(si) {
   const subjectId = document.getElementById('qSubjectId').value;
   const q = getQuestionnaire(subjectId);
   q.sections[si].questions.push('');
-  saveQuestionnaire(subjectId, q);
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
   renderQEditor(subjectId);
 }
 
