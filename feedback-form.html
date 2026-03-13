@@ -148,9 +148,9 @@
   };
 
   // Use questionnaire sections, falling back to default if empty
-  const rawSections = questionnaire.sections || [];
-  const hasQuestions = rawSections.some(s => s.questions && s.questions.length > 0);
-  const sections = hasQuestions ? rawSections.filter(s => s.questions && s.questions.length > 0) : DEFAULT_QUESTIONNAIRE.sections;
+  let rawSections = questionnaire.sections || [];
+  let hasQuestions = rawSections.some(s => s.questions && s.questions.length > 0);
+  let sections = hasQuestions ? rawSections.filter(s => s.questions && s.questions.length > 0) : DEFAULT_QUESTIONNAIRE.sections;
   let totalQuestions = 0;
 
   // Attendance gate check
@@ -254,6 +254,60 @@
     });
 
     document.getElementById('successModal').classList.remove('hidden');
+  });
+
+
+  // Re-render form after Firebase sync (in case questionnaire wasn't in localStorage yet)
+  window.addEventListener('firestore-synced', function() {
+    console.log('[FeedbackForm] Firebase synced — re-checking questionnaire...');
+    const freshQ = teacher && teacher.subjectId ? getQuestionnaire(teacher.subjectId) : { sections: [] };
+    const freshRaw = freshQ.sections || [];
+    const freshHasQ = freshRaw.some(s => s.questions && s.questions.length > 0);
+    const freshSections = freshHasQ ? freshRaw.filter(s => s.questions && s.questions.length > 0) : DEFAULT_QUESTIONNAIRE.sections;
+
+    // Only re-render if sections changed
+    const oldTitles = sections.map(s => s.title).join(',');
+    const newTitles = freshSections.map(s => s.title).join(',');
+    if (oldTitles !== newTitles) {
+      console.log('[FeedbackForm] Questionnaire updated from Firebase — re-rendering...');
+      // Update the sections variable and re-render
+      sections.length = 0;
+      freshSections.forEach(s => sections.push(s));
+      totalQuestions = 0;
+      container.innerHTML = '';
+
+      sections.forEach((sec, si) => {
+        totalQuestions += sec.questions.length;
+        const div = document.createElement('div');
+        div.className = 'section-card animate-in';
+        div.style.marginBottom = '20px';
+        div.innerHTML = `
+          <div class="section-card-header">
+            <div class="section-card-title" style="display:flex; align-items:center; gap:10px;">
+              <div class="section-num">${si + 1}</div>
+              ${sec.title}
+            </div>
+            <span style="font-size:12px; color:var(--text-muted);">${sec.questions.length} question${sec.questions.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="section-card-body">
+            <div style="display:flex; gap:40px; font-size:10px; color:var(--text-muted); margin-bottom:12px; padding:0 2px;">
+              <span>1 = Poor</span><span>2 = Fair</span><span>3 = Good</span><span>4 = Very Good</span><span>5 = Excellent</span>
+            </div>
+            ${sec.questions.map((q, qi) => {
+              const likertScale = [1,2,3,4,5].map(v =>
+                '<input type="radio" name="q_' + si + '_' + qi + '" id="q_' + si + '_' + qi + '_' + v + '" value="' + v + '" class="likert-option" onchange="updateProgress()" />' +
+                '<label for="q_' + si + '_' + qi + '_' + v + '" class="likert-label">' + v + '</label>'
+              ).join('');
+              return '<div class="likert-question" data-section="' + si + '" data-q="' + qi + '">' +
+                '<div class="question-text">' + (qi + 1) + '. ' + q + '</div>' +
+                '<div class="likert-scale">' + likertScale + '</div></div>';
+            }).join('')}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+      updateProgress();
+    }
   });
 </script>
 </body>
