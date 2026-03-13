@@ -269,7 +269,7 @@
   if (deptSection) document.getElementById('sidebarDeptSection').textContent = deptSection;
 
   const ALL_SECTIONS = ['overview','comments','breakdown','department','sections','profile'];
-  function showSection(sec) {
+  function showSection(sec, skipHistory) {
     ALL_SECTIONS.forEach(s => {
       document.getElementById('section' + s.charAt(0).toUpperCase() + s.slice(1)).style.display = s === sec ? '' : 'none';
     });
@@ -282,7 +282,18 @@
     if (sec === 'department') renderDeptFeedback();
     if (sec === 'sections')   renderSectionFeedback();
     if (sec === 'profile')    renderProfile();
+    // Close sidebar on mobile
+    document.querySelector('.sidebar').classList.remove('open');
+    document.querySelector('.sidebar-overlay').classList.remove('show');
+    // Push browser history so back button works
+    if (!skipHistory) history.pushState({section: sec}, '', '#' + sec);
   }
+  // Handle browser back button
+  window.addEventListener('popstate', function(e) {
+    if (e.state && e.state.section) showSection(e.state.section, true);
+  });
+  // Set initial history state
+  history.replaceState({section: 'overview'}, '', '#overview');
 
   if (!stats) {
     document.getElementById('noDataMsg').style.display = '';
