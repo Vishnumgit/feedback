@@ -197,7 +197,7 @@
   document.getElementById('sidebarName').textContent = session.name;
   document.getElementById('collegeName').textContent = getSettings().collegeName;
 
-  function showSection(sec) {
+  function showSection(sec, skipHistory) {
     const sections = ['dashboard', 'academics', 'teachers', 'history', 'profile', 'settings'];
     const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
     sections.forEach(s => {
@@ -214,7 +214,18 @@
     if (sec === 'academics') renderAcademics();
     if (sec === 'profile') renderProfile();
     if (sec === 'settings') renderSettings();
+    // Close sidebar on mobile
+    document.querySelector('.sidebar').classList.remove('open');
+    document.querySelector('.sidebar-overlay').classList.remove('show');
+    // Push browser history so back button works
+    if (!skipHistory) history.pushState({section: sec}, '', '#' + sec);
   }
+  // Handle browser back button
+  window.addEventListener('popstate', function(e) {
+    if (e.state && e.state.section) showSection(e.state.section, true);
+  });
+  // Set initial history state
+  history.replaceState({section: 'teachers'}, '', '#teachers');
 
   // Re-render after Firestore sync to show correct submission status on new devices
   window.addEventListener('firestore-synced', function() {
