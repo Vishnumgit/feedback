@@ -19,8 +19,12 @@ function login(email, password) {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   // Store session token in Firestore so other devices can detect this login
   if (typeof db !== 'undefined') {
+    console.log('[Auth] Writing session token to Firestore for user:', user.id, 'token:', sessionToken);
     db.collection('users').doc(user.id).set({ sessionToken: sessionToken }, { merge: true })
+      .then(function() { console.log('[Auth] Session token saved to Firestore successfully'); })
       .catch(function(e) { console.warn('[Auth] Failed to set session token:', e.message); });
+  } else {
+    console.warn('[Auth] db not available - cannot save session token');
   }
   return session;
 }
@@ -52,9 +56,10 @@ function googleLogin(credential, expectedRole) {
   const sessionToken = generateSessionToken();
   const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), viaGoogle: true, sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  // Store session token in Firestore
   if (typeof db !== 'undefined') {
+    console.log('[Auth] Writing session token to Firestore for user:', user.id, 'token:', sessionToken);
     db.collection('users').doc(user.id).set({ sessionToken: sessionToken }, { merge: true })
+      .then(function() { console.log('[Auth] Session token saved to Firestore successfully'); })
       .catch(function(e) { console.warn('[Auth] Failed to set session token:', e.message); });
   }
   return session;
@@ -65,18 +70,32 @@ var _sessionUnsub = null;
 
 function startSessionListener() {
   var session = getSession();
-  if (!session || !session.sessionToken || !session.userId) return;
-  if (typeof db === 'undefined') return;
+  if (!session || !session.sessionToken || !session.userId) {
+    console.warn('[Auth] Cannot start session listener - missing session data', session);
+    return;
+  }
+  if (typeof db === 'undefined') {
+    console.warn('[Auth] Cannot start session listener - db not defined');
+    return;
+  }
+
+  console.log('[Auth] Starting session listener for user:', session.userId, 'local token:', session.sessionToken);
 
   // Listen for changes to this user's Firestore document
   _sessionUnsub = db.collection('users').doc(session.userId).onSnapshot(function(doc) {
-    if (!doc.exists) return;
+    if (!doc.exists) {
+      console.log('[Auth] User document does not exist in Firestore');
+      return;
+    }
     var data = doc.data();
     var localSession = getSession();
     if (!localSession || !localSession.sessionToken) return;
 
+    console.log('[Auth] Snapshot received - Firestore token:', data.sessionToken, '| Local token:', localSession.sessionToken);
+
     // If the Firestore token doesn't match our local token, another device logged in
     if (data.sessionToken && data.sessionToken !== localSession.sessionToken) {
+      console.log('[Auth] SESSION MISMATCH - forcing logout!');
       if (_sessionUnsub) { _sessionUnsub(); _sessionUnsub = null; }
       sessionStorage.removeItem(SESSION_KEY);
       alert('You have been logged out because your account was signed in on another device.');
