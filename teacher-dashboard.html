@@ -248,6 +248,7 @@
 <script>
   fbInit();
   const session = requireAuth('teacher');
+    startSessionListener();
   const teacher = getUserById(session.userId);
   const subject = teacher ? getSubjectById(teacher.subjectId) : null;
   const stats = getTeacherStats(session.userId);
