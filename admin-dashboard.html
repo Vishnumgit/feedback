@@ -574,6 +574,7 @@
   <script>
     fbInit();
     const session = requireAuth('admin');
+    startSessionListener();
     document.getElementById('sidebarName').textContent = session.name;
     document.getElementById('collegeName').textContent = getSettings().collegeName;
 
