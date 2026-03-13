@@ -782,7 +782,7 @@ function renderSubjects() {
   const container = document.getElementById('subjectsList');
   if (!subs.length) { container.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128218;</div><div class="empty-title">No subjects yet</div></div>'; return; }
   container.innerHTML = subs.map(sub => {
-    const teachers = getTeachers().filter(t => t.subjectId === sub.id);
+    const teachers = getTeachers().filter(t => (t.subjectIds || []).indexOf(sub.id) > -1 || t.subjectId === sub.id);
     return `
       <div class="section-card" style="margin-bottom:14px;">
         <div class="section-card-header">
@@ -937,7 +937,7 @@ function renderTeacherPicker() {
   if (!teachers.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
   noMsg.style.display = 'none';
   grid.innerHTML = teachers.map(t => {
-    const sub = getSubjectById(t.subjectId);
+    const teacherSubs = (t.subjectIds || (t.subjectId ? [t.subjectId] : [])).map(function(id){ return getSubjectById(id); }).filter(Boolean);
     const assignedCount = getEnrollments().filter(e => e.teacherId === t.id).length;
     const isSelected = t.id === selectedTeacherId;
     return `
@@ -953,7 +953,7 @@ function renderTeacherPicker() {
           </div>
           <div style="min-width:0;">
             <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.name}</div>
-            <div style="font-size:11px;color:var(--text-muted);">${sub ? sub.name : 'No subject'}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${teacherSubs.length ? teacherSubs.map(function(s){return s.name;}).join(', ') : 'No subject'}</div>
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
