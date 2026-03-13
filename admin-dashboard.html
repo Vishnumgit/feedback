@@ -674,7 +674,7 @@
           </div>
         </td>
         ${role==='student' ? `<td style="font-weight:600;font-size:13px;">${u.rollNo || '—'}</td>` : ''}
-        ${role==='teacher' ? `<td>${sub ? `<span class="badge badge-purple">&#128218; ${sub.name}</span>` : '<span class="badge badge-gray">No subject</span>'}</td>` : ''}
+        ${role==='teacher' ? `<td>${subs.length ? subs.map(s => `<span class="badge badge-purple" style="margin:2px;">&#128218; ${s.name}</span>`).join('') : '<span class="badge badge-gray">No subject</span>'}</td>` : ''}
         <td>${u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-xs" onclick="openEditUser('${u.id}')">&#9999;&#65039; Edit</button>
