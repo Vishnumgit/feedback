@@ -4,7 +4,6 @@
 
 const SESSION_KEY = 'sfft_session';
 
-// ---- Session Token Generator ----
 function generateSessionToken() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
@@ -17,15 +16,8 @@ function login(email, password) {
   const sessionToken = generateSessionToken();
   const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  // Store session token in Firestore so other devices can detect this login
-  if (typeof db !== 'undefined') {
-    console.log('[Auth] Writing session token to Firestore for user:', user.id, 'token:', sessionToken);
-    db.collection('users').doc(user.id).set({ sessionToken: sessionToken }, { merge: true })
-      .then(function() { console.log('[Auth] Session token saved to Firestore successfully'); })
-      .catch(function(e) { console.warn('[Auth] Failed to set session token:', e.message); });
-  } else {
-    console.warn('[Auth] db not available - cannot save session token');
-  }
+  // Note: Firestore write happens in startSessionListener() on the dashboard page
+  // because the login page redirects away too fast for async writes to complete
   return session;
 }
 
@@ -56,12 +48,6 @@ function googleLogin(credential, expectedRole) {
   const sessionToken = generateSessionToken();
   const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), viaGoogle: true, sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  if (typeof db !== 'undefined') {
-    console.log('[Auth] Writing session token to Firestore for user:', user.id, 'token:', sessionToken);
-    db.collection('users').doc(user.id).set({ sessionToken: sessionToken }, { merge: true })
-      .then(function() { console.log('[Auth] Session token saved to Firestore successfully'); })
-      .catch(function(e) { console.warn('[Auth] Failed to set session token:', e.message); });
-  }
   return session;
 }
 
@@ -70,32 +56,31 @@ var _sessionUnsub = null;
 
 function startSessionListener() {
   var session = getSession();
-  if (!session || !session.sessionToken || !session.userId) {
-    console.warn('[Auth] Cannot start session listener - missing session data', session);
-    return;
-  }
-  if (typeof db === 'undefined') {
-    console.warn('[Auth] Cannot start session listener - db not defined');
-    return;
-  }
+  if (!session || !session.sessionToken || !session.userId) return;
+  if (typeof db === 'undefined') return;
 
-  console.log('[Auth] Starting session listener for user:', session.userId, 'local token:', session.sessionToken);
+  var myToken = session.sessionToken;
+  var myUserId = session.userId;
 
-  // Listen for changes to this user's Firestore document
-  _sessionUnsub = db.collection('users').doc(session.userId).onSnapshot(function(doc) {
-    if (!doc.exists) {
-      console.log('[Auth] User document does not exist in Firestore');
-      return;
-    }
+  // Step 1: Write our session token to Firestore (from the dashboard page, which stays open)
+  db.collection('users').doc(myUserId).set({ sessionToken: myToken }, { merge: true })
+    .then(function() {
+      console.log('[Auth] Session token written to Firestore:', myToken);
+    })
+    .catch(function(e) {
+      console.warn('[Auth] Failed to write session token:', e.message);
+    });
+
+  // Step 2: Listen for changes — if another device overwrites the token, force logout
+  _sessionUnsub = db.collection('users').doc(myUserId).onSnapshot(function(doc) {
+    if (!doc.exists) return;
     var data = doc.data();
     var localSession = getSession();
     if (!localSession || !localSession.sessionToken) return;
 
-    console.log('[Auth] Snapshot received - Firestore token:', data.sessionToken, '| Local token:', localSession.sessionToken);
-
-    // If the Firestore token doesn't match our local token, another device logged in
+    // Only check once Firestore has a token (skip the initial undefined)
     if (data.sessionToken && data.sessionToken !== localSession.sessionToken) {
-      console.log('[Auth] SESSION MISMATCH - forcing logout!');
+      console.log('[Auth] Another device logged in! Forcing logout.');
       if (_sessionUnsub) { _sessionUnsub(); _sessionUnsub = null; }
       sessionStorage.removeItem(SESSION_KEY);
       alert('You have been logged out because your account was signed in on another device.');
