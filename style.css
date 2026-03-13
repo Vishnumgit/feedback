@@ -502,17 +502,90 @@ tbody tr:last-child td { border-bottom: none; }
 /* ============================
    Responsive
    ============================ */
+/* ============================
+   Mobile Menu Toggle Button
+   ============================ */
+.mobile-menu-btn {
+  display: none;
+  position: fixed; top: 14px; left: 14px; z-index: 200;
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  border: none; color: #fff; font-size: 22px; cursor: pointer;
+  align-items: center; justify-content: center;
+  box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+  transition: var(--transition);
+}
+.mobile-menu-btn:active { transform: scale(0.92); }
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0; z-index: 90;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+}
+.sidebar-overlay.show { display: block; }
+
+/* ============================
+   Responsive: Tablet (≤900px)
+   ============================ */
 @media (max-width: 900px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
-  .main-content { margin-left: 0; padding: 20px 16px; }
+  .mobile-menu-btn { display: flex; }
+  .sidebar { transform: translateX(-100%); width: 270px; }
+  .sidebar.open { transform: translateX(0); box-shadow: 8px 0 30px rgba(0,0,0,0.5); }
+  .main-content { margin-left: 0; padding: 20px 16px; padding-top: 68px; }
   .hero-title { font-size: 28px; }
   .charts-grid { grid-template-columns: 1fr; }
+  .topbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .section-card-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  table { font-size: 11px; }
+  th, td { padding: 7px 6px; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .page-title { font-size: 20px; }
+  .page-subtitle { font-size: 12px; }
 }
+
+/* ============================
+   Responsive: Mobile (≤600px)
+   ============================ */
 @media (max-width: 600px) {
+  body { font-size: 14px; }
   .role-cards { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-card { padding: 12px 10px; }
+  .stat-label { font-size: 11px; }
+  .stat-value { font-size: 22px; }
   .tab-btn { font-size: 11px; padding: 8px 10px; }
+  .main-content { padding: 16px 12px; padding-top: 64px; }
+  .topbar { padding: 14px 0; }
+  .page-title { font-size: 18px; }
+  .page-subtitle { font-size: 11px; }
+  .section-card { border-radius: 12px; }
+  .section-card-body { padding: 14px; }
+  .btn { font-size: 12px; padding: 8px 14px; }
+  .btn-sm { font-size: 11px; padding: 6px 10px; }
+  .chart-card { padding: 14px; }
+  .chart-title { font-size: 13px; }
+  .chart-canvas-wrap { min-height: 180px; }
+  .hero-title { font-size: 22px; }
+  .hero-desc { font-size: 13px; }
+  .hero-tag { font-size: 11px; }
+  .role-card { padding: 20px 16px; }
+  .role-card-title { font-size: 16px; }
+  .role-card-desc { font-size: 12px; }
+  .landing-hero { padding: 0 8px; }
+  .form-group label { font-size: 12px; }
+  .form-group input, .form-group select, .form-group textarea { font-size: 13px; padding: 10px 12px; }
+  .nav-item { font-size: 13px; padding: 10px 12px; }
+  .modal-content { width: 95%; margin: 20px auto; padding: 20px; max-height: 90vh; overflow-y: auto; }
+  .badge { font-size: 10px; padding: 2px 7px; }
+}
+
+/* ============================
+   Responsive: Small Mobile (≤400px)
+   ============================ */
+@media (max-width: 400px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .main-content { padding: 12px 8px; padding-top: 60px; }
+  .section-card-body { padding: 10px; }
+  .hero-title { font-size: 20px; }
+  .cards { grid-template-columns: 1fr 1fr; }
 }
 
 /* Scrollbar */
