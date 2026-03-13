@@ -519,6 +519,8 @@ tbody tr:last-child td { border-bottom: none; }
 .sidebar-overlay {
   display: none; position: fixed; inset: 0; z-index: 90;
   background: rgba(0,0,0,0.6);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .sidebar-overlay.show { display: block; }
 
