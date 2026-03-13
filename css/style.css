@@ -527,8 +527,19 @@ tbody tr:last-child td { border-bottom: none; }
    ============================ */
 @media (max-width: 900px) {
   .mobile-menu-btn { display: flex; }
-  .sidebar { transform: translateX(-100%); width: 270px; }
-  .sidebar.open { transform: translateX(0); box-shadow: 8px 0 30px rgba(0,0,0,0.5); }
+  .sidebar {
+    transform: translateX(-100%);
+    width: 270px;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 8px 0 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
   .main-content { margin-left: 0; padding: 20px 16px; padding-top: 68px; }
   .hero-title { font-size: 28px; }
   .charts-grid { grid-template-columns: 1fr; }
