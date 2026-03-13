@@ -578,7 +578,7 @@
     document.getElementById('collegeName').textContent = getSettings().collegeName;
 
     // ---- Tab Switching ----
-    function switchTab(tab) {
+    function switchTab(tab, skipHistory) {
       const tabs = ['users', 'subjects', 'assign', 'feedback', 'reports', 'settings', 'attendance'];
       tabs.forEach(t => {
         document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? '' : 'none';
@@ -1300,8 +1300,21 @@ function renderReports() {
       });
     });
   }, 150);
-}
 
+      // Close sidebar on mobile
+      document.querySelector('.sidebar').classList.remove('open');
+      document.querySelector('.sidebar-overlay').classList.remove('show');
+      // Push browser history so back button works
+      if (!skipHistory) history.pushState({tab: tab}, '', '#' + tab);
+    }
+
+
+    // Handle browser back button
+    window.addEventListener('popstate', function(e) {
+      if (e.state && e.state.tab) switchTab(e.state.tab, true);
+    });
+    // Set initial history state
+    history.replaceState({tab: 'users'}, '', '#users');
 
 function downloadAdminReport() {
   const stats = getInstitutionStats();
