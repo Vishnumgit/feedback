@@ -818,6 +818,7 @@
 
   if (!users.length) {
     wrap.innerHTML = filterBar + `<div class="empty-state"><div class="empty-icon">&#128269;</div><div class="empty-title">No matches</div><div class="empty-desc">Try different filter values.</div></div>`;
+    if (searchVal) { requestAnimationFrame(function() { var si = document.getElementById('userSearchInput'); if (si) { si.focus(); si.setSelectionRange(searchVal.length, searchVal.length); } }); }
     return;
   }
 
@@ -848,6 +849,13 @@
         </td>
       </tr>`;
     }).join('')}</tbody></table>`;
+  // Refocus search input after re-render (prevents losing focus on every keystroke)
+  if (searchVal) {
+    requestAnimationFrame(function() {
+      var si = document.getElementById('userSearchInput');
+      if (si) { si.focus(); si.setSelectionRange(searchVal.length, searchVal.length); }
+    });
+  }
 }
 
 
@@ -1256,6 +1264,13 @@ function renderStudentChecklist(teacherId) {
         </label>`;
       }).join('')}`;
   }).join('');
+  // Refocus assignment search after re-render
+  if (assignSearch) {
+    requestAnimationFrame(function() {
+      var asi = document.getElementById('assignSearchInput');
+      if (asi) { asi.focus(); asi.setSelectionRange(assignSearch.length, assignSearch.length); }
+    });
+  }
 }
 
 function tickAll(state) {
