@@ -832,6 +832,9 @@
         timestamp: new Date().toISOString()
       });
       localStorage.setItem('sf_notifications', JSON.stringify(notifs));
+      // Sync new notification to Firestore so students on other devices can see it
+      var latest = notifs[notifs.length - 1];
+      if (latest && typeof fsSetDoc === 'function') fsSetDoc('notifications', latest.id, latest);
       document.getElementById('notifTitle').value = '';
       document.getElementById('notifMessage').value = '';
       showToast('Notification sent to all students!', 'success');
@@ -861,6 +864,8 @@
       try { notifs = JSON.parse(localStorage.getItem('sf_notifications') || '[]'); } catch(e) {}
       notifs = notifs.filter(function(n) { return n.id !== id; });
       localStorage.setItem('sf_notifications', JSON.stringify(notifs));
+      // Sync deletion to Firestore
+      if (typeof fsDeleteDoc === 'function') fsDeleteDoc('notifications', id);
       renderNotifHistory();
       showToast('Notification deleted', 'info');
     }
