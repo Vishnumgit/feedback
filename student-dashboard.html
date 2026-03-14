@@ -273,6 +273,9 @@
   // Re-render after Firestore sync to show correct submission status on new devices
   window.addEventListener('firestore-synced', function() {
     console.log('[Dashboard] Re-rendering after Firestore sync...');
+    renderTeachers();
+    renderDashboard();
+  });
   
   // ==================== NOTIFICATIONS ====================
   function getNotifications() {
@@ -431,9 +434,7 @@
     }, 600 + Math.random() * 400);
   }
 
-  renderTeachers();
-    renderDashboard();
-  });
+
 
   function renderDashboard() {
     const teachers = getTeachersForStudent(session.userId);
