@@ -35,6 +35,12 @@
       <div class="nav-item" onclick="showSection('history')">
         <span class="nav-icon">&#x1F4CB;</span> Records
       </div>
+      <div class="nav-item" onclick="showSection('notifications')">
+        <span class="nav-icon">&#x1F514;</span> Notifications <span id="notifBadge" style="background:var(--danger);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px;display:none;">0</span>
+      </div>
+      <div class="nav-item" onclick="showSection('timetable')">
+        <span class="nav-icon">&#x1F4C5;</span> Timetable
+      </div>
       <div class="nav-group-label" style="margin-top:16px;">Account</div>
       <div class="nav-item" onclick="showSection('profile')">
         <span class="nav-icon">&#x1F464;</span> Profile
@@ -164,6 +170,40 @@
     </div>
 
     <!-- Settings Section -->
+
+    <!-- Notifications Section -->
+    <div id="sectionNotifications" style="display:none;">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Student Dashboard > <span>Notifications</span></div>
+          <div class="page-title">&#x1F514; Notifications</div>
+          <div class="page-subtitle">Latest updates from your institution</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="markAllNotifRead()">&#x2713; Mark all read</button>
+      </div>
+      <div class="section-card">
+        <div class="section-card-body" id="notifList">
+          <div style="color:var(--text-muted);text-align:center;padding:30px;">Loading notifications...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timetable Section -->
+    <div id="sectionTimetable" style="display:none;">
+      <div class="topbar">
+        <div>
+          <div class="breadcrumb">Student Dashboard > <span>Timetable</span></div>
+          <div class="page-title">&#x1F4C5; Timetable</div>
+          <div class="page-subtitle">Your class schedule</div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-body" id="timetableDisplay">
+          <div style="color:var(--text-muted);text-align:center;padding:30px;">No timetable uploaded yet. Check back later.</div>
+        </div>
+      </div>
+    </div>
+
     <div id="sectionSettings" style="display:none;">
       <div class="topbar">
         <div>
@@ -199,7 +239,7 @@
   document.getElementById('collegeName').textContent = getSettings().collegeName;
 
   function showSection(sec, skipHistory) {
-    const sections = ['dashboard', 'academics', 'teachers', 'history', 'profile', 'settings'];
+    const sections = ['dashboard', 'academics', 'teachers', 'history', 'notifications', 'timetable', 'profile', 'settings'];
     const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
     sections.forEach(s => {
       const el = document.getElementById('section' + s.charAt(0).toUpperCase() + s.slice(1));
@@ -215,6 +255,8 @@
     if (sec === 'academics') renderAcademics();
     if (sec === 'profile') renderProfile();
     if (sec === 'settings') renderSettings();
+    if (sec === 'notifications') renderNotifications();
+    if (sec === 'timetable') renderTimetable();
     // Close sidebar on mobile
     document.querySelector('.sidebar').classList.remove('open');
     document.querySelector('.sidebar-overlay').classList.remove('show');
@@ -231,7 +273,163 @@
   // Re-render after Firestore sync to show correct submission status on new devices
   window.addEventListener('firestore-synced', function() {
     console.log('[Dashboard] Re-rendering after Firestore sync...');
-    renderTeachers();
+  
+  // ==================== NOTIFICATIONS ====================
+  function getNotifications() {
+    try { return JSON.parse(localStorage.getItem('sf_notifications') || '[]'); } catch(e) { return []; }
+  }
+  function renderNotifications() {
+    var notifs = getNotifications().sort(function(a,b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+    var readIds = JSON.parse(localStorage.getItem('sf_notif_read_' + session.id) || '[]');
+    var el = document.getElementById('notifList');
+    if (!notifs.length) {
+      el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><div style="font-size:40px;margin-bottom:12px;">&#x1F514;</div><div style="font-weight:600;">No notifications yet</div><div style="font-size:13px;margin-top:4px;">Admin will push notifications here</div></div>';
+      return;
+    }
+    el.innerHTML = notifs.map(function(n) {
+      var isRead = readIds.indexOf(n.id) !== -1;
+      return '<div style="padding:16px;border-bottom:1px solid var(--border-light);background:' + (isRead ? 'transparent' : 'rgba(124,58,237,0.06)') + ';transition:var(--transition);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+          '<div style="font-weight:700;font-size:15px;">' + (!isRead ? '&#x1F535; ' : '') + (n.title || 'Notification') + '</div>' +
+          '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">' + (n.timestamp ? new Date(n.timestamp).toLocaleDateString() : '') + '</span>' +
+        '</div>' +
+        '<div style="font-size:13px;color:var(--text-sub);margin-top:6px;line-height:1.6;">' + (n.message || '') + '</div>' +
+        (n.category ? '<span style="font-size:10px;padding:2px 8px;border-radius:12px;background:rgba(124,58,237,0.15);color:var(--accent-light);margin-top:8px;display:inline-block;">' + n.category + '</span>' : '') +
+      '</div>';
+    }).join('');
+  }
+  function updateNotifBadge() {
+    var notifs = getNotifications();
+    var readIds = JSON.parse(localStorage.getItem('sf_notif_read_' + session.id) || '[]');
+    var unread = notifs.filter(function(n) { return readIds.indexOf(n.id) === -1; }).length;
+    var badge = document.getElementById('notifBadge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+  }
+  function markAllNotifRead() {
+    var notifs = getNotifications();
+    var readIds = notifs.map(function(n) { return n.id; });
+    localStorage.setItem('sf_notif_read_' + session.id, JSON.stringify(readIds));
+    renderNotifications();
+    updateNotifBadge();
+    showToast('All notifications marked as read', 'success');
+  }
+  updateNotifBadge();
+
+  // ==================== TIMETABLE ====================
+  function renderTimetable() {
+    var timetables = [];
+    try { timetables = JSON.parse(localStorage.getItem('sf_timetables') || '[]'); } catch(e) {}
+    var el = document.getElementById('timetableDisplay');
+    // Filter for student's department/section
+    var myTT = timetables.filter(function(t) {
+      if (t.department && session.department && t.department !== session.department) return false;
+      if (t.section && session.section && t.section !== session.section) return false;
+      return true;
+    });
+    if (!myTT.length) myTT = timetables; // fallback show all if no match
+    if (!myTT.length) {
+      el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><div style="font-size:40px;margin-bottom:12px;">&#x1F4C5;</div><div style="font-weight:600;">No timetable available</div><div style="font-size:13px;margin-top:4px;">Your admin will upload timetables here</div></div>';
+      return;
+    }
+    el.innerHTML = myTT.map(function(tt) {
+      return '<div style="margin-bottom:20px;">' +
+        '<div style="font-weight:700;font-size:16px;margin-bottom:4px;">&#x1F4C5; ' + (tt.title || 'Timetable') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">' + (tt.department || '') + (tt.section ? ' - ' + tt.section : '') + ' | Uploaded: ' + (tt.timestamp ? new Date(tt.timestamp).toLocaleDateString() : 'Unknown') + '</div>' +
+        (tt.content ? '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;border:1px solid var(--border-light);">' + tt.content + '</div>' : '') +
+        (tt.imageUrl ? '<img src="' + tt.imageUrl + '" style="max-width:100%;border-radius:var(--radius-sm);margin-top:8px;border:1px solid var(--border-light);" />' : '') +
+      '</div>';
+    }).join('<hr style="border-color:var(--border-light);margin:16px 0;">');
+  }
+
+  // ==================== AI CHATBOT ====================
+  var chatOpen = false;
+  var chatHistory = [];
+  var botKnowledge = {
+    greetings: ['hello','hi','hey','good morning','good evening','sup','hola'],
+    feedback: ['feedback','review','rate','rating','submit feedback','give feedback','how to feedback','evaluate'],
+    attendance: ['attendance','absent','present','my attendance','attendance percentage','bunking'],
+    timetable: ['timetable','schedule','class schedule','time table','classes today','when is','lecture'],
+    notification: ['notification','notice','announcement','alert','update','news'],
+    grades: ['grade','marks','score','cgpa','sgpa','result','exam'],
+    profile: ['profile','my profile','account','my details','change password'],
+    navigation: ['where','how to','find','go to','open','navigate','show me'],
+    help: ['help','support','assist','guide','what can you do','features']
+  };
+  var botResponses = {
+    greetings: "Hey there! &#x1F44B; I'm your Student Assistant. I can help you with:\n\n&#x2022; &#x1F4DD; Giving feedback to teachers\n&#x2022; &#x1F4CA; Checking attendance\n&#x2022; &#x1F4C5; Viewing timetable\n&#x2022; &#x1F514; Reading notifications\n\nWhat would you like help with?",
+    feedback: "To give feedback to a teacher:\n\n1️⃣ Go to the <b>Feedback</b> section from the sidebar\n2️⃣ Select a teacher card\n3️⃣ Rate each question using the scale\n4️⃣ Add optional comments\n5️⃣ Click <b>Submit</b>\n\n&#x1F4A1; Tip: You can toggle <b>Anonymous mode</b> to submit without revealing your identity!\n\n<button onclick=\"showSection('teachers');toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:8px;\">&#x27A1; Go to Feedback</button>",
+    attendance: "Your attendance information is tracked by the institution.\n\n&#x1F4CA; Go to <b>Dashboard</b> to see your attendance overview.\n\n&#x1F4A1; Tip: Keep attendance above 75% to avoid issues!\n\n<button onclick=\"showSection('dashboard');toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:8px;\">&#x27A1; View Dashboard</button>",
+    timetable: "Your class timetable is uploaded by the admin.\n\n<button onclick=\"showSection('timetable');toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:8px;\">&#x1F4C5; View Timetable</button>",
+    notification: "Check the latest notifications from your institution.\n\n<button onclick=\"showSection('notifications');toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:8px;\">&#x1F514; View Notifications</button>",
+    grades: "Your academic records and grades can be found in the <b>Academics</b> section.\n\n<button onclick=\"showSection('academics');toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:8px;\">&#x1F393; View Academics</button>",
+    profile: "You can view and update your profile information.\n\n<button onclick=\"showSection('profile');toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:8px;\">&#x1F464; My Profile</button>",
+    navigation: "Here are the main sections you can visit:\n\n&#x2022; &#x1F4CA; <b>Dashboard</b> - Overview & stats\n&#x2022; &#x1F393; <b>Academics</b> - Grades & courses\n&#x2022; &#x1F4DD; <b>Feedback</b> - Rate teachers\n&#x2022; &#x1F4CB; <b>Records</b> - Past submissions\n&#x2022; &#x1F514; <b>Notifications</b> - Announcements\n&#x2022; &#x1F4C5; <b>Timetable</b> - Class schedule\n\nJust click any section in the sidebar!",
+    help: "I'm your Smart Student Assistant! &#x1F916; Here's what I can help with:\n\n&#x1F4DD; <b>Feedback</b> - How to rate teachers\n&#x1F4CA; <b>Attendance</b> - Check your record\n&#x1F4C5; <b>Timetable</b> - View schedule\n&#x1F514; <b>Notifications</b> - Read updates\n&#x1F393; <b>Academics</b> - View grades\n&#x1F464; <b>Profile</b> - Edit your info\n\nJust type your question!",
+    unknown: "I'm not sure about that. &#x1F914; Try asking about:\n\n&#x2022; How to give feedback\n&#x2022; My attendance\n&#x2022; Timetable / schedule\n&#x2022; Notifications\n&#x2022; Grades / academics\n\nOr type <b>help</b> to see everything I can do!"
+  };
+
+  function matchIntent(msg) {
+    var lower = msg.toLowerCase().trim();
+    var bestMatch = 'unknown';
+    var bestScore = 0;
+    for (var intent in botKnowledge) {
+      var keywords = botKnowledge[intent];
+      for (var i = 0; i < keywords.length; i++) {
+        if (lower.indexOf(keywords[i]) !== -1 && keywords[i].length > bestScore) {
+          bestMatch = intent;
+          bestScore = keywords[i].length;
+        }
+      }
+    }
+    return bestMatch;
+  }
+
+  function getBotReply(msg) {
+    var intent = matchIntent(msg);
+    return botResponses[intent] || botResponses.unknown;
+  }
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById('chatWidget').style.display = chatOpen ? 'flex' : 'none';
+    document.getElementById('chatFab').style.display = chatOpen ? 'none' : 'flex';
+    if (chatOpen && chatHistory.length === 0) {
+      appendBotMsg(botResponses.greetings);
+    }
+  }
+
+  function appendBotMsg(text) {
+    chatHistory.push({role:'bot',text:text});
+    var el = document.getElementById('chatMessages');
+    el.innerHTML += '<div style="display:flex;gap:8px;margin-bottom:12px;"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">&#x1F916;</div><div style="background:var(--surface2);border-radius:12px 12px 12px 2px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text.replace(/\n/g,'<br>') + '</div></div>';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function appendUserMsg(text) {
+    chatHistory.push({role:'user',text:text});
+    var el = document.getElementById('chatMessages');
+    el.innerHTML += '<div style="display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end;"><div style="background:var(--accent);color:#fff;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text + '</div></div>';
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function sendChatMsg() {
+    var input = document.getElementById('chatInput');
+    var msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    appendUserMsg(msg);
+    // Simulate typing delay
+    var el = document.getElementById('chatMessages');
+    el.innerHTML += '<div id="typingIndicator" style="display:flex;gap:8px;margin-bottom:12px;"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">&#x1F916;</div><div style="background:var(--surface2);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--text-muted);">typing<span class="typing-dots">...</span></div></div>';
+    el.scrollTop = el.scrollHeight;
+    setTimeout(function() {
+      var typing = document.getElementById('typingIndicator');
+      if (typing) typing.remove();
+      appendBotMsg(getBotReply(msg));
+    }, 600 + Math.random() * 400);
+  }
+
+  renderTeachers();
     renderDashboard();
   });
 
@@ -498,5 +696,33 @@
 
   renderTeachers();
 </script>
+
+<!-- AI Chatbot FAB -->
+<div id="chatFab" onclick="toggleChat()" style="position:fixed;bottom:24px;right:24px;z-index:500;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.5);transition:transform 0.2s;font-size:26px;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">&#x1F916;</div>
+
+<!-- AI Chat Widget -->
+<div id="chatWidget" style="display:none;position:fixed;bottom:24px;right:24px;z-index:500;width:380px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 80px);border-radius:20px;background:var(--surface);border:1px solid var(--border);box-shadow:0 12px 40px rgba(0,0,0,0.5);flex-direction:column;overflow:hidden;">
+  <!-- Header -->
+  <div style="padding:14px 18px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;gap:10px;">
+    <div style="font-size:24px;">&#x1F916;</div>
+    <div style="flex:1;">
+      <div style="font-weight:700;font-size:14px;color:#fff;">Student Assistant</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.8);">Always here to help</div>
+    </div>
+    <button onclick="toggleChat()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">&#x2715;</button>
+  </div>
+  <!-- Messages -->
+  <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;"></div>
+  <!-- Input -->
+  <div style="padding:12px;border-top:1px solid var(--border-light);display:flex;gap:8px;">
+    <input id="chatInput" type="text" placeholder="Ask me anything..." onkeydown="if(event.key==='Enter')sendChatMsg()" style="flex:1;padding:10px 14px;border-radius:12px;border:1px solid var(--border-light);background:var(--surface2);color:var(--text);font-size:13px;outline:none;" />
+    <button onclick="sendChatMsg()" style="background:var(--accent);border:none;color:#fff;width:40px;height:40px;border-radius:12px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">&#x27A4;</button>
+  </div>
+</div>
+
+<style>
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.typing-dots { animation: blink 1s infinite; }
+</style>
 </body>
 </html>
