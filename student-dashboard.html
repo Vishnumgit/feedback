@@ -222,6 +222,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="js/data.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/firebase-sync.js"></script>
@@ -231,10 +232,48 @@
     startSessionListener();
   if (!session) throw new Error('No session');
 
-  // ==================== BROWSER NOTIFICATION PERMISSION ====================
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
+  // ==================== FCM PUSH NOTIFICATION REGISTRATION ====================
+  (function registerFCM() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    
+    Notification.requestPermission().then(function(permission) {
+      if (permission !== 'granted') { console.log('[FCM] Permission denied'); return; }
+      
+      // Register service worker and get FCM token
+      navigator.serviceWorker.register('/feedback/firebase-messaging-sw.js')
+        .then(function(registration) {
+          var messaging = firebase.messaging();
+          messaging.getToken({
+            vapidKey: 'BGXBxnRNf2Zk4Xs4p_UXd11L9akGGZSTejpsYw29P4upXtWnBWfOzt-bRm2KXW5ZWe3_d7DgPFbRdICq14wpN1E',
+            serviceWorkerRegistration: registration
+          }).then(function(token) {
+            if (!token) { console.warn('[FCM] No token received'); return; }
+            console.log('[FCM] Token:', token.substring(0, 20) + '...');
+            // Store token in Firestore linked to this student
+            if (typeof db !== 'undefined') {
+              db.collection('fcm_tokens').doc(session.userId).set({
+                token: token,
+                userId: session.userId,
+                email: session.email,
+                name: session.name,
+                updatedAt: new Date().toISOString()
+              });
+              console.log('[FCM] Token stored in Firestore for', session.userId);
+            }
+          }).catch(function(err) { console.warn('[FCM] Token error:', err.message); });
+          
+          // Handle foreground messages
+          var messaging2 = firebase.messaging();
+          messaging2.onMessage(function(payload) {
+            console.log('[FCM] Foreground message:', payload);
+            if (typeof showToast === 'function') {
+              showToast(payload.notification?.title + ': ' + payload.notification?.body, 'success');
+            }
+            if (typeof updateNotifBadge === 'function') updateNotifBadge();
+          });
+        }).catch(function(err) { console.warn('[FCM] SW registration error:', err.message); });
+    });
+  })();
 
   // ==================== REAL-TIME ENROLLMENT LISTENER ====================
   (function startEnrollmentWatcher() {
