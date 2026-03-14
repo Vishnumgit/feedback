@@ -1473,6 +1473,35 @@ function saveAssignments() {
       }
     });
     if (cleared) console.log('[Admin] Cleared ' + cleared + ' old feedback response(s) for resubmission');
+    // Send push notifications to newly enrolled students
+    var teacher = getUserById(selectedTeacherId);
+    var teacherName = teacher ? teacher.name : 'a teacher';
+    checkboxes.forEach(function(cb) {
+      var sId = cb.value;
+      var wasEnrolled = false; // We already enrolled above, check if this was a new one
+      if (cb.checked) {
+        // Look up the student's FCM token from Firestore and send push
+        db.collection('fcm_tokens').doc(sId).get().then(function(doc) {
+          if (doc.exists && doc.data().token) {
+            var fcmToken = doc.data().token;
+            var studentName = doc.data().name || 'Student';
+            console.log('[Push] Sending notification to ' + studentName);
+            // Call CodeWords FCM Push Notifier service
+            fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fcm_token: fcmToken,
+                title: 'New Teacher Assigned: ' + teacherName,
+                body: teacherName + ' has been assigned to you for feedback. Open your dashboard to submit!'
+              })
+            }).then(function(r) { return r.json(); })
+              .then(function(data) { console.log('[Push] Result:', data); })
+              .catch(function(err) { console.warn('[Push] Error:', err.message); });
+          }
+        }).catch(function(err) { console.warn('[Push] Token lookup failed:', err.message); });
+      }
+    });
   }
   let msg = [];
   if (added) msg.push(`&#10004; ${added} student${added>1?'s':''} enrolled`);
