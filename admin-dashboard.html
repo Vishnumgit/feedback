@@ -448,7 +448,7 @@
                 <label>College Email Domain</label>
                 <div class="input-icon-wrap">
                   <span class="input-icon" style="left:auto; right:12px; transform:translateY(-50%);">@</span>
-                  <input type="text" id="settDomain" placeholder="college.edu" />
+                  <input type="text" id="settDomain" placeholder="Enter domain (e.g. mgit.ac.in)" />
                 </div>
                 <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Only emails ending with this
                   domain will be allowed to log in.</div>
@@ -523,7 +523,7 @@
       <input type="hidden" id="editUserId" />
       <div class="form-group"><label>Full Name</label><input type="text" id="uName" placeholder="e.g. John Doe" /></div>
       <div class="form-group"><label>College Email</label><input type="email" id="uEmail"
-          placeholder="user@college.edu" /></div>
+          placeholder="Enter email address" /></div>
       <div class="form-group"><label>Password</label><input type="password" id="uPassword" placeholder="Set password" />
       </div>
       <div class="form-group"><label>Role</label>
@@ -2006,7 +2006,7 @@ function clearAllAttendance() {
 }
 
 function downloadAttendanceTemplate() {
-  const csv = "email,section,attendance_percentage\nstudent1@college.edu,CSE-A,85\nstudent2@college.edu,CSE-B,60\n";
+  const csv = "email,section,attendance_percentage\nstudent1@institute.edu,CSE-A,85\nstudent2@institute.edu,CSE-B,60\n";
   const blob = new Blob([csv], {type:'text/csv'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `attendance_template.csv`; a.click();
@@ -2016,7 +2016,7 @@ function downloadAttendanceTemplate() {
 let bulkParsedRows = [];
 
 function downloadCSVTemplate() {
-  const domain = getSettings().collegeDomain || 'college.edu';
+  const domain = getSettings().collegeDomain || '';
   const subs = getSubjects();
   const subExample = subs.length ? subs[0].name : 'Mathematics';
   const rows = [
