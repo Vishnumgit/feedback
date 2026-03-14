@@ -231,6 +231,79 @@
     startSessionListener();
   if (!session) throw new Error('No session');
 
+  // ==================== BROWSER NOTIFICATION PERMISSION ====================
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  // ==================== REAL-TIME ENROLLMENT LISTENER ====================
+  (function startEnrollmentWatcher() {
+    if (typeof db === 'undefined' || !db) return;
+    // Track enrollments we already know about to detect new ones
+    var knownEnrollKeys = {};
+    var initialLoad = true;
+    try {
+      var existing = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+      existing.forEach(function(e) {
+        if (e.studentId === session.userId) knownEnrollKeys[e.studentId + '_' + e.teacherId] = true;
+      });
+    } catch(e) {}
+
+    db.collection('enrollments').onSnapshot(function(snapshot) {
+      snapshot.docChanges().forEach(function(change) {
+        if (change.type === 'added') {
+          var data = change.doc.data();
+          if (data.studentId !== session.userId) return; // not for this student
+          var key = data.studentId + '_' + data.teacherId;
+          if (knownEnrollKeys[key]) return; // already known
+          knownEnrollKeys[key] = true;
+          if (initialLoad) return; // skip notifications for pre-existing enrollments
+
+          // Sync enrollments to localStorage so UI updates
+          var enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+          if (!enrollments.find(function(e) { return e.studentId === data.studentId && e.teacherId === data.teacherId; })) {
+            enrollments.push(data);
+            localStorage.setItem('sfft_enrollments', JSON.stringify(enrollments));
+          }
+
+          var teacher = getUserById(data.teacherId);
+          var teacherName = teacher ? teacher.name : 'a new teacher';
+
+          // In-app toast
+          if (typeof showToast === 'function') {
+            showToast('New teacher assigned: ' + teacherName + '. Give your feedback!', 'success');
+          }
+
+          // Browser push notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification('New Teacher Assigned', {
+                body: teacherName + ' has been assigned to you for feedback.',
+                icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>',
+                tag: 'enroll-' + key
+              });
+            } catch(e) { console.warn('[Notification] Push failed:', e.message); }
+          }
+
+          // Also add to sf_notifications so it appears in Notifications panel
+          var notifs = JSON.parse(localStorage.getItem('sf_notifications') || '[]');
+          notifs.push({
+            id: 'enroll_' + Date.now(),
+            title: 'New Teacher Assigned: ' + teacherName,
+            message: teacherName + ' has been assigned to you. Please provide your feedback.',
+            category: 'Assignment',
+            timestamp: new Date().toISOString()
+          });
+          localStorage.setItem('sf_notifications', JSON.stringify(notifs));
+          if (typeof updateNotifBadge === 'function') updateNotifBadge();
+        }
+      });
+      initialLoad = false;
+    }, function(err) {
+      console.warn('[Enrollment Watcher] Error:', err.message);
+    });
+  })();
+
   const currentUser = getUserById(session.userId);
 
   // UI Setup
