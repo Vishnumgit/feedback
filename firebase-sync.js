@@ -21,7 +21,7 @@ function fsDeleteDoc(collection, docId) {
 function syncFromFirestoreInBackground() {
   setTimeout(async function() {
     try {
-      const [usersSnap, subjectsSnap, qSnap, enrollSnap, responsesSnap, settingsDoc, attendanceSnap] =
+      const [usersSnap, subjectsSnap, qSnap, enrollSnap, responsesSnap, settingsDoc, attendanceSnap, notificationsSnap] =
         await Promise.all([
           db.collection('users').get(),
           db.collection('subjects').get(),
@@ -29,7 +29,8 @@ function syncFromFirestoreInBackground() {
           db.collection('enrollments').get(),
           db.collection('responses').get(),
           db.collection('settings').doc('global').get(),
-          db.collection('attendance').get()
+          db.collection('attendance').get(),
+          db.collection('notifications').get()
         ]);
 
       const toArray = snap => { const a = []; snap.forEach(d => a.push(d.data())); return a; };
@@ -41,6 +42,7 @@ function syncFromFirestoreInBackground() {
       const enrollments    = toArray(enrollSnap);
       const responses      = toArray(responsesSnap);
       const attendance     = toArray(attendanceSnap);
+      const notifications  = toArray(notificationsSnap);
       const settings       = settingsDoc.exists ? settingsDoc.data() : null;
 
       // Only overwrite localStorage if Firestore has data
@@ -51,6 +53,7 @@ function syncFromFirestoreInBackground() {
       if (responses.length)                   localStorage.setItem('sfft_responses',       JSON.stringify(responses));
       if (attendance.length)                  localStorage.setItem('sfft_attendance',      JSON.stringify(attendance));
       if (settings)                           localStorage.setItem('sfft_settings',        JSON.stringify(settings));
+      if (notifications.length)               localStorage.setItem('sf_notifications',     JSON.stringify(notifications));
 
       console.log('[Firebase] Background sync complete ✅');
       window.dispatchEvent(new Event('firestore-synced'));
