@@ -1489,7 +1489,7 @@ function saveAssignments() {
             // Call CodeWords FCM Push Notifier service
             fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-api-key': 'cwk-7823a045f520e66cea8bb225e49afa87562157bc0c788c53785b5784825f48d0' },
               body: JSON.stringify({
                 fcm_token: fcmToken,
                 title: 'New Teacher Assigned: ' + teacherName,
