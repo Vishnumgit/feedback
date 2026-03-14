@@ -165,6 +165,16 @@
               <button class="btn btn-secondary btn-xs" onclick="tickAll(false)">o Clear All</button>
             </div>
           </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--border-light);align-items:center;">
+            <span style="font-size:12px;font-weight:600;color:var(--text-muted);">Filter:</span>
+            <select id="filterDept" onchange="renderStudentChecklist(selectedTeacherId)" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">
+              <option value="">All Departments</option>
+            </select>
+            <select id="filterSection" onchange="renderStudentChecklist(selectedTeacherId)" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">
+              <option value="">All Sections</option>
+            </select>
+            <span id="filterCount" style="font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
+          </div>
           <div class="section-card-body">
             <div id="studentCheckGrid"
               style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;"></div>
@@ -938,11 +948,11 @@ function saveQEditorChanges() {
 
 // ==================== ASSIGN TAB ====================
 let selectedTeacherId = null;
-let selectedSubjectId = null;
+var selectedSubjectIds = [];
 
 function renderAssignTab() {
   selectedTeacherId = null;
-  selectedSubjectId = null;
+  selectedSubjectIds = [];
   document.getElementById('saveAssignBtn').style.display = 'none';
   document.getElementById('studentCheckPanel').style.display = 'none';
   document.getElementById('subjectPickPanel').style.display = 'none';
@@ -985,7 +995,7 @@ function renderTeacherPicker() {
 
 function selectTeacher(teacherId) {
   selectedTeacherId = teacherId;
-  selectedSubjectId = null;
+  selectedSubjectIds = [];
   renderTeacherPicker();
   document.getElementById('studentCheckPanel').style.display = 'none';
   document.getElementById('saveAssignBtn').style.display = 'none';
@@ -1003,24 +1013,37 @@ function renderSubjectPicker(teacherId) {
   var noMsg = document.getElementById('noSubjectsMsg');
   if (!subjects.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
   noMsg.style.display = 'none';
-  grid.innerHTML = subjects.map(function(sub) {
-    var isSelected = sub.id === selectedSubjectId;
-    return '<div onclick="selectSubject(\'' + sub.id + '\')" style="' +
-      'padding:16px; border-radius:var(--radius-sm); cursor:pointer; text-align:center;' +
-      'border:2px solid ' + (isSelected ? 'var(--accent)' : 'var(--border-light)') + ';' +
-      'background:' + (isSelected ? 'rgba(124,58,237,0.15)' : 'var(--surface)') + ';' +
-      'transition:var(--transition);' +
-    '">' +
-      '<div style="font-size:28px;margin-bottom:8px;">\u{1F4DA}</div>' +
-      '<div style="font-weight:700;font-size:14px;">' + sub.name + '</div>' +
-      (isSelected ? '<div style="color:var(--accent-light);font-size:16px;margin-top:6px;">\u2714\uFE0F</div>' : '') +
-    '</div>';
+  var html = subjects.map(function(sub) {
+    var isChecked = selectedSubjectIds.indexOf(sub.id) !== -1;
+    return '<label style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:var(--radius-sm);' +
+      'border:2px solid ' + (isChecked ? 'var(--accent)' : 'var(--border-light)') + ';' +
+      'background:' + (isChecked ? 'rgba(124,58,237,0.15)' : 'var(--surface)') + ';' +
+      'cursor:pointer;transition:var(--transition);">' +
+      '<input type="checkbox" onchange="toggleSubject(\'' + sub.id + '\')" ' + (isChecked ? 'checked' : '') +
+      ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;" />' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<span style="font-size:22px;">&#128218;</span>' +
+        '<span style="font-weight:700;font-size:14px;">' + sub.name + '</span>' +
+      '</div>' +
+    '</label>';
   }).join('');
+  html += '<div style="grid-column:1/-1;margin-top:10px;display:flex;align-items:center;gap:12px;">' +
+    '<button class="btn btn-primary btn-sm" onclick="proceedToStudents()" id="proceedSubjectsBtn"' +
+    (selectedSubjectIds.length ? '' : ' disabled style="opacity:0.5;pointer-events:none;"') +
+    '>&#10145; Proceed to Students (' + selectedSubjectIds.length + ' selected)</button>' +
+    '<span style="font-size:12px;color:var(--text-muted);">Select one or more subjects, then proceed</span>' +
+  '</div>';
+  grid.innerHTML = html;
 }
 
-function selectSubject(subjectId) {
-  selectedSubjectId = subjectId;
+function toggleSubject(subjectId) {
+  var idx = selectedSubjectIds.indexOf(subjectId);
+  if (idx === -1) { selectedSubjectIds.push(subjectId); } else { selectedSubjectIds.splice(idx, 1); }
   renderSubjectPicker(selectedTeacherId);
+}
+
+function proceedToStudents() {
+  if (!selectedSubjectIds.length) return;
   renderStudentChecklist(selectedTeacherId);
   document.getElementById('studentCheckPanel').style.display = '';
   document.getElementById('saveAssignBtn').style.display = '';
@@ -1029,15 +1052,34 @@ function selectSubject(subjectId) {
 
 function renderStudentChecklist(teacherId) {
   const teacher = getUserById(teacherId);
-  var subName = '';
-  if (selectedSubjectId) { var sObj = getSubjectById(selectedSubjectId); subName = sObj ? ' (' + sObj.name + ')' : ''; }
-  document.getElementById('assignTeacherName').textContent = teacher ? teacher.name + subName : '';
-  const students = getStudents();
+  var subNames = selectedSubjectIds.map(function(id) { var s = getSubjectById(id); return s ? s.name : ''; }).filter(Boolean);
+  var subLabel = subNames.length ? ' (' + subNames.join(', ') + ')' : '';
+  document.getElementById('assignTeacherName').textContent = teacher ? teacher.name + subLabel : '';
+  const allStudents = getStudents();
   const enrolled = new Set(getEnrollments().filter(e => e.teacherId === teacherId).map(e => e.studentId));
   const grid = document.getElementById('studentCheckGrid');
   const noMsg = document.getElementById('noStudentsMsg');
-  if (!students.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
+  if (!allStudents.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
   noMsg.style.display = 'none';
+
+  // Populate department & section filter dropdowns
+  var deptSet = new Set(); var secSet = new Set();
+  allStudents.forEach(function(s) { if (s.department) deptSet.add(s.department); if (s.section) secSet.add(s.section); });
+  var deptSel = document.getElementById('filterDept');
+  var secSel = document.getElementById('filterSection');
+  var curDept = deptSel ? deptSel.value : '';
+  var curSec = secSel ? secSel.value : '';
+  if (deptSel) { deptSel.innerHTML = '<option value="">All Departments</option>' + Array.from(deptSet).sort().map(function(d) { return '<option value="' + d + '"' + (d === curDept ? ' selected' : '') + '>' + d + '</option>'; }).join(''); }
+  if (secSel) { secSel.innerHTML = '<option value="">All Sections</option>' + Array.from(secSet).sort().map(function(s) { return '<option value="' + s + '"' + (s === curSec ? ' selected' : '') + '>' + s + '</option>'; }).join(''); }
+
+  // Apply filters
+  var students = allStudents.filter(function(s) {
+    if (curDept && s.department !== curDept) return false;
+    if (curSec && s.section !== curSec) return false;
+    return true;
+  });
+  var countEl = document.getElementById('filterCount');
+  if (countEl) countEl.textContent = 'Showing ' + students.length + ' of ' + allStudents.length + ' students';
 
   // Group students by section
   const groups = {};
