@@ -301,10 +301,15 @@
         (n.category ? '<span style="font-size:10px;padding:2px 8px;border-radius:12px;background:rgba(124,58,237,0.15);color:var(--accent-light);margin-top:8px;display:inline-block;">' + n.category + '</span>' : '') +
       '</div>';
     }).join('');
+    // Auto-mark all as read when viewing notifications section
+    var allIds = notifs.map(function(n) { return n.id; });
+    localStorage.setItem('sf_notif_read_' + sessionId, JSON.stringify(allIds));
+    updateNotifBadge();
   }
   function updateNotifBadge() {
     var notifs = getNotifications();
-    var readIds = JSON.parse(localStorage.getItem('sf_notif_read_' + session.id) || '[]');
+    var sessionId = (typeof session !== 'undefined' && session) ? session.id || session.userId || 'default' : 'default';
+    var readIds = JSON.parse(localStorage.getItem('sf_notif_read_' + sessionId) || '[]');
     var unread = notifs.filter(function(n) { return readIds.indexOf(n.id) === -1; }).length;
     var badge = document.getElementById('notifBadge');
     if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
