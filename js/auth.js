@@ -14,7 +14,7 @@ function login(email, password) {
   if (!user.active) throw new Error('Your account has been deactivated. Contact admin.');
   if (user.password !== password) throw new Error('Incorrect password.');
   const sessionToken = generateSessionToken();
-  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), sessionToken: sessionToken };
+  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, department: user.department || '', section: user.section || '', loginAt: Date.now(), sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   // Note: Firestore write happens in startSessionListener() on the dashboard page
   // because the login page redirects away too fast for async writes to complete
@@ -46,7 +46,7 @@ function googleLogin(credential, expectedRole) {
   }
 
   const sessionToken = generateSessionToken();
-  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, loginAt: Date.now(), viaGoogle: true, sessionToken: sessionToken };
+  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, department: user.department || '', section: user.section || '', loginAt: Date.now(), viaGoogle: true, sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
 }
