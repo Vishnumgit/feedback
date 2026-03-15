@@ -838,6 +838,12 @@
       document.getElementById('notifTitle').value = '';
       document.getElementById('notifMessage').value = '';
 
+      // Count total active students
+      var totalStudents = 0;
+      if (typeof getStudents === 'function') {
+        totalStudents = getStudents().length;
+      }
+
       // Send FCM push notification to ALL registered student devices
       if (typeof db !== 'undefined') {
         db.collection('fcm_tokens').get().then(function(snapshot) {
@@ -872,19 +878,27 @@
               var sent = results.filter(function(r) { return r.success; }).length;
               var failed = results.filter(function(r) { return !r.success; }).length;
               console.log('[Push] Completed: ' + sent + ' sent, ' + failed + ' failed out of ' + results.length + ' student(s)');
+              var msg = 'Notification saved! Push sent to ' + sent + '/' + totalStudents + ' students';
               if (failed > 0) {
-                showToast('Push sent to ' + sent + '/' + results.length + ' devices (' + failed + ' failed)', 'warning');
+                msg += ' (' + failed + ' failed)';
               }
+              if (sent < totalStudents) {
+                msg += '. Others will see it when they log in.';
+              }
+              showToast(msg, sent > 0 ? 'success' : 'warning');
             });
           } else {
             console.log('[Push] No registered FCM tokens found');
+            showToast('Notification saved! ' + totalStudents + ' students will see it when they log in.', 'success');
           }
         }).catch(function(err) {
           console.warn('[Push] Failed to query FCM tokens:', err.message);
+          showToast('Notification saved! Students will see it when they log in.', 'warning');
         });
+      } else {
+        showToast('Notification saved! Students will see it when they log in.', 'success');
       }
 
-      showToast('Notification sent to all students!', 'success');
       renderNotifHistory();
     }
 
