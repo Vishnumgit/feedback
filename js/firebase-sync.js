@@ -143,8 +143,8 @@ function patchDataFunctions() {
 
   // ---- Enrollments ----
   const _enroll = window.enroll;
-  window.enroll = function(studentId, teacherId) {
-    const result = _enroll(studentId, teacherId);
+  window.enroll = function(studentId, teacherId, subjectIds) {
+    const result = _enroll(studentId, teacherId, subjectIds);
     const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
     const e = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
     if (e) fsSetDoc('enrollments', `${studentId}_${teacherId}`, e);
@@ -152,9 +152,18 @@ function patchDataFunctions() {
   };
 
   const _unenroll = window.unenroll;
-  window.unenroll = function(studentId, teacherId) {
-    const result = _unenroll(studentId, teacherId);
-    fsDeleteDoc('enrollments', `${studentId}_${teacherId}`);
+  window.unenroll = function(studentId, teacherId, subjectIds) {
+    const result = _unenroll(studentId, teacherId, subjectIds);
+    // Check if enrollment still exists after unenroll (might have remaining subjects)
+    const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+    const e = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
+    if (e) {
+      // Enrollment still exists with other subjects, update it
+      fsSetDoc('enrollments', `${studentId}_${teacherId}`, e);
+    } else {
+      // Enrollment completely removed, delete from Firestore
+      fsDeleteDoc('enrollments', `${studentId}_${teacherId}`);
+    }
     return result;
   };
 

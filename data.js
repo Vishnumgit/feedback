@@ -167,15 +167,48 @@ function getStudentsForTeacher(teacherId) {
   const eList = getEnrollments().filter(e => e.teacherId === teacherId).map(e => e.studentId);
   return getStudents().filter(s => eList.includes(s.id));
 }
-function enroll(studentId, teacherId) {
+function enroll(studentId, teacherId, subjectIds) {
   const enrollments = getEnrollments();
-  if (!enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId)) {
-    enrollments.push({ studentId, teacherId, enrolledAt: Date.now() });
-    set(DB.ENROLLMENTS, enrollments);
+  subjectIds = subjectIds || [];
+
+  // Find existing enrollment for this student-teacher pair
+  const existing = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
+
+  if (existing) {
+    // Merge subjectIds - add new subjects to existing enrollment
+    const existingSubjects = existing.subjectIds || [];
+    const mergedSubjects = [...new Set([...existingSubjects, ...subjectIds])];
+    existing.subjectIds = mergedSubjects;
+    existing.enrolledAt = Date.now();
+  } else {
+    // Create new enrollment
+    enrollments.push({ studentId, teacherId, subjectIds, enrolledAt: Date.now() });
   }
+  set(DB.ENROLLMENTS, enrollments);
 }
-function unenroll(studentId, teacherId) {
-  set(DB.ENROLLMENTS, getEnrollments().filter(e => !(e.studentId === studentId && e.teacherId === teacherId)));
+function unenroll(studentId, teacherId, subjectIds) {
+  const enrollments = getEnrollments();
+
+  if (!subjectIds || subjectIds.length === 0) {
+    // Remove entire enrollment if no specific subjects provided
+    set(DB.ENROLLMENTS, enrollments.filter(e => !(e.studentId === studentId && e.teacherId === teacherId)));
+  } else {
+    // Remove only the specified subjects from the enrollment
+    const enrollment = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
+    if (enrollment) {
+      const existingSubjects = enrollment.subjectIds || [];
+      const remainingSubjects = existingSubjects.filter(subId => !subjectIds.includes(subId));
+
+      if (remainingSubjects.length === 0) {
+        // No subjects left, remove entire enrollment
+        set(DB.ENROLLMENTS, enrollments.filter(e => !(e.studentId === studentId && e.teacherId === teacherId)));
+      } else {
+        // Update enrollment with remaining subjects
+        enrollment.subjectIds = remainingSubjects;
+        set(DB.ENROLLMENTS, enrollments);
+      }
+    }
+  }
 }
 
 // ---- Attendance ------------------------------------------
