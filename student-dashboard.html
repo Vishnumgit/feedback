@@ -647,7 +647,15 @@
   }
 
   function renderProfile() {
-    const user = getUserById(session.userId) || {};
+    const userRecord = getUserById(session.userId) || {};
+    // Fall back to session data when localStorage record is missing or incomplete
+    const user = {
+      name: userRecord.name || session.name || '',
+      email: userRecord.email || session.email || '',
+      department: userRecord.department || session.department || '',
+      section: userRecord.section || session.section || '',
+      rollNo: userRecord.rollNo || '',
+    };
     const attRecord = getStudentAttendance(session.userId);
     const responses = getResponses().filter(r => r.studentId === session.userId);
     const initials = (user.name || 'S').split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
