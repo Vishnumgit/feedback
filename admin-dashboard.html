@@ -225,6 +225,7 @@
             <div style="display:flex;gap:8px;">
               <button class="btn btn-secondary btn-xs" onclick="tickAll(true)">&#10004; Select All</button>
               <button class="btn btn-secondary btn-xs" onclick="tickAll(false)">o Clear All</button>
+              <button class="btn btn-xs" onclick="resetAllForTeacher()" style="background:var(--danger);color:#fff;" title="Clear all assignments for this teacher">&#128260; Reset All</button>
             </div>
           </div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--border-light);align-items:center;">
@@ -1433,7 +1434,20 @@ function renderStudentChecklist(teacherId) {
   var subLabel = subNames.length ? ' (' + subNames.join(', ') + ')' : '';
   document.getElementById('assignTeacherName').textContent = teacher ? teacher.name + subLabel : '';
   const allStudents = getStudents();
-  const enrolled = new Set(getEnrollments().filter(e => e.teacherId === teacherId).map(e => e.studentId));
+
+  // Check if student is enrolled for ANY of the currently selected subjects
+  const enrolledForSubjects = new Set();
+  getEnrollments()
+    .filter(e => e.teacherId === teacherId)
+    .forEach(e => {
+      // Check if enrollment has any of the selected subjects
+      const enrollmentSubjects = e.subjectIds || [];
+      const hasSelectedSubject = selectedSubjectIds.some(subId => enrollmentSubjects.includes(subId));
+      if (hasSelectedSubject) {
+        enrolledForSubjects.add(e.studentId);
+      }
+    });
+
   const grid = document.getElementById('studentCheckGrid');
   const noMsg = document.getElementById('noStudentsMsg');
   if (!allStudents.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
@@ -1474,7 +1488,7 @@ function renderStudentChecklist(teacherId) {
         &#127991; ${group} <span style="font-weight:400;color:var(--text-muted)">(${grpStudents.length} student${grpStudents.length!==1?'s':''})</span>
       </div>
       ${grpStudents.map(s => {
-        const checked = enrolled.has(s.id);
+        const checked = enrolledForSubjects.has(s.id);
         return `<label style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid ${checked ? 'var(--accent)' : 'var(--border-light)'};background:${checked ? 'rgba(124,58,237,0.1)' : 'var(--surface)'};cursor:pointer;transition:var(--transition);">
           <input type="checkbox" id="ck_${s.id}" value="${s.id}" ${checked ? 'checked' : ''}
             style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;"
@@ -1517,9 +1531,21 @@ function saveAssignments() {
   checkboxes.forEach(cb => {
     const sId = cb.value;
     const isChecked = cb.checked;
-    const wasEnrolled = getEnrollments().some(e => e.studentId === sId && e.teacherId === selectedTeacherId);
-    if (isChecked && !wasEnrolled) { enroll(sId, selectedTeacherId); added++; }
-    else if (!isChecked && wasEnrolled) { unenroll(sId, selectedTeacherId); removed++; }
+
+    // Check if student is currently enrolled for ANY of the selected subjects
+    const enrollment = getEnrollments().find(e => e.studentId === sId && e.teacherId === selectedTeacherId);
+    const enrollmentSubjects = enrollment ? (enrollment.subjectIds || []) : [];
+    const hasAnySelectedSubject = selectedSubjectIds.some(subId => enrollmentSubjects.includes(subId));
+
+    if (isChecked && !hasAnySelectedSubject) {
+      // Enroll student with the selected subjects
+      enroll(sId, selectedTeacherId, selectedSubjectIds);
+      added++;
+    } else if (!isChecked && hasAnySelectedSubject) {
+      // Unenroll student from the selected subjects
+      unenroll(sId, selectedTeacherId, selectedSubjectIds);
+      removed++;
+    }
   });
   renderTeacherPicker(); // refresh count badges
   renderStudentChecklist(selectedTeacherId); // refresh enrolled badges
@@ -1569,6 +1595,38 @@ function saveAssignments() {
   if (removed) msg.push(`&#128465;&#65039; ${removed} student${removed>1?'s':''} removed`);
   if (!msg.length) msg.push('No changes made.');
   showToast(msg.join(' &middot; '), added||removed ? 'success' : 'info');
+}
+
+function resetAllForTeacher() {
+  if (!selectedTeacherId) return;
+
+  const teacher = getUserById(selectedTeacherId);
+  const teacherName = teacher ? teacher.name : 'this teacher';
+
+  if (!confirm(`Are you sure you want to remove ALL student enrollments for ${teacherName}? This will clear all assignments and allow you to start fresh.`)) {
+    return;
+  }
+
+  // Get all enrollments for this teacher
+  const enrollments = getEnrollments().filter(e => e.teacherId === selectedTeacherId);
+  let removed = 0;
+
+  // Remove all enrollments for this teacher
+  enrollments.forEach(e => {
+    unenroll(e.studentId, selectedTeacherId, []); // Pass empty array to remove entire enrollment
+    removed++;
+  });
+
+  // Clear all feedback responses for this teacher
+  const allResponses = getResponses();
+  const teacherResponses = allResponses.filter(r => r.teacherId === selectedTeacherId);
+  teacherResponses.forEach(r => deleteResponse(r.id));
+
+  // Refresh UI
+  renderTeacherPicker(); // refresh count badges
+  renderStudentChecklist(selectedTeacherId); // refresh student list
+
+  showToast(`&#128260; Reset complete: ${removed} student${removed!==1?'s':''} removed, ${teacherResponses.length} feedback response${teacherResponses.length!==1?'s':''} cleared`, 'success');
 }
 
 // ==================== FEEDBACK TAB ====================
