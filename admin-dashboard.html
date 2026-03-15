@@ -837,6 +837,53 @@
       if (latest && typeof fsSetDoc === 'function') fsSetDoc('notifications', latest.id, latest);
       document.getElementById('notifTitle').value = '';
       document.getElementById('notifMessage').value = '';
+
+      // Send FCM push notification to ALL registered student devices
+      if (typeof db !== 'undefined') {
+        db.collection('fcm_tokens').get().then(function(snapshot) {
+          var pushPromises = [];
+          snapshot.forEach(function(doc) {
+            var data = doc.data();
+            if (data.token) {
+              var studentName = data.name || 'Student';
+              console.log('[Push] Sending notification to ' + studentName);
+              var p = fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': 'cwk-7823a045f520e66cea8bb225e49afa87562157bc0c788c53785b5784825f48d0' },
+                body: JSON.stringify({
+                  fcm_token: data.token,
+                  title: title,
+                  body: message
+                })
+              }).then(function(r) { return r.json(); })
+                .then(function(result) {
+                  console.log('[Push] Result for ' + studentName + ':', result);
+                  return { success: true, name: studentName };
+                })
+                .catch(function(err) {
+                  console.warn('[Push] Error sending to ' + studentName + ':', err.message);
+                  return { success: false, name: studentName };
+                });
+              pushPromises.push(p);
+            }
+          });
+          if (pushPromises.length > 0) {
+            Promise.all(pushPromises).then(function(results) {
+              var sent = results.filter(function(r) { return r.success; }).length;
+              var failed = results.filter(function(r) { return !r.success; }).length;
+              console.log('[Push] Completed: ' + sent + ' sent, ' + failed + ' failed out of ' + results.length + ' student(s)');
+              if (failed > 0) {
+                showToast('Push sent to ' + sent + '/' + results.length + ' devices (' + failed + ' failed)', 'warning');
+              }
+            });
+          } else {
+            console.log('[Push] No registered FCM tokens found');
+          }
+        }).catch(function(err) {
+          console.warn('[Push] Failed to query FCM tokens:', err.message);
+        });
+      }
+
       showToast('Notification sent to all students!', 'success');
       renderNotifHistory();
     }
