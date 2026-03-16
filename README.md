@@ -134,23 +134,18 @@ feedback/
 ├── 📊 student-dashboard.html  # Student portal (489 lines)
 ├── 📝 feedback-form.html      # Feedback submission form
 │
-├── 📂 css/
-│   └── style.css              # Additional styles
-├── 📂 js/
-│   ├── auth.js                # Copies for js/ path
-│   ├── charts.js
-│   ├── data.js
-│   ├── firebase-config.js
-│   ├── firebase-sync.js
-│   └── fix_emojis.js
+├── 🔔 firebase-messaging-sw.js # Firebase Cloud Messaging service worker
 │
-├── 🎨 style.css               # Global dark theme (523 lines)
-├── 📦 data.js                 # Data layer — CRUD + analytics (309 lines)
-├── 🔥 firebase-config.js      # Firebase initialization
-├── 🔄 firebase-sync.js        # Firestore ↔ localStorage sync (237 lines)
-├── 📊 charts.js               # Chart.js rendering helpers
-├── 🔐 auth.js                 # Authentication & sessions
-└── 🔧 fix_emojis.js           # Emoji compatibility
+├── 📂 css/
+│   └── style.css              # Global dark theme styles (523 lines)
+│
+└── 📂 js/
+    ├── auth.js                # Authentication & session management
+    ├── charts.js              # Chart.js rendering helpers
+    ├── data.js                # Data layer — CRUD + analytics (309 lines)
+    ├── firebase-config.js     # Firebase initialization
+    ├── firebase-sync.js       # Firestore ↔ localStorage sync (237 lines)
+    └── fix_emojis.js          # Emoji compatibility
 ```
 
 **Total: 5,434 lines of code across 15 source files**
