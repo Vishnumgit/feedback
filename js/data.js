@@ -160,8 +160,26 @@ function saveQuestionnaire(subjectId, data) {
 // ---- Enrollments --------------------------------------------
 function getEnrollments() { return get(DB.ENROLLMENTS); }
 function getTeachersForStudent(studentId) {
-  const eList = getEnrollments().filter(e => e.studentId === studentId).map(e => e.teacherId);
-  return getTeachers().filter(t => eList.includes(t.id));
+  const enrollments = getEnrollments().filter(e => e.studentId === studentId);
+  const result = [];
+  enrollments.forEach(function(e) {
+    const teacher = getUserById(e.teacherId);
+    if (!teacher) return;
+    const subjectIds = e.subjectIds || [];
+    if (subjectIds.length === 0) {
+      // Legacy enrollment without subjectIds
+      const copy = Object.assign({}, teacher);
+      copy._enrolledSubjectId = teacher.subjectId || null;
+      result.push(copy);
+    } else {
+      subjectIds.forEach(function(subId) {
+        const copy = Object.assign({}, teacher);
+        copy._enrolledSubjectId = subId;
+        result.push(copy);
+      });
+    }
+  });
+  return result;
 }
 function getStudentsForTeacher(teacherId) {
   const eList = getEnrollments().filter(e => e.teacherId === teacherId).map(e => e.studentId);
@@ -239,11 +257,17 @@ function clearAttendanceForSection(section) {
 
 function getResponses() { return get(DB.RESPONSES); }
 function getResponsesForTeacher(teacherId) { return getResponses().filter(r => r.teacherId === teacherId); }
-function hasSubmitted(studentId, teacherId) { return getResponses().some(r => r.studentId === studentId && r.teacherId === teacherId); }
+function hasSubmitted(studentId, teacherId, subjectId) {
+  return getResponses().some(function(r) {
+    if (r.studentId !== studentId || r.teacherId !== teacherId) return false;
+    if (subjectId) return r.subjectId === subjectId;
+    return true;
+  });
+}
 function saveResponse({ teacherId, studentId, subjectId, anonymous, scores, comments }) {
   const all = getResponses();
-  // Prevent duplicate
-  const idx = all.findIndex(r => r.studentId === studentId && r.teacherId === teacherId);
+  // Prevent duplicate per teacher+subject
+  const idx = all.findIndex(r => r.studentId === studentId && r.teacherId === teacherId && r.subjectId === subjectId);
   const rec = {
     id: 'r_' + Date.now(),
     teacherId, studentId, subjectId, anonymous,

@@ -88,18 +88,20 @@
   const session = requireAuth('student');
 
   const teacherId = sessionStorage.getItem('sfft_feedback_teacher');
+  const feedbackSubjectId = sessionStorage.getItem('sfft_feedback_subject') || '';
   const isAnon = sessionStorage.getItem('sfft_feedback_anon') === '1';
   if (!teacherId) { window.location.href = 'student-dashboard.html'; }
 
-  // Block re-submission: if student already submitted for this teacher, redirect back
-  if (hasSubmitted(session.userId, teacherId)) {
+  // Block re-submission: if student already submitted for this teacher+subject, redirect back
+  if (hasSubmitted(session.userId, teacherId, feedbackSubjectId)) {
     alert('You have already submitted feedback for this teacher.');
     window.location.href = 'student-dashboard.html';
   }
 
   const teacher = getUserById(teacherId);
-  const subject = teacher ? getSubjectById(teacher.subjectId) : null;
-  const questionnaire = teacher && teacher.subjectId ? getQuestionnaire(teacher.subjectId) : { sections: [] };
+  const resolvedSubjectId = feedbackSubjectId || (teacher ? teacher.subjectId : null);
+  const subject = resolvedSubjectId ? getSubjectById(resolvedSubjectId) : null;
+  const questionnaire = resolvedSubjectId ? getQuestionnaire(resolvedSubjectId) : { sections: [] };
 
   // Populate teacher info
   if (teacher) {
@@ -247,7 +249,7 @@
     saveResponse({
       teacherId,
       studentId: session.userId,
-      subjectId: teacher ? teacher.subjectId : null,
+      subjectId: resolvedSubjectId || null,
       anonymous: isAnon,
       scores,
       comments
@@ -260,7 +262,7 @@
   // Re-render form after Firebase sync (in case questionnaire wasn't in localStorage yet)
   window.addEventListener('firestore-synced', function() {
     console.log('[FeedbackForm] Firebase synced — re-checking questionnaire...');
-    const freshQ = teacher && teacher.subjectId ? getQuestionnaire(teacher.subjectId) : { sections: [] };
+    const freshQ = resolvedSubjectId ? getQuestionnaire(resolvedSubjectId) : { sections: [] };
     const freshRaw = freshQ.sections || [];
     const freshHasQ = freshRaw.some(s => s.questions && s.questions.length > 0);
     const freshSections = freshHasQ ? freshRaw.filter(s => s.questions && s.questions.length > 0) : DEFAULT_QUESTIONNAIRE.sections;
