@@ -226,6 +226,7 @@
 <script src="js/data.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/firebase-sync.js"></script>
+<script src="js/notifications.js"></script>
 <script>
   fbInit();
   const session = requireAuth('student');
@@ -266,10 +267,23 @@
           var messaging2 = firebase.messaging();
           messaging2.onMessage(function(payload) {
             console.log('[FCM] Foreground message:', payload);
-            if (typeof showToast === 'function') {
-              showToast(payload.notification?.title + ': ' + payload.notification?.body, 'success');
+            var notifTitle = (payload.notification && payload.notification.title) || 'New Notification';
+            var notifBody  = (payload.notification && payload.notification.body)  || '';
+            var notifType  = (payload.data && payload.data.type) || 'general';
+
+            // Use NotificationsManager for vibration + sound + badge update
+            if (window.NotificationsManager) {
+              NotificationsManager.handleIncoming(notifTitle, notifBody, notifType);
+            } else {
+              if (typeof updateNotifBadge === 'function') updateNotifBadge();
             }
-            if (typeof updateNotifBadge === 'function') updateNotifBadge();
+
+            // Show in-app toast with type-specific style
+            if (typeof showToast === 'function') {
+              var toastTypeMap = { assignment: 'assignment', urgent: 'urgent' };
+              var toastType = toastTypeMap[notifType] || 'success';
+              showToast(notifTitle + (notifBody ? ': ' + notifBody : ''), toastType);
+            }
           });
         }).catch(function(err) { console.warn('[FCM] SW registration error:', err.message); });
     });
@@ -310,15 +324,23 @@
 
           // In-app toast
           if (typeof showToast === 'function') {
-            showToast('New teacher assigned: ' + teacherName + '. Give your feedback!', 'success');
+            showToast('🎓 New teacher assigned: ' + teacherName + '. Give your feedback!', 'assignment');
           }
 
-          // Browser push notification
-          if ('Notification' in window && Notification.permission === 'granted') {
+          // Vibration + sound + browser notification (via NotificationsManager when available)
+          if (window.NotificationsManager) {
+            NotificationsManager.handleIncoming(
+              'New Teacher Assigned',
+              teacherName + ' has been assigned to you for feedback.',
+              'assignment',
+              { tag: 'enroll-' + key }
+            );
+          } else if ('Notification' in window && Notification.permission === 'granted') {
             try {
               new Notification('New Teacher Assigned', {
                 body: teacherName + ' has been assigned to you for feedback.',
-                icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>',
+                icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>',
+                requireInteraction: true,
                 tag: 'enroll-' + key
               });
             } catch(e) { console.warn('[Notification] Push failed:', e.message); }
@@ -404,13 +426,19 @@
     }
     el.innerHTML = notifs.map(function(n) {
       var isRead = readIds.indexOf(n.id) !== -1;
-      return '<div style="padding:16px;border-bottom:1px solid var(--border-light);background:' + (isRead ? 'transparent' : 'rgba(124,58,237,0.06)') + ';transition:var(--transition);">' +
+      var cat = (n.category || '').toLowerCase();
+      var NOTIF_COLORS = {
+        assignment: { bg: 'rgba(59,130,246,0.12)', dot: '#60a5fa', catBg: 'rgba(59,130,246,0.15)', catColor: '#60a5fa' },
+        urgent:     { bg: 'rgba(239,68,68,0.12)',  dot: '#f87171', catBg: 'rgba(239,68,68,0.15)',  catColor: '#f87171' }
+      };
+      var colors = NOTIF_COLORS[cat] || { bg: 'rgba(124,58,237,0.06)', dot: 'var(--accent-light)', catBg: 'rgba(124,58,237,0.15)', catColor: 'var(--accent-light)' };
+      return '<div style="padding:16px;border-bottom:1px solid var(--border-light);background:' + (isRead ? 'transparent' : colors.bg) + ';transition:var(--transition);">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
-          '<div style="font-weight:700;font-size:15px;">' + (!isRead ? '&#x1F535; ' : '') + (n.title || 'Notification') + '</div>' +
+          '<div style="font-weight:700;font-size:15px;">' + (!isRead ? '<span style="color:' + colors.dot + ';margin-right:4px;">&#x2B24;</span>' : '') + (n.title || 'Notification') + '</div>' +
           '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">' + (n.timestamp ? new Date(n.timestamp).toLocaleDateString() : '') + '</span>' +
         '</div>' +
         '<div style="font-size:13px;color:var(--text-sub);margin-top:6px;line-height:1.6;">' + (n.message || '') + '</div>' +
-        (n.category ? '<span style="font-size:10px;padding:2px 8px;border-radius:12px;background:rgba(124,58,237,0.15);color:var(--accent-light);margin-top:8px;display:inline-block;">' + n.category + '</span>' : '') +
+        (n.category ? '<span style="font-size:10px;padding:2px 8px;border-radius:12px;background:' + colors.catBg + ';color:' + colors.catColor + ';margin-top:8px;display:inline-block;">' + n.category + '</span>' : '') +
       '</div>';
     }).join('');
     // Auto-mark all as read when viewing notifications section
@@ -419,6 +447,10 @@
     updateNotifBadge();
   }
   function updateNotifBadge() {
+    if (window.NotificationsManager) {
+      NotificationsManager.updateBadge();
+      return;
+    }
     var notifs = getNotifications();
     var sessionId = (typeof session !== 'undefined' && session) ? session.id || session.userId || 'default' : 'default';
     var readIds = JSON.parse(localStorage.getItem('sf_notif_read_' + sessionId) || '[]');

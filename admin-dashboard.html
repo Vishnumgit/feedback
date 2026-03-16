@@ -847,6 +847,8 @@
 
       // Send FCM push notification to ALL registered student devices
       if (typeof db !== 'undefined') {
+        // Map notification category to type for richer client-side handling
+        var notifType = category === 'Urgent' ? 'urgent' : 'general';
         db.collection('fcm_tokens').get().then(function(snapshot) {
           var pushPromises = [];
           snapshot.forEach(function(doc) {
@@ -860,7 +862,11 @@
                 body: JSON.stringify({
                   fcm_token: data.token,
                   title: title,
-                  body: message
+                  body: message,
+                  data: {
+                    type: notifType,
+                    category: category
+                  }
                 })
               }).then(function(r) { return r.json(); })
                 .then(function(result) {
@@ -1563,6 +1569,7 @@ function saveAssignments() {
     // Send push notifications to newly enrolled students
     var teacher = getUserById(selectedTeacherId);
     var teacherName = teacher ? teacher.name : 'a teacher';
+    var teacherSubject = teacher ? (teacher.subject || '') : '';
     checkboxes.forEach(function(cb) {
       var sId = cb.value;
       var wasEnrolled = false; // We already enrolled above, check if this was a new one
@@ -1573,17 +1580,26 @@ function saveAssignments() {
             var fcmToken = doc.data().token;
             var studentName = doc.data().name || 'Student';
             console.log('[Push] Sending notification to ' + studentName);
-            // Call CodeWords FCM Push Notifier service
+            var notifBody = teacherSubject
+              ? teacherName + ' (' + teacherSubject + ') has been assigned to you for feedback. Open your dashboard to submit!'
+              : teacherName + ' has been assigned to you for feedback. Open your dashboard to submit!';
+            // Call CodeWords FCM Push Notifier service with type metadata
             fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': 'cwk-7823a045f520e66cea8bb225e49afa87562157bc0c788c53785b5784825f48d0' },
               body: JSON.stringify({
                 fcm_token: fcmToken,
-                title: 'New Teacher Assigned: ' + teacherName,
-                body: teacherName + ' has been assigned to you for feedback. Open your dashboard to submit!'
+                title: '🎓 New Teacher Assigned: ' + teacherName,
+                body: notifBody,
+                data: {
+                  type: 'assignment',
+                  teacherName: teacherName,
+                  teacherSubject: teacherSubject,
+                  url: '/feedback/student-dashboard.html#teachers'
+                }
               })
             }).then(function(r) { return r.json(); })
-              .then(function(data) { console.log('[Push] Result:', data); })
+              .then(function(result) { console.log('[Push] Result:', result); })
               .catch(function(err) { console.warn('[Push] Error:', err.message); });
           }
         }).catch(function(err) { console.warn('[Push] Token lookup failed:', err.message); });

@@ -279,8 +279,20 @@ tbody tr:last-child td { border-bottom: none; }
 .toast-success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35); color: #34d399; }
 .toast-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.35); color: #f87171; }
 .toast-info { background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.35); color: var(--accent-light); }
+.toast-assignment { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.45); color: #60a5fa; font-weight: 600; }
+.toast-urgent { background: rgba(239,68,68,0.18); border: 1px solid rgba(239,68,68,0.55); color: #f87171; font-weight: 700; }
 @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; pointer-events: none; } }
+
+/* ============================
+   Notification Badge (pulse)
+   ============================ */
+@keyframes notifPulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0.7); }
+  70%  { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+.notif-badge-pulse { animation: notifPulse 1.4s ease-out infinite; }
 
 /* ============================
    Modal
