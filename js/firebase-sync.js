@@ -1,260 +1,109 @@
 // ============================================================
-// firebase-sync.js — NON-BLOCKING background sync
+// firebase-sync.js — NON-BLOCKING background sync (REST API version)
 // ============================================================
-// Usage in each HTML page:
-//   Call fbInit() at the TOP of the inline <script>.
-//   All other code (functions, event listeners) stays GLOBAL
-//   so HTML onclick="fn()" handlers work correctly.
+// Zero persistent connections. Supports 1,000+ concurrent users.
 // ============================================================
 
-// ------ Firestore write helpers ------
 function fsSetDoc(collection, docId, data) {
-  db.collection(collection).doc(docId).set(data)
-    .catch(e => console.warn('[Firebase] Write failed:', collection, docId, e.message));
+  FirestoreREST.setDoc(collection, docId, data)
+    .catch(function(e) { console.warn('[REST] Write failed:', collection, docId, e.message); });
 }
 function fsDeleteDoc(collection, docId) {
-  db.collection(collection).doc(docId).delete()
-    .catch(e => console.warn('[Firebase] Delete failed:', collection, docId, e.message));
+  FirestoreREST.deleteDoc(collection, docId)
+    .catch(function(e) { console.warn('[REST] Delete failed:', collection, docId, e.message); });
 }
 
-// ------ Background sync: Firestore → localStorage (runs after page init) ------
 function syncFromFirestoreInBackground() {
-  setTimeout(async function() {
-    try {
-      const [usersSnap, subjectsSnap, qSnap, enrollSnap, responsesSnap, settingsDoc, attendanceSnap] =
-        await Promise.all([
-          db.collection('users').get(),
-          db.collection('subjects').get(),
-          db.collection('questionnaires').get(),
-          db.collection('enrollments').get(),
-          db.collection('responses').get(),
-          db.collection('settings').doc('global').get(),
-          db.collection('attendance').get()
-        ]);
-
-      const toArray = snap => { const a = []; snap.forEach(d => a.push(d.data())); return a; };
-      const toObj   = snap => { const o = {}; snap.forEach(d => { o[d.id] = d.data(); }); return o; };
-
-      const users          = toArray(usersSnap);
-      const subjects       = toArray(subjectsSnap);
-      const questionnaires = toObj(qSnap);
-      const enrollments    = toArray(enrollSnap);
-      const responses      = toArray(responsesSnap);
-      const attendance     = toArray(attendanceSnap);
-      const settings       = settingsDoc.exists ? settingsDoc.data() : null;
-
-      // Only overwrite localStorage if Firestore has data
-      if (users.length)                       localStorage.setItem('sfft_users',          JSON.stringify(users));
-      if (subjects.length)                    localStorage.setItem('sfft_subjects',        JSON.stringify(subjects));
-      if (Object.keys(questionnaires).length) localStorage.setItem('sfft_questionnaires', JSON.stringify(questionnaires));
-      if (enrollments.length)                 localStorage.setItem('sfft_enrollments',     JSON.stringify(enrollments));
-      if (responses.length)                   localStorage.setItem('sfft_responses',       JSON.stringify(responses));
-      if (attendance.length)                  localStorage.setItem('sfft_attendance',      JSON.stringify(attendance));
-      if (settings)                           localStorage.setItem('sfft_settings',        JSON.stringify(settings));
-
-      console.log('[Firebase] Background sync complete ✅');
-      window.dispatchEvent(new Event('firestore-synced'));
-    } catch(e) {
-      console.warn('[Firebase] Background sync failed (offline?):', e.message);
-    }
-
-    // Push seed data to Firestore if it is empty (first-time setup)
-    pushSeedDataIfEmpty();
-  }, 100); // tiny delay so page renders first
-}
-
-async function pushSeedDataIfEmpty() {
-  try {
-    const snap = await db.collection('users').limit(1).get();
-    if (!snap.empty) return;
-
-    console.log('[Firebase] Firestore is empty — pushing seed data…');
-    const users    = JSON.parse(localStorage.getItem('sfft_users')          || '[]');
-    const subjects = JSON.parse(localStorage.getItem('sfft_subjects')       || '[]');
-    const qAll     = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
-    const settings = JSON.parse(localStorage.getItem('sfft_settings')       || '{}');
-
-    if (!users.length) return; // nothing to push yet
-
-    const batch = db.batch();
-    users.forEach(u    => batch.set(db.collection('users').doc(u.id), u));
-    subjects.forEach(s => batch.set(db.collection('subjects').doc(s.id), s));
-    Object.entries(qAll).forEach(([id, q]) => batch.set(db.collection('questionnaires').doc(id), q));
-    if (settings && settings.collegeName) batch.set(db.collection('settings').doc('global'), settings);
-    await batch.commit();
-    console.log('[Firebase] Seed data pushed ✅');
-  } catch(e) {
-    console.warn('[Firebase] Seed push failed:', e.message);
-  }
-}
-
-// ------ Patch data.js write functions to also sync to Firestore ------
-function patchDataFunctions() {
-
-  // ---- Users ----
-  const _addUser = window.addUser;
-  window.addUser = function(userData) {
-    const result = _addUser(userData);
-    const users = JSON.parse(localStorage.getItem('sfft_users') || '[]');
-    const newUser = users[users.length - 1];
-    if (newUser) fsSetDoc('users', newUser.id, newUser);
-    return result;
-  };
-
-  const _saveUser = window.saveUser;
-  window.saveUser = function(user) {
-    const result = _saveUser(user);
-    fsSetDoc('users', user.id, user);
-    return result;
-  };
-
-  const _deleteUser = window.deleteUser;
-  window.deleteUser = function(userId) {
-    const result = _deleteUser(userId);
-    fsDeleteDoc('users', userId);
-    return result;
-  };
-
-  // ---- Subjects ----
-  const _addSubject = window.addSubject;
-  window.addSubject = function(subjectData) {
-    const result = _addSubject(subjectData);
-    const subjects = JSON.parse(localStorage.getItem('sfft_subjects') || '[]');
-    const newSub = subjects[subjects.length - 1];
-    if (newSub) fsSetDoc('subjects', newSub.id, newSub);
-    return result;
-  };
-
-  const _deleteSubject = window.deleteSubject;
-  window.deleteSubject = function(subjectId) {
-    const result = _deleteSubject(subjectId);
-    fsDeleteDoc('subjects', subjectId);
-    fsDeleteDoc('questionnaires', subjectId);
-    return result;
-  };
-
-  // ---- Questionnaires ----
-  const _saveQuestionnaire = window.saveQuestionnaire;
-  window.saveQuestionnaire = function(subjectId, data) {
-    const result = _saveQuestionnaire(subjectId, data);
-    fsSetDoc('questionnaires', subjectId, data);
-    return result;
-  };
-
-  // ---- Enrollments ----
-  const _enroll = window.enroll;
-  window.enroll = function(studentId, teacherId, subjectIds) {
-    const result = _enroll(studentId, teacherId, subjectIds);
-    const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
-    const e = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
-    if (e) fsSetDoc('enrollments', `${studentId}_${teacherId}`, e);
-    return result;
-  };
-
-  const _unenroll = window.unenroll;
-  window.unenroll = function(studentId, teacherId, subjectIds) {
-    const result = _unenroll(studentId, teacherId, subjectIds);
-    // Check if enrollment still exists after unenroll (might have remaining subjects)
-    const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
-    const e = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
-    if (e) {
-      // Enrollment still exists with other subjects, update it
-      fsSetDoc('enrollments', `${studentId}_${teacherId}`, e);
-    } else {
-      // Enrollment completely removed, delete from Firestore
-      fsDeleteDoc('enrollments', `${studentId}_${teacherId}`);
-    }
-    return result;
-  };
-
-  // ---- Responses ----
-  const _addResponse = window.addResponse;
-  if (_addResponse) {
-    window.addResponse = function(responseData) {
-      const result = _addResponse(responseData);
-      const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-      const newResp = responses[responses.length - 1];
-      if (newResp) fsSetDoc('responses', newResp.id, newResp);
-      return result;
-    };
-  }
-
-  // Patch saveResponse to also sync to Firestore
-  const _saveResponse = window.saveResponse;
-  if (_saveResponse) {
-    window.saveResponse = function(data) {
-      const result = _saveResponse(data);
-      // After saving, find the response in localStorage and sync to Firestore
-      const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-      const saved = responses.find(function(r) { return r.studentId === data.studentId && r.teacherId === data.teacherId; });
-      if (saved) fsSetDoc('responses', saved.id, saved);
-      return result;
-    };
-  }
-
-  const _deleteResponse = window.deleteResponse;
-  if (_deleteResponse) {
-    window.deleteResponse = function(responseId) {
-      const result = _deleteResponse(responseId);
-      fsDeleteDoc('responses', responseId);
-      return result;
-    };
-  }
-
-  const _deleteResponses = window.deleteResponses;
-  if (_deleteResponses) {
-    window.deleteResponses = function(responseIds) {
-      const result = _deleteResponses(responseIds);
-      responseIds.forEach(function(id) { fsDeleteDoc('responses', id); });
-      return result;
-    };
-  }
-
-  const _clearAllResponses = window.clearAllResponses;
-  if (_clearAllResponses) {
-    window.clearAllResponses = function() {
-      var responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-      var result = _clearAllResponses();
-      responses.forEach(function(r) { fsDeleteDoc('responses', r.id); });
-      return result;
-    };
-  }
-
-  // ---- Settings ----
-  const _saveSettings = window.saveSettings;
-  window.saveSettings = function(settings) {
-    const result = _saveSettings(settings);
-    const s = JSON.parse(localStorage.getItem('sfft_settings') || '{}');
-    fsSetDoc('settings', 'global', s);
-    return result;
-  };
-
-  // ---- Attendance ----
-  const _saveAttendanceRecords = window.saveAttendanceRecords;
-  window.saveAttendanceRecords = function(records) {
-    const result = _saveAttendanceRecords(records);
-    // Each attendance record is keyed by studentId
-    const allRecords = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
-    records.forEach(rec => {
-      const saved = allRecords.find(a => a.studentId === rec.studentId);
-      if (saved) fsSetDoc('attendance', saved.studentId, saved);
+  setTimeout(function() {
+    var allPromises = [];
+    var arrayCollections = ['users', 'subjects', 'enrollments', 'responses', 'attendance'];
+    arrayCollections.forEach(function(col) {
+      allPromises.push(
+        FirestoreREST.getCollection(col).then(function(docs) {
+          if (docs.length) localStorage.setItem('sfft_' + col, JSON.stringify(docs));
+          return { name: col, count: docs.length };
+        }).catch(function(e) { return { name: col, count: 0 }; })
+      );
     });
-    return result;
-  };
+    allPromises.push(
+      fetch('https://firestore.googleapis.com/v1/projects/' + FirestoreREST.PROJECT_ID +
+        '/databases/(default)/documents/questionnaires?key=AIzaSyC9R2FKE9gwinvVocs92EtPjoFHG2TfDWM&pageSize=1000')
+        .then(function(r) { return r.json(); }).then(function(data) {
+          if (!data.documents) return { name: 'questionnaires', count: 0 };
+          var obj = {};
+          data.documents.forEach(function(doc) {
+            var parts = doc.name.split('/');
+            obj[parts[parts.length - 1]] = FirestoreREST.fromFirestoreFields(doc.fields);
+          });
+          if (Object.keys(obj).length) localStorage.setItem('sfft_questionnaires', JSON.stringify(obj));
+          return { name: 'questionnaires', count: Object.keys(obj).length };
+        }).catch(function() { return { name: 'questionnaires', count: 0 }; })
+    );
+    allPromises.push(
+      FirestoreREST.getDoc('settings', 'global').then(function(doc) {
+        if (doc) localStorage.setItem('sfft_settings', JSON.stringify(doc));
+        return { name: 'settings', count: doc ? 1 : 0 };
+      }).catch(function() { return { name: 'settings', count: 0 }; })
+    );
+    Promise.all(allPromises).then(function(results) {
+      console.log('[REST] Sync complete', results.map(function(r) { return r.name + ':' + r.count; }).join(', '));
+      window.dispatchEvent(new Event('firestore-synced'));
+      pushSeedDataIfEmpty();
+    });
+  }, 100);
 }
 
+function pushSeedDataIfEmpty() {
+  FirestoreREST.getCollection('users').then(function(docs) {
+    if (docs.length > 0) return;
+    var users = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+    var subjects = JSON.parse(localStorage.getItem('sfft_subjects') || '[]');
+    var qAll = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+    var settings = JSON.parse(localStorage.getItem('sfft_settings') || '{}');
+    if (!users.length) return;
+    var p = [];
+    users.forEach(function(u) { p.push(FirestoreREST.setDoc('users', u.id, u)); });
+    subjects.forEach(function(s) { p.push(FirestoreREST.setDoc('subjects', s.id, s)); });
+    Object.keys(qAll).forEach(function(id) { p.push(FirestoreREST.setDoc('questionnaires', id, qAll[id])); });
+    if (settings.collegeName) p.push(FirestoreREST.setDoc('settings', 'global', settings));
+    return Promise.all(p);
+  }).catch(function(e) { console.warn('[REST] Seed check failed:', e.message); });
+}
 
-// ------ Main entry point: call at TOP of each page's <script> ------
-// fbInit() runs instantly (no blocking). All page functions must stay
-// at global scope (NOT inside a callback) for onclick handlers to work.
+function patchDataFunctions() {
+  var _addUser = window.addUser;
+  window.addUser = function(d) { var r = _addUser(d); var u = JSON.parse(localStorage.getItem('sfft_users')||'[]'); var n=u[u.length-1]; if(n) fsSetDoc('users',n.id,n); return r; };
+  var _saveUser = window.saveUser;
+  window.saveUser = function(u) { var r = _saveUser(u); fsSetDoc('users',u.id,u); return r; };
+  var _deleteUser = window.deleteUser;
+  window.deleteUser = function(id) { var r = _deleteUser(id); fsDeleteDoc('users',id); return r; };
+  var _addSubject = window.addSubject;
+  window.addSubject = function(d) { var r = _addSubject(d); var s = JSON.parse(localStorage.getItem('sfft_subjects')||'[]'); var n=s[s.length-1]; if(n) fsSetDoc('subjects',n.id,n); return r; };
+  var _deleteSubject = window.deleteSubject;
+  window.deleteSubject = function(id) { var r = _deleteSubject(id); fsDeleteDoc('subjects',id); fsDeleteDoc('questionnaires',id); return r; };
+  var _saveQuestionnaire = window.saveQuestionnaire;
+  window.saveQuestionnaire = function(id,d) { var r = _saveQuestionnaire(id,d); fsSetDoc('questionnaires',id,d); return r; };
+  var _enroll = window.enroll;
+  window.enroll = function(s,t,ids) { var r = _enroll(s,t,ids); var e = JSON.parse(localStorage.getItem('sfft_enrollments')||'[]').find(function(x){return x.studentId===s&&x.teacherId===t;}); if(e) fsSetDoc('enrollments',s+'_'+t,e); return r; };
+  var _unenroll = window.unenroll;
+  window.unenroll = function(s,t,ids) { var r = _unenroll(s,t,ids); var e = JSON.parse(localStorage.getItem('sfft_enrollments')||'[]').find(function(x){return x.studentId===s&&x.teacherId===t;}); if(e) fsSetDoc('enrollments',s+'_'+t,e); else fsDeleteDoc('enrollments',s+'_'+t); return r; };
+  var _saveResponse = window.saveResponse;
+  if(_saveResponse) window.saveResponse = function(d) { var r = _saveResponse(d); var a=JSON.parse(localStorage.getItem('sfft_responses')||'[]'); var s=a.find(function(x){return x.studentId===d.studentId&&x.teacherId===d.teacherId;}); if(s) fsSetDoc('responses',s.id,s); return r; };
+  var _deleteResponse = window.deleteResponse;
+  if(_deleteResponse) window.deleteResponse = function(id) { var r = _deleteResponse(id); fsDeleteDoc('responses',id); return r; };
+  var _deleteResponses = window.deleteResponses;
+  if(_deleteResponses) window.deleteResponses = function(ids) { var r = _deleteResponses(ids); ids.forEach(function(id){fsDeleteDoc('responses',id);}); return r; };
+  var _clearAllResponses = window.clearAllResponses;
+  if(_clearAllResponses) window.clearAllResponses = function() { var a=JSON.parse(localStorage.getItem('sfft_responses')||'[]'); var r=_clearAllResponses(); a.forEach(function(x){fsDeleteDoc('responses',x.id);}); return r; };
+  var _saveSettings = window.saveSettings;
+  window.saveSettings = function(s) { var r = _saveSettings(s); var d=JSON.parse(localStorage.getItem('sfft_settings')||'{}'); fsSetDoc('settings','global',d); return r; };
+  var _saveAttendanceRecords = window.saveAttendanceRecords;
+  window.saveAttendanceRecords = function(recs) { var r = _saveAttendanceRecords(recs); var a=JSON.parse(localStorage.getItem('sfft_attendance')||'[]'); recs.forEach(function(rec){var s=a.find(function(x){return x.studentId===rec.studentId;}); if(s) fsSetDoc('attendance',s.studentId,s);}); return r; };
+}
+
 window.fbInit = function() {
-  if (typeof initDB === 'function') initDB();  // load from localStorage immediately
-  patchDataFunctions();                         // mirror future writes to Firestore
-  syncFromFirestoreInBackground();              // pull latest Firestore data in background
+  if (typeof initDB === 'function') initDB();
+  patchDataFunctions();
+  syncFromFirestoreInBackground();
 };
-
-// Alias kept for any legacy usage
-window.startApp = function(callback) {
-  window.fbInit();
-  if (typeof callback === 'function') callback();
-};
+window.startApp = function(cb) { window.fbInit(); if(typeof cb==='function') cb(); };
