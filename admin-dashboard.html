@@ -1034,6 +1034,17 @@
       if (sectVal) users = users.filter(u => u.section === sectVal);
       if (searchVal) { const q = searchVal.toLowerCase(); users = users.filter(u => (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q) || (u.rollNo||'').toLowerCase().includes(q)); }
 
+      // Sort students by roll number
+      if (role === 'student') {
+        users.sort((a, b) => {
+          const rollA = (a.rollNo || '').toLowerCase();
+          const rollB = (b.rollNo || '').toLowerCase();
+          if (rollA < rollB) return -1;
+          if (rollA > rollB) return 1;
+          return 0;
+        });
+      }
+
       if (!allUsers.length) {
         wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">${role === 'student' ? "&#127891;" : "&#128104;‍&#127979;"}</div><div class="empty-title">No ${role}s yet</div><div class="empty-desc">Click "Add User" to create a ${role} account.</div></div>`;
   return; 
@@ -1495,6 +1506,17 @@ function renderStudentChecklist(teacherId) {
     const key = s.section ? `${s.department || 'No Dept'} – ${s.section}` : (s.department || 'Unassigned');
     if (!groups[key]) groups[key] = [];
     groups[key].push(s);
+  });
+
+  // Sort students within each group by roll number
+  Object.keys(groups).forEach(key => {
+    groups[key].sort((a, b) => {
+      const rollA = (a.rollNo || '').toLowerCase();
+      const rollB = (b.rollNo || '').toLowerCase();
+      if (rollA < rollB) return -1;
+      if (rollA > rollB) return 1;
+      return 0;
+    });
   });
 
   grid.innerHTML = Object.entries(groups).sort().map(([group, grpStudents]) => {
