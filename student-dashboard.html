@@ -747,7 +747,52 @@
               </div>`).join('')}
           </div>
         </div>
+      </div>
+      <!-- Change Password Section -->
+      <div class="section-card animate-in" style="margin-top:20px;">
+        <div class="section-card-header"><div class="section-card-title">&#x1F512; Change Password</div></div>
+        <div class="section-card-body">
+          <div style="max-width:400px;">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="cpCurrent" placeholder="Enter current password" />
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="cpNew" placeholder="Min 6 characters" />
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" id="cpConfirm" placeholder="Re-enter new password" />
+            </div>
+            <div id="cpMsg" style="font-size:13px;margin-bottom:10px;"></div>
+            <button class="btn btn-primary btn-sm" onclick="handleChangePassword()">&#x1F512; Update Password</button>
+          </div>
+        </div>
       </div>`;
+  }
+
+  function handleChangePassword() {
+    var msgEl = document.getElementById('cpMsg');
+    msgEl.textContent = '';
+    msgEl.style.color = '';
+    var cur = document.getElementById('cpCurrent').value;
+    var np = document.getElementById('cpNew').value;
+    var conf = document.getElementById('cpConfirm').value;
+    if (!cur) { msgEl.textContent = 'Please enter your current password.'; msgEl.style.color = 'var(--danger)'; return; }
+    if (!np || np.length < 6) { msgEl.textContent = 'New password must be at least 6 characters.'; msgEl.style.color = 'var(--danger)'; return; }
+    if (np !== conf) { msgEl.textContent = 'New passwords do not match.'; msgEl.style.color = 'var(--danger)'; return; }
+    try {
+      changePassword(session.userId, cur, np);
+      msgEl.textContent = '\u2705 Password changed successfully!';
+      msgEl.style.color = '#22c55e';
+      document.getElementById('cpCurrent').value = '';
+      document.getElementById('cpNew').value = '';
+      document.getElementById('cpConfirm').value = '';
+    } catch(e) {
+      msgEl.textContent = e.message;
+      msgEl.style.color = 'var(--danger)';
+    }
   }
 
   function renderSettings() {
@@ -774,7 +819,52 @@
             <button class="btn btn-secondary" onclick="if(confirm('Log out?')) logout()">🚪 Log Out</button>
           </div>
         </div>
+      </div>
+      <!-- Change Password Section -->
+      <div class="section-card animate-in" style="margin-top:20px;">
+        <div class="section-card-header"><div class="section-card-title">&#x1F512; Change Password</div></div>
+        <div class="section-card-body">
+          <div style="max-width:400px;">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="cpCurrent" placeholder="Enter current password" />
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="cpNew" placeholder="Min 6 characters" />
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" id="cpConfirm" placeholder="Re-enter new password" />
+            </div>
+            <div id="cpMsg" style="font-size:13px;margin-bottom:10px;"></div>
+            <button class="btn btn-primary btn-sm" onclick="handleChangePassword()">&#x1F512; Update Password</button>
+          </div>
+        </div>
       </div>`;
+  }
+
+  function handleChangePassword() {
+    var msgEl = document.getElementById('cpMsg');
+    msgEl.textContent = '';
+    msgEl.style.color = '';
+    var cur = document.getElementById('cpCurrent').value;
+    var np = document.getElementById('cpNew').value;
+    var conf = document.getElementById('cpConfirm').value;
+    if (!cur) { msgEl.textContent = 'Please enter your current password.'; msgEl.style.color = 'var(--danger)'; return; }
+    if (!np || np.length < 6) { msgEl.textContent = 'New password must be at least 6 characters.'; msgEl.style.color = 'var(--danger)'; return; }
+    if (np !== conf) { msgEl.textContent = 'New passwords do not match.'; msgEl.style.color = 'var(--danger)'; return; }
+    try {
+      changePassword(session.userId, cur, np);
+      msgEl.textContent = '\u2705 Password changed successfully!';
+      msgEl.style.color = '#22c55e';
+      document.getElementById('cpCurrent').value = '';
+      document.getElementById('cpNew').value = '';
+      document.getElementById('cpConfirm').value = '';
+    } catch(e) {
+      msgEl.textContent = e.message;
+      msgEl.style.color = 'var(--danger)';
+    }
   }
 
   function renderTeachers() {
