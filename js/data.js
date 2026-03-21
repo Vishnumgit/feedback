@@ -102,7 +102,11 @@ function saveSettings(s) { setObj(DB.SETTINGS, s); }
 
 // ---- Users --------------------------------------------------
 function getUsers() { return get(DB.USERS); }
-function getUserByEmail(email) { return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()); }
+function getUserByEmail(email) {
+  if (!email) return null;
+  var key = String(email).toLowerCase();
+  return getUsers().find(function(u) { return (u.email || '').toLowerCase() === key; });
+}
 function getUserById(id) { return getUsers().find(u => u.id === id); }
 function saveUser(user) {
   const users = getUsers();
