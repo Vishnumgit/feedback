@@ -9,11 +9,12 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Chart.js](https://img.shields.io/badge/Chart.js-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white)](https://www.chartjs.org/)
+[![EmailJS](https://img.shields.io/badge/EmailJS-FF6C37?style=for-the-badge&logo=maildotru&logoColor=white)](https://www.emailjs.com/)
 
 <br/>
 
 <img src="https://img.shields.io/badge/Lines_of_Code-5,434-blueviolet?style=flat-square" />
-<img src="https://img.shields.io/badge/Files-15-blue?style=flat-square" />
+<img src="https://img.shields.io/badge/Files-16-blue?style=flat-square" />
 <img src="https://img.shields.io/badge/Roles-3_(Admin%2C_Teacher%2C_Student)-green?style=flat-square" />
 <img src="https://img.shields.io/badge/Database-Firestore_+_localStorage-orange?style=flat-square" />
 <img src="https://img.shields.io/badge/Framework-None_(Vanilla_JS)-lightgrey?style=flat-square" />
@@ -36,6 +37,7 @@
 | 📄 **Report Generator** | Downloadable HTML reports with SVG charts — print as PDF |
 | 🔥 **Firebase Cloud Sync** | Offline-first with automatic Firestore background sync |
 | 📱 **Responsive Design** | Works on desktop, tablet, and mobile screens |
+| 🔑 **Password Reset** | EmailJS-powered forgot password flow with Firestore token validation |
 | 🚀 **Zero Dependencies** | No frameworks, no build step — just open `index.html` |
 
 ---
@@ -101,6 +103,7 @@
 |---------|-------------|
 | 📝 **Feedback Form** | Multi-section 1-5 star ratings, anonymous option, comments, attendance-gated (≥75%) |
 | 👤 **Dashboard** | Profile with Roll No, assigned teachers list, submission status per teacher |
+| 🔑 **Forgot Password** | Email-based password reset via EmailJS with secure Firestore tokens (1-hour expiry, single-use) |
 
 ---
 
@@ -115,6 +118,7 @@
 | `responses` | `sfft_responses` | Submitted feedback with scores & comments |
 | `attendance` | `sfft_attendance` | Student attendance records per section |
 | `settings` | `sfft_settings` | College name, domain, min threshold |
+| `password_resets` | — | Reset tokens with expiry for forgot password flow |
 
 ---
 
@@ -128,6 +132,7 @@ feedback/
 ├── 🔐 admin-login.html        # Admin login
 ├── 🔐 teacher-login.html      # Teacher login
 ├── 🔐 student-login.html      # Student login
+├── 🔑 reset-password.html     # Forgot / Reset password (EmailJS + Firestore)
 │
 ├── 📊 admin-dashboard.html    # Admin panel (1,968 lines — 7 tabs)
 ├── 📊 teacher-dashboard.html  # Teacher portal (877 lines)
@@ -192,6 +197,7 @@ start index.html   # Windows
 | **Database** | Firebase Firestore | Cloud NoSQL database |
 | **Offline** | localStorage | Fast offline-first data access |
 | **Sync** | firebase-sync.js | Background bidirectional sync |
+| **Email** | EmailJS | Client-side password reset emails (no backend) |
 | **Auth** | Session-based (localStorage) | Role-based access control |
 | **Fonts** | Google Fonts (Inter) | Professional typography |
 | **Hosting** | Static files | Deploy anywhere — GitHub Pages, Netlify, etc. |
@@ -205,8 +211,8 @@ start index.html   # Windows
 | Metric | Value |
 |--------|-------|
 | 📝 Total Lines of Code | **5,434** |
-| 📁 Source Files | **15** |
-| 🔥 Firestore Collections | **7** |
+| 📁 Source Files | **16** |
+| 🔥 Firestore Collections | **8** |
 | 👤 User Roles | **3** (Admin, Teacher, Student) |
 | 📊 Chart Types | **4** (Radar, Bar, Doughnut, Trend) |
 | 📄 Report Generators | **2** (Teacher + Admin) |
