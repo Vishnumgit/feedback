@@ -380,7 +380,7 @@
           <div class="section-card-header">
             <div class="section-card-title">&#128202; Current Attendance Records</div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                  <button class="btn btn-sm" onclick="clearAllAttendance()" style="background:var(--danger);color:#fff;font-size:11px;">&#128465; Clear All</button>
+                  <button class="btn btn-sm" onclick="clearAllAttendance()" style="background:var(--danger);color:#fff;font-size:11px;white-space:nowrap;">&#128465; Clear All</button>
                   <select id="attFilterSection" onchange="renderAttendanceRecords()"
                     style="padding:5px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;">
                     <option value="">All Sections</option>
@@ -1764,7 +1764,7 @@ function renderReports() {
       <td>${item.stats.totalResponses}</td>
       <td><span style="font-weight:700;color:${color};">${item.stats.overallAvg}/5</span></td>
       <td style="font-size:12px;">${best ? best[0] + ' (' + best[1] + ')' : '–'}</td>
-      <td>${isUnder ? '<span class="badge badge-orange">s&#9881;️ Needs Improvement</span>' : '<span class="badge badge-green">&#10004; On Track</span>'}</td>
+      <td>${isUnder ? '<span class="badge badge-orange">&#9888;️ Needs Improvement</span>' : '<span class="badge badge-green">&#10004; On Track</span>'}</td>
     </tr>`;
   }).join('')}</tbody></table>`;
 
@@ -2254,8 +2254,8 @@ function parseAttCSV(text) {
   document.getElementById('attParseErr').style.display = 'none';
   document.getElementById('attDropZone').style.display = 'none';
   document.getElementById('attPreviewCard').style.display = '';
-  document.getElementById('attOkCount').textContent = `&#10004; ${(attParsedRows.length - errCount)} Valid`;
-  document.getElementById('attErrCount').textContent = `s&#9881;️ ${errCount} Errors`;
+  document.getElementById('attOkCount').innerHTML = `✔ ${(attParsedRows.length - errCount)} Valid`;
+  document.getElementById('attErrCount').innerHTML = `⚠️ ${errCount} Errors`;
   
   const thresh = 75; // ATTENDANCE_THRESHOLD from data.js
   document.getElementById('attPreviewTable').innerHTML = `<table>
@@ -2514,7 +2514,7 @@ function renderBulkPreview() {
 
 function showBulkErr(msg) {
   const el = document.getElementById('bulkParseErr');
-  el.textContent = 's&#9881;️ ' + msg; el.style.display = '';
+  el.innerHTML = '⚠️ ' + msg; el.style.display = '';
 }
 
 
