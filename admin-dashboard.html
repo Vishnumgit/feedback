@@ -229,7 +229,7 @@
             </div>
           </div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--border-light);align-items:center;">
-            <input id="assignSearchInput" type="text" autocomplete="off" placeholder="&#128269; Search student name, email, roll no..." oninput="renderStudentChecklist(selectedTeacherId)" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;width:260px;" />
+            <input id="assignSearchInput" type="search" autocomplete="one-time-code" placeholder="&#128269; Search student name, email, roll no..." oninput="renderStudentChecklist(selectedTeacherId)" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;width:260px;" />
             <span style="font-size:12px;font-weight:600;color:var(--text-muted);">Filter:</span>
             <select id="filterDept" onchange="renderStudentChecklist(selectedTeacherId)" style="padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">
               <option value="">All Departments</option>
@@ -1032,6 +1032,9 @@
       if (sectVal) users = users.filter(u => u.section === sectVal);
       if (searchVal) { const q = searchVal.toLowerCase(); users = users.filter(u => (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q) || (u.rollNo||'').toLowerCase().includes(q)); }
 
+      // Sort by roll number
+      users.sort(function(a, b) { return (a.rollNo || '').localeCompare(b.rollNo || '', undefined, {numeric: true}); });
+
       if (!allUsers.length) {
         wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">${role === 'student' ? "&#127891;" : "&#128104;‍&#127979;"}</div><div class="empty-title">No ${role}s yet</div><div class="empty-desc">Click "Add User" to create a ${role} account.</div></div>`;
   return; 
@@ -1039,7 +1042,7 @@
 
   // Filter bar
   const filterBar = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border-light);">
-    <input id="userSearchInput" type="text" autocomplete="off" placeholder="&#128269; Search name, email, roll no..." oninput="renderUserTable('${role}')" value="${searchVal}" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;width:220px;" />
+    <input id="userSearchInput" type="search" autocomplete="one-time-code" placeholder="&#128269; Search name, email, roll no..." oninput="renderUserTable('${role}')" value="${searchVal}" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;width:220px;" />
     <span style="font-size:12px;font-weight:600;color:var(--text-muted);">Filter:</span>
     <select id="userFilterDept" onchange="renderUserTable('${role}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">
       <option value="">All Departments</option>
