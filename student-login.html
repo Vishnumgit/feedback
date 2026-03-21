@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
   <title>Student Login — Feedback System</title>
   <link rel="stylesheet" href="css/style.css?v=2" />
   <!-- Google Identity Services -->
@@ -104,7 +106,7 @@
   }
   window.handleGoogleSignIn = handleGoogleSignIn;
 
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -124,7 +126,7 @@
     if (!ok) return;
 
     try {
-      const s = login(email, password);
+      const s = await login(email, password);
       if (s.role !== 'student') { loginErr.textContent = 'This portal is for students only.'; loginErr.classList.add('show'); logout(); return; }
       window.location.href = 'student-dashboard.html';
     } catch(err) {

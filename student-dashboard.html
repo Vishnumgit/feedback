@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
   <title>Student Dashboard — Feedback System</title>
   <link rel="stylesheet" href="css/style.css?v=2" />
 </head>
@@ -456,11 +458,11 @@
       var colors = NOTIF_COLORS[cat] || { bg: 'rgba(124,58,237,0.06)', dot: 'var(--accent-light)', catBg: 'rgba(124,58,237,0.15)', catColor: 'var(--accent-light)' };
       return '<div style="padding:16px;border-bottom:1px solid var(--border-light);background:' + (isRead ? 'transparent' : colors.bg) + ';transition:var(--transition);">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
-          '<div style="font-weight:700;font-size:15px;">' + (!isRead ? '<span style="color:' + colors.dot + ';margin-right:4px;">&#x2B24;</span>' : '') + (n.title || 'Notification') + '</div>' +
+          '<div style="font-weight:700;font-size:15px;">' + (!isRead ? '<span style="color:' + colors.dot + ';margin-right:4px;">&#x2B24;</span>' : '') + escapeHtml(n.title || 'Notification') + '</div>' +
           '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">' + (n.timestamp ? new Date(n.timestamp).toLocaleDateString() : '') + '</span>' +
         '</div>' +
-        '<div style="font-size:13px;color:var(--text-sub);margin-top:6px;line-height:1.6;">' + (n.message || '') + '</div>' +
-        (n.category ? '<span style="font-size:10px;padding:2px 8px;border-radius:12px;background:' + colors.catBg + ';color:' + colors.catColor + ';margin-top:8px;display:inline-block;">' + n.category + '</span>' : '') +
+        '<div style="font-size:13px;color:var(--text-sub);margin-top:6px;line-height:1.6;">' + escapeHtml(n.message || '') + '</div>' +
+        (n.category ? '<span style="font-size:10px;padding:2px 8px;border-radius:12px;background:' + colors.catBg + ';color:' + colors.catColor + ';margin-top:8px;display:inline-block;">' + escapeHtml(n.category) + '</span>' : '') +
       '</div>';
     }).join('');
     // Auto-mark all as read when viewing notifications section
@@ -509,10 +511,10 @@
     }
     el.innerHTML = myTT.map(function(tt) {
       return '<div style="margin-bottom:20px;">' +
-        '<div style="font-weight:700;font-size:16px;margin-bottom:4px;">&#x1F4C5; ' + (tt.title || 'Timetable') + '</div>' +
-        '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">' + (tt.department || '') + (tt.section ? ' - ' + tt.section : '') + ' | Uploaded: ' + (tt.timestamp ? new Date(tt.timestamp).toLocaleDateString() : 'Unknown') + '</div>' +
-        (tt.content ? '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;border:1px solid var(--border-light);">' + tt.content + '</div>' : '') +
-        (tt.imageUrl ? '<img src="' + tt.imageUrl + '" style="max-width:100%;border-radius:var(--radius-sm);margin-top:8px;border:1px solid var(--border-light);" />' : '') +
+        '<div style="font-weight:700;font-size:16px;margin-bottom:4px;">&#x1F4C5; ' + escapeHtml(tt.title || 'Timetable') + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">' + escapeHtml(tt.department || '') + (tt.section ? ' - ' + escapeHtml(tt.section) : '') + ' | Uploaded: ' + (tt.timestamp ? new Date(tt.timestamp).toLocaleDateString() : 'Unknown') + '</div>' +
+        (tt.content ? '<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;border:1px solid var(--border-light);">' + escapeHtml(tt.content) + '</div>' : '') +
+        (tt.imageUrl ? '<img src="' + escapeHtml(tt.imageUrl) + '" style="max-width:100%;border-radius:var(--radius-sm);margin-top:8px;border:1px solid var(--border-light);" />' : '') +
       '</div>';
     }).join('<hr style="border-color:var(--border-light);margin:16px 0;">');
   }
@@ -584,7 +586,7 @@
   function appendUserMsg(text) {
     chatHistory.push({role:'user',text:text});
     var el = document.getElementById('chatMessages');
-    el.innerHTML += '<div style="display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end;"><div style="background:var(--accent);color:#fff;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text + '</div></div>';
+    el.innerHTML += '<div style="display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end;"><div style="background:var(--accent);color:#fff;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + escapeHtml(text) + '</div></div>';
     el.scrollTop = el.scrollHeight;
   }
 
@@ -656,8 +658,8 @@
           const all = Object.values(r.scores || {}).flat();
           const avg = all.length ? (all.reduce((a,b) => a+b,0)/all.length).toFixed(1) : '?';
           return `<tr>
-            <td style="font-weight:600;">${t ? t.name : 'Unknown'}</td>
-            <td style="color:var(--text-muted);">${sub ? sub.name : 'N/A'}</td>
+            <td style="font-weight:600;">${escapeHtml(t ? t.name : 'Unknown')}</td>
+            <td style="color:var(--text-muted);">${escapeHtml(sub ? sub.name : 'N/A')}</td>
             <td><span class="badge badge-purple">&#x2B50; ${avg}/5</span></td>
             <td style="font-size:12px;color:var(--text-muted);">${new Date(r.submittedAt).toLocaleDateString()}</td>
           </tr>`;
@@ -682,14 +684,14 @@
           return `
             <div class="section-card animate-in" style="padding:0;">
               <div style="background:linear-gradient(135deg,var(--accent),var(--accent-light));padding:18px;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:12px;">
-                <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:16px;flex-shrink:0;">${initials}</div>
+                <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:16px;flex-shrink:0;">${escapeHtml(initials)}</div>
                 <div>
-                  <div style="font-weight:700;color:#fff;font-size:14px;">${t.name}</div>
-                  <div style="font-size:11px;color:rgba(255,255,255,0.75);">${t.department || ''}${t.section ? ' · ' + t.section : ''}</div>
+                  <div style="font-weight:700;color:#fff;font-size:14px;">${escapeHtml(t.name)}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.75);">${escapeHtml(t.department || '')}${t.section ? ' · ' + escapeHtml(t.section) : ''}</div>
                 </div>
               </div>
               <div style="padding:14px 16px;">
-                ${sub ? `<div style="font-size:13px;font-weight:600;margin-bottom:6px;">&#x1F4DA; ${sub.name}</div>` : '<div style="color:var(--text-muted);font-size:12px;">No subject assigned</div>'}
+                ${sub ? `<div style="font-size:13px;font-weight:600;margin-bottom:6px;">&#x1F4DA; ${escapeHtml(sub.name)}</div>` : '<div style="color:var(--text-muted);font-size:12px;">No subject assigned</div>'}
                 <div style="margin-top:10px;">${done
                   ? '<span class="badge badge-green" style="font-size:11px;">&#x2705; Feedback Submitted</span>'
                   : '<span class="badge badge-orange" style="font-size:11px;">&#x23F3; Feedback Pending</span>'}
@@ -717,12 +719,12 @@
       <div style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start;">
         <!-- Avatar + Badges -->
         <div class="section-card animate-in" style="text-align:center;padding:28px 24px;min-width:200px;">
-          <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:28px;margin:0 auto 12px;">${initials}</div>
-          <div style="font-weight:700;font-size:16px;margin-bottom:4px;">${user.name || 'Student'}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">${user.email || ''}</div>
-          ${user.rollNo ? `<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">Roll No: ${user.rollNo}</div>` : ''}
+          <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:28px;margin:0 auto 12px;">${escapeHtml(initials)}</div>
+          <div style="font-weight:700;font-size:16px;margin-bottom:4px;">${escapeHtml(user.name || 'Student')}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">${escapeHtml(user.email || '')}</div>
+          ${user.rollNo ? `<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">Roll No: ${escapeHtml(user.rollNo)}</div>` : ''}
           <span class="badge badge-blue">&#x1F393; Student</span>
-          ${user.department ? `<span class="badge badge-purple" style="margin-left:4px;">${user.department}${user.section ? ' · ' + user.section : ''}</span>` : ''}
+          ${user.department ? `<span class="badge badge-purple" style="margin-left:4px;">${escapeHtml(user.department)}${user.section ? ' · ' + escapeHtml(user.section) : ''}</span>` : ''}
           <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-muted);">
             <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#x1F4CA; Feedback Score</div>
             <div style="font-size:24px;font-weight:800;color:var(--accent);">${responses.length}</div>
@@ -742,8 +744,8 @@
               ['Attendance', attRecord ? attRecord.percentage + '%' : 'Not uploaded'],
             ].map(([k,v]) => `
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border-light);">
-                <span style="font-size:13px;color:var(--text-muted)">${k}</span>
-                <span style="font-weight:600;font-size:13px;">${v}</span>
+                <span style="font-size:13px;color:var(--text-muted)">${escapeHtml(k)}</span>
+                <span style="font-weight:600;font-size:13px;">${escapeHtml(String(v))}</span>
               </div>`).join('')}
           </div>
         </div>
@@ -818,20 +820,20 @@
           btnHtml = `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.6; cursor:not-allowed;">Feedback Locked</button>`;
         } else {
           statusHtml = done ? '<span class="badge badge-green">&#x2705; Submitted</span>' : '<span class="badge badge-orange">&#x23F3; Pending</span>';
-          btnHtml = done ? '<span style="font-size:12px; color:var(--text-muted);">Already submitted</span>' : `<button class="btn btn-primary btn-sm" onclick="goToFeedback('${t.id}','${t._enrolledSubjectId || ''}')">&#x1F4DD; Give Feedback</button>`;
+          btnHtml = done ? '<span style="font-size:12px; color:var(--text-muted);">Already submitted</span>' : `<button class="btn btn-primary btn-sm" onclick="goToFeedback('${escapeHtml(t.id)}','${escapeHtml(t._enrolledSubjectId || '')}')">&#x1F4DD; Give Feedback</button>`;
         }
 
         return `
           <div class="teacher-card">
-            <div class="teacher-avatar-lg">${initials}</div>
-          <div class="teacher-name">${t.name}</div>
-          <div class="teacher-meta">${t.department || 'Department N/A'}${t.section ? ' · ' + t.section : ''}</div>
-          ${sub ? `<div class="teacher-subject-tag">&#x1F4DA; ${sub.name}</div>` : ''}
+            <div class="teacher-avatar-lg">${escapeHtml(initials)}</div>
+          <div class="teacher-name">${escapeHtml(t.name)}</div>
+          <div class="teacher-meta">${escapeHtml(t.department || 'Department N/A')}${t.section ? ' · ' + escapeHtml(t.section) : ''}</div>
+          ${sub ? `<div class="teacher-subject-tag">&#x1F4DA; ${escapeHtml(sub.name)}</div>` : ''}
             <div style="margin-bottom:14px;">${statusHtml}</div>
             ${btnHtml}
         </div>
       `;
-    }).join('');
+      }).join('');
   }
 
   function renderHistory() {
@@ -849,8 +851,8 @@
           const all = Object.values(r.scores || {}).flat();
           const avg = all.length ? (all.reduce((a, b) => a + b, 0) / all.length).toFixed(1) : 'N/A';
           return `<tr>
-            <td>${t ? t.name : 'Unknown'}</td>
-            <td>${sub ? sub.name : 'N/A'}</td>
+            <td>${escapeHtml(t ? t.name : 'Unknown')}</td>
+            <td>${escapeHtml(sub ? sub.name : 'N/A')}</td>
             <td><span class="badge badge-purple">&#x2B50; ${avg}/5</span></td>
             <td>${r.anonymous ? '<span class="badge badge-blue">Anonymous</span>' : '<span class="badge badge-gray">Identified</span>'}</td>
             <td>${new Date(r.submittedAt).toLocaleDateString()}</td>
@@ -914,7 +916,10 @@ function appendUserMsg(text) {
   if (!el) return;
   var div = document.createElement('div');
   div.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end;';
-  div.innerHTML = '<div style="background:#7c3aed;color:#fff;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text + '</div>';
+  var msgDiv = document.createElement('div');
+  msgDiv.style.cssText = 'background:#7c3aed;color:#fff;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;';
+  msgDiv.textContent = text;
+  div.appendChild(msgDiv);
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }

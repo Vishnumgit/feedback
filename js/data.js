@@ -20,13 +20,33 @@ const set = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 const getObj = (key) => JSON.parse(localStorage.getItem(key) || '{}');
 const setObj = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 
+// ---- Security Helpers ---------------------------------------
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Hash password using SHA-256(email:password) via Web Crypto API
+async function hashPassword(password, email) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode((email || '').toLowerCase() + ':' + password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // ---- Init / Seed --------------------------------------------
 function initDB() {
   if (localStorage.getItem('sfft_initialized')) return;
 
-  // Admin account
+  // Admin account — passwordHash is SHA-256("admin@college.edu:Admin@123")
   const users = [
-    { id: 'u_admin', email: 'admin@college.edu', password: 'Admin@123', role: 'admin', name: 'System Administrator', department: 'Administration', active: true }
+    { id: 'u_admin', email: 'admin@college.edu', passwordHash: 'a67b3da8b3d8dd936127d34c6e6f61328850f55e1ae70dca944905419b2f4736', role: 'admin', name: 'System Administrator', department: 'Administration', active: true }
   ];
   set(DB.USERS, users);
 
@@ -115,10 +135,11 @@ function deleteUser(userId) {
   // clean enrollments
   set(DB.ENROLLMENTS, get(DB.ENROLLMENTS).filter(e => e.studentId !== userId && e.teacherId !== userId));
 }
-function addUser({ role, name, email, password, department, section, subjectId, rollNo }) {
+async function addUser({ role, name, email, password, department, section, subjectId, rollNo, subjectIds }) {
   if (getUserByEmail(email)) throw new Error('Email already registered.');
   const id = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-  const user = { id, email, password, role, name, department: department || '', section: section || '', subjectId: subjectId || null, rollNo: rollNo || '', active: true };
+  const passwordHash = await hashPassword(password, email);
+  const user = { id, email, passwordHash, role, name, department: department || '', section: section || '', subjectId: subjectId || null, subjectIds: subjectIds || [], rollNo: rollNo || '', active: true };
   saveUser(user);
   return user;
 }
