@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
   <title>Feedback Form — Feedback System</title>
   <link rel="stylesheet" href="css/style.css?v=2" />
 </head>
@@ -92,6 +94,16 @@
   const isAnon = sessionStorage.getItem('sfft_feedback_anon') === '1';
   if (!teacherId) { window.location.href = 'student-dashboard.html'; }
 
+  // IDOR protection: verify this student is actually enrolled with this teacher
+  const enrollments = getEnrollments();
+  const isEnrolled = enrollments.some(function(e) {
+    return e.studentId === session.userId && e.teacherId === teacherId;
+  });
+  if (!isEnrolled) {
+    alert('You are not enrolled with this teacher.');
+    window.location.href = 'student-dashboard.html';
+  }
+
   // Block re-submission: if student already submitted for this teacher+subject, redirect back
   if (hasSubmitted(session.userId, teacherId, feedbackSubjectId)) {
     alert('You have already submitted feedback for this teacher.');
@@ -109,7 +121,8 @@
     document.getElementById('teacherAvatar').textContent = initials;
     document.getElementById('teacherName').textContent = teacher.name;
     document.getElementById('teacherDept').textContent = teacher.department || 'Department N/A';
-    document.getElementById('teacherSubject').innerHTML = subject ? '&#x1F4DA; ' + subject.name : '&#x1F4DA; General';
+    const subjectEl = document.getElementById('teacherSubject');
+    subjectEl.textContent = subject ? '\uD83D\uDCDA ' + subject.name : '\uD83D\uDCDA General';
     document.getElementById('formTitle').textContent = `Feedback for ${teacher.name}`;
     document.getElementById('formSubtitle').textContent = subject ? `Subject-specific questionnaire: ${subject.name}` : 'General feedback form';
   }

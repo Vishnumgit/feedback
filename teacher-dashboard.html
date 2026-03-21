@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
   <title>Teacher Dashboard — Feedback System</title>
   <link rel="stylesheet" href="css/style.css?v=2" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
@@ -260,9 +262,9 @@
   document.getElementById('welcomeTitle').textContent = 'Welcome, ' + session.name.split(' ')[0];
   // Set subject badge in topbar (with dept + section)
   if (teacher) {
-    let badgeHtml = subject ? `<span class="badge badge-purple">&#x1F4DA; ${subject.name}</span>` : '';
-    if (teacher.department) badgeHtml += ` <span class="badge badge-blue">&#x1F3DB; ${teacher.department}</span>`;
-    if (teacher.section)    badgeHtml += ` <span class="badge badge-purple" style="font-size:11px;">&#x1F4DB; ${teacher.section}</span>`;
+    let badgeHtml = subject ? `<span class="badge badge-purple">&#x1F4DA; ${escapeHtml(subject.name)}</span>` : '';
+    if (teacher.department) badgeHtml += ` <span class="badge badge-blue">&#x1F3DB; ${escapeHtml(teacher.department)}</span>`;
+    if (teacher.section)    badgeHtml += ` <span class="badge badge-purple" style="font-size:11px;">&#x1F4DB; ${escapeHtml(teacher.section)}</span>`;
     document.getElementById('subjectBadgeWrap').innerHTML = badgeHtml;
   }
 
@@ -405,12 +407,12 @@
         <!-- Left card: Avatar + quick stats -->
         <div style="display:flex;flex-direction:column;gap:16px;">
           <div class="section-card animate-in" style="text-align:center;padding:28px 20px;">
-            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:30px;margin:0 auto 14px;">${initials}</div>
-            <div style="font-weight:800;font-size:16px;margin-bottom:4px;">${user.name||'Teacher'}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">${user.email||''}</div>
-            ${subject ? `<span class="badge badge-purple" style="margin-bottom:6px;display:inline-block;">&#x1F4DA; ${subject.name}</span>` : ''}
-            ${user.department ? `<span class="badge badge-blue" style="margin-bottom:6px;display:inline-block;">&#x1F3DB; ${user.department}</span>` : ''}
-            ${user.section ? `<span class="badge badge-purple" style="font-size:11px;display:inline-block;">&#x1F4DB; ${user.section}</span>` : ''}
+            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:30px;margin:0 auto 14px;">${escapeHtml(initials)}</div>
+            <div style="font-weight:800;font-size:16px;margin-bottom:4px;">${escapeHtml(user.name||'Teacher')}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(user.email||'')}</div>
+            ${subject ? `<span class="badge badge-purple" style="margin-bottom:6px;display:inline-block;">&#x1F4DA; ${escapeHtml(subject.name)}</span>` : ''}
+            ${user.department ? `<span class="badge badge-blue" style="margin-bottom:6px;display:inline-block;">&#x1F3DB; ${escapeHtml(user.department)}</span>` : ''}
+            ${user.section ? `<span class="badge badge-purple" style="font-size:11px;display:inline-block;">&#x1F4DB; ${escapeHtml(user.section)}</span>` : ''}
           </div>
           <!-- Performance summary mini card -->
           <div class="section-card animate-in" style="padding:16px 18px;">
@@ -421,14 +423,14 @@
               ['Students Enrolled', students.length],
               ['Status', isUnder ? '&#x26A0;&#xFE0F; Needs Improvement' : '&#x2705; On Track'],
             ].map(([k,v]) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px;">
-              <span style="color:var(--text-muted);">${k}</span>
+              <span style="color:var(--text-muted);">${escapeHtml(k)}</span>
               <span style="font-weight:700;color:${k==='Status'?(isUnder?'var(--danger)':'var(--success)'):''}">${v}</span>
             </div>`).join('')}
           </div>
         </div>
         <!-- Right card: Detailed info -->
         <div class="section-card animate-in">
-          <div class="section-card-header"><div class="section-card-title">Personal & Academic Information</div></div>
+          <div class="section-card-header"><div class="section-card-title">Personal &amp; Academic Information</div></div>
           <div class="section-card-body">
             ${[
               ['Full Name', user.name || '—'],
@@ -438,17 +440,17 @@
               ['Subject', subject ? subject.name : '—'],
               ['Role', 'Teacher'],
             ].map(([k,v]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--border-light);">
-              <span style="font-size:13px;color:var(--text-muted);">${k}</span>
-              <span style="font-weight:600;font-size:13px;">${v}</span>
+              <span style="font-size:13px;color:var(--text-muted);">${escapeHtml(k)}</span>
+              <span style="font-weight:600;font-size:13px;">${escapeHtml(String(v))}</span>
             </div>`).join('')}
           </div>
           <div class="section-card-header" style="border-top:1px solid var(--border-light);margin-top:8px;"><div class="section-card-title">Enrolled Students</div></div>
           <div class="section-card-body" style="padding:0;">
             ${students.length ? `<table><thead><tr><th>Name</th><th>Department</th><th>Section</th><th>Feedback</th></tr></thead><tbody>
               ${students.map(s => `<tr>
-                <td style="font-weight:600;">${s.name}</td>
-                <td>${s.department||'—'}</td>
-                <td>${s.section ? `<span class="badge badge-purple" style="font-size:11px;">${s.section}</span>` : '—'}</td>
+                <td style="font-weight:600;">${escapeHtml(s.name)}</td>
+                <td>${escapeHtml(s.department||'—')}</td>
+                <td>${s.section ? `<span class="badge badge-purple" style="font-size:11px;">${escapeHtml(s.section)}</span>` : '—'}</td>
                 <td>${getResponses().find(r=>r.studentId===s.id&&r.teacherId===session.userId) ? '<span class="badge badge-green" style="font-size:10px;">&#x2705; Submitted</span>' : '<span class="badge badge-orange" style="font-size:10px;">&#x23F3; Pending</span>'}</td>
               </tr>`).join('')}
             </tbody></table>` : '<div class="empty-state" style="padding:20px;"><div class="empty-icon">&#x1F393;</div><div class="empty-title">No students enrolled yet</div></div>'}
@@ -473,11 +475,11 @@
                 ${r.anonymous ? '&#x1F512;' : '&#x1F393;'}
               </div>
               <div>
-                <div style="font-size:13px; font-weight:600;">${label}</div>
+                <div style="font-size:13px; font-weight:600;">${escapeHtml(label)}</div>
                 <div style="font-size:11px; color:var(--text-muted);">${new Date(r.submittedAt).toLocaleDateString()}</div>
               </div>
             </div>
-            <p style="font-size:14px; color:var(--text-sub); line-height:1.6; font-style:italic;">"${r.comments}"</p>
+            <p style="font-size:14px; color:var(--text-sub); line-height:1.6; font-style:italic;">"${escapeHtml(r.comments)}"</p>
           </div>
         </div>`;
     }).join('');
@@ -493,7 +495,7 @@
         <div class="section-card" style="margin-bottom:14px;">
           <div class="section-card-body">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-              <div style="font-weight:600; font-size:14px;">${section}</div>
+              <div style="font-weight:600; font-size:14px;">${escapeHtml(section)}</div>
               <div style="font-size:18px; font-weight:800; color:${color};">${avg}/5</div>
             </div>
             <div class="progress-bar" style="height:8px; border-radius:4px;">
@@ -531,9 +533,9 @@
       const isUnder = avg !== null && avg < threshold;
       const color = avg === null ? 'var(--text-muted)' : (isUnder ? 'var(--danger)' : 'var(--success)');
       return `<tr style="${isMe ? 'background:rgba(124,58,237,0.07);' : ''}">
-        <td style="font-weight:${isMe?700:500};">${t.name}${isMe ? ' <span class="badge badge-purple" style="font-size:10px;">You</span>' : ''}</td>
-        <td>${sub ? sub.name : '—'}</td>
-        <td>${t.section ? `<span class="badge badge-purple" style="font-size:11px;">${t.section}</span>` : '—'}</td>
+        <td style="font-weight:${isMe?700:500};">${escapeHtml(t.name)}${isMe ? ' <span class="badge badge-purple" style="font-size:10px;">You</span>' : ''}</td>
+        <td>${escapeHtml(sub ? sub.name : '—')}</td>
+        <td>${t.section ? `<span class="badge badge-purple" style="font-size:11px;">${escapeHtml(t.section)}</span>` : '—'}</td>
         <td style="text-align:center;">${resp}</td>
         <td style="font-weight:700;color:${color};text-align:center;">${avg !== null ? avg + '/5' : '—'}
           ${isUnder ? ' <span style="font-size:10px;">&#x26A0;&#xFE0F;</span>' : ''}</td>
@@ -550,13 +552,13 @@
 
     el.innerHTML = `
       <div class="stats-grid animate-in" style="margin-bottom:20px;">
-        <div class="stat-card"><div class="stat-icon">👨‍&#x1F3EB;</div><div class="stat-value">${deptTeachers.length}</div><div class="stat-label">Teachers in ${myDept}</div></div>
+        <div class="stat-card"><div class="stat-icon">👨‍&#x1F3EB;</div><div class="stat-value">${deptTeachers.length}</div><div class="stat-label">Teachers in ${escapeHtml(myDept)}</div></div>
         <div class="stat-card"><div class="stat-icon">&#x2B50;</div><div class="stat-value">${deptAvg ? deptAvg+'/5' : '—'}</div><div class="stat-label">Dept. Average</div></div>
         <div class="stat-card"><div class="stat-icon">&#x1F4E8;</div><div class="stat-value">${totalResps}</div><div class="stat-label">Total Responses</div></div>
-        <div class="stat-card"><div class="stat-icon">&#x1F3C6;</div><div class="stat-value" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topT ? topT.t.name.split(' ')[0] : '—'}</div><div class="stat-label">Top Rated Teacher</div></div>
+        <div class="stat-card"><div class="stat-icon">&#x1F3C6;</div><div class="stat-value" style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topT ? escapeHtml(topT.t.name.split(' ')[0]) : '—'}</div><div class="stat-label">Top Rated Teacher</div></div>
       </div>
       <div class="section-card animate-in">
-        <div class="section-card-header"><div class="section-card-title">&#x1F4CA; ${myDept} Department Rankings</div></div>
+        <div class="section-card-header"><div class="section-card-title">&#x1F4CA; ${escapeHtml(myDept)} Department Rankings</div></div>
         <div class="section-card-body" style="padding:0;">
           <table><thead><tr><th>Teacher</th><th>Subject</th><th>Section</th><th style="text-align:center;">Responses</th><th style="text-align:center;">Avg Score</th></tr></thead>
           <tbody>${rows}</tbody></table>
@@ -603,7 +605,7 @@
         const catColor = parseFloat(catAvg) >= 4 ? 'var(--success)' : parseFloat(catAvg) >= 3 ? 'var(--warning)' : 'var(--danger)';
         return `<div style="margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:12px;">
-            <span>${cat}</span><span style="font-weight:700;color:${catColor};">${catAvg}/5</span>
+            <span>${escapeHtml(cat)}</span><span style="font-weight:700;color:${catColor};">${catAvg}/5</span>
           </div>
           <div style="height:6px;background:var(--border-light);border-radius:6px;overflow:hidden;">
             <div style="height:100%;width:${catPct}%;background:${catColor};border-radius:6px;"></div>
@@ -614,7 +616,7 @@
       return `
         <div class="section-card animate-in" style="margin-bottom:18px;">
           <div class="section-card-header">
-            <div class="section-card-title">&#x1F4DB; ${sec}</div>
+            <div class="section-card-title">&#x1F4DB; ${escapeHtml(sec)}</div>
             <div style="display:flex;gap:8px;align-items:center;">
               <span style="font-size:12px;color:var(--text-muted);">${resps.length} response${resps.length!==1?'s':''}</span>
               <span style="font-size:16px;font-weight:800;color:${color};">${avg}/5</span>

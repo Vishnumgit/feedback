@@ -4,6 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
   <title>Admin Dashboard – Feedback System</title>
   <link rel="stylesheet" href="css/style.css?v=2" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -768,8 +770,8 @@
           var student = getUserById(r.studentId);
           var teacher = getUserById(r.teacherId);
           return '<div style="padding:8px 0;border-bottom:1px solid var(--border-light);font-size:12px;">' +
-            '<span style="font-weight:600;">' + (student ? student.name : 'Unknown') + '</span>' +
-            ' &#10140; <span style="color:var(--accent-light);">' + (teacher ? teacher.name : 'Unknown') + '</span>' +
+            '<span style="font-weight:600;">' + escapeHtml(student ? student.name : 'Unknown') + '</span>' +
+            ' &#10140; <span style="color:var(--accent-light);">' + escapeHtml(teacher ? teacher.name : 'Unknown') + '</span>' +
             (r.timestamp ? '<span style="float:right;color:var(--text-muted);font-size:11px;">' + new Date(r.timestamp).toLocaleDateString() + '</span>' : '') +
           '</div>';
         }).join('');
@@ -788,7 +790,7 @@
         topEl.innerHTML = sorted.map(function(entry) {
           var t = getUserById(entry[0]);
           return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);">' +
-            '<span style="font-weight:600;font-size:13px;">' + (t ? t.name : 'Unknown') + '</span>' +
+            '<span style="font-weight:600;font-size:13px;">' + escapeHtml(t ? t.name : 'Unknown') + '</span>' +
             '<span class="badge badge-purple" style="font-size:11px;">&#128101; ' + entry[1] + ' students</span>' +
           '</div>';
         }).join('');
@@ -806,7 +808,7 @@
         var pct = Math.round((entry[1] / maxCount) * 100);
         return '<div style="margin-bottom:12px;">' +
           '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">' +
-            '<span style="font-weight:600;">' + entry[0] + '</span>' +
+            '<span style="font-weight:600;">' + escapeHtml(entry[0]) + '</span>' +
             '<span style="color:var(--text-muted);">' + entry[1] + ' students</span>' +
           '</div>' +
           '<div style="height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;">' +
@@ -919,10 +921,10 @@
         notifs.slice(-5).reverse().map(function(n) {
           return '<div style="padding:8px;border-bottom:1px solid var(--border-light);font-size:12px;">' +
             '<div style="display:flex;justify-content:space-between;">' +
-              '<span style="font-weight:600;">' + n.title + '</span>' +
-              '<button onclick="deleteNotification(\'' + n.id + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
+              '<span style="font-weight:600;">' + escapeHtml(n.title) + '</span>' +
+              '<button onclick="deleteNotification(\'' + escapeHtml(n.id) + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
             '</div>' +
-            '<div style="color:var(--text-muted);font-size:11px;">' + n.category + ' | ' + new Date(n.timestamp).toLocaleString() + '</div>' +
+            '<div style="color:var(--text-muted);font-size:11px;">' + escapeHtml(n.category) + ' | ' + new Date(n.timestamp).toLocaleString() + '</div>' +
           '</div>';
         }).join('');
     }
@@ -974,10 +976,10 @@
         tts.slice(-5).reverse().map(function(t) {
           return '<div style="padding:8px;border-bottom:1px solid var(--border-light);font-size:12px;">' +
             '<div style="display:flex;justify-content:space-between;">' +
-              '<span style="font-weight:600;">' + t.title + '</span>' +
-              '<button onclick="deleteTimetable(\'' + t.id + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
+              '<span style="font-weight:600;">' + escapeHtml(t.title) + '</span>' +
+              '<button onclick="deleteTimetable(\'' + escapeHtml(t.id) + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
             '</div>' +
-            '<div style="color:var(--text-muted);font-size:11px;">' + (t.department || 'All') + (t.section ? ' - ' + t.section : '') + ' | ' + new Date(t.timestamp).toLocaleString() + '</div>' +
+            '<div style="color:var(--text-muted);font-size:11px;">' + escapeHtml(t.department || 'All') + (t.section ? ' - ' + escapeHtml(t.section) : '') + ' | ' + new Date(t.timestamp).toLocaleString() + '</div>' +
           '</div>';
         }).join('');
     }
@@ -1067,21 +1069,21 @@
     <tbody>${users.map(u => {
       const subs = (u.subjectIds || (u.subjectId ? [u.subjectId] : [])).map(function(id){ return getSubjectById(id); }).filter(Boolean);
       return `<tr>
-        <td><input type="checkbox" class="user-select-cb" value="${u.id}" /></td>
-        <td><div style="font-weight:600;">${u.name}</div></td>
-        <td style="color:var(--text-muted);font-size:13px;">${u.email}</td>
+        <td><input type="checkbox" class="user-select-cb" value="${escapeHtml(u.id)}" /></td>
+        <td><div style="font-weight:600;">${escapeHtml(u.name)}</div></td>
+        <td style="color:var(--text-muted);font-size:13px;">${escapeHtml(u.email)}</td>
         <td>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            ${u.department ? `<span class="badge badge-blue" style="font-size:11px;">&#127979; ${u.department}</span>` : '<span style="color:var(--text-muted);font-size:12px">–</span>'}
-            ${u.section ? `<span class="badge badge-purple" style="font-size:11px;">&#127991; ${u.section}</span>` : ''}
+            ${u.department ? `<span class="badge badge-blue" style="font-size:11px;">&#127979; ${escapeHtml(u.department)}</span>` : '<span style="color:var(--text-muted);font-size:12px">–</span>'}
+            ${u.section ? `<span class="badge badge-purple" style="font-size:11px;">&#127991; ${escapeHtml(u.section)}</span>` : ''}
           </div>
         </td>
-        ${role==='student' ? `<td style="font-weight:600;font-size:13px;">${u.rollNo || '—'}</td>` : ''}
-        ${role==='teacher' ? `<td>${subs.length ? subs.map(s => `<span class="badge badge-purple" style="margin:2px;">&#128218; ${s.name}</span>`).join('') : '<span class="badge badge-gray">No subject</span>'}</td>` : ''}
+        ${role==='student' ? `<td style="font-weight:600;font-size:13px;">${escapeHtml(u.rollNo || '—')}</td>` : ''}
+        ${role==='teacher' ? `<td>${subs.length ? subs.map(s => `<span class="badge badge-purple" style="margin:2px;">&#128218; ${escapeHtml(s.name)}</span>`).join('') : '<span class="badge badge-gray">No subject</span>'}</td>` : ''}
         <td>${u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-xs" onclick="openEditUser('${u.id}')">&#9999;&#65039; Edit</button>
-          <button class="btn btn-danger btn-xs" onclick="removeUser('${u.id}')">&#128465;&#65039;</button>
+          <button class="btn btn-secondary btn-xs" onclick="openEditUser('${escapeHtml(u.id)}')">&#9999;&#65039; Edit</button>
+          <button class="btn btn-danger btn-xs" onclick="removeUser('${escapeHtml(u.id)}')">&#128465;&#65039;</button>
         </td>
       </tr>`;
     }).join('')}</tbody></table>`;
@@ -1112,7 +1114,8 @@ function openEditUser(userId) {
   document.getElementById('userModalTitle').textContent = '&#9999;&#65039; Edit User';
   document.getElementById('uName').value = u.name;
   document.getElementById('uEmail').value = u.email;
-  document.getElementById('uPassword').value = u.password;
+  document.getElementById('uPassword').value = ''; // Never expose stored password hash
+  document.getElementById('uPassword').placeholder = 'Leave blank to keep current password';
   document.getElementById('uRole').value = u.role;
   document.getElementById('uDept').value = u.department || '';
   document.getElementById('uSection').value = u.section || '';
@@ -1128,7 +1131,7 @@ function toggleSubjectField() {
   document.getElementById('subjectFieldWrap').style.display = isTeacher ? '' : 'none';
 }
 
-function submitUserModal() {
+async function submitUserModal() {
   const errEl = document.getElementById('userModalErr');
   errEl.textContent = '';
   const name     = document.getElementById('uName').value.trim();
@@ -1141,20 +1144,26 @@ function submitUserModal() {
   const rollNo   = document.getElementById('uRollNo').value.trim();
   const editId   = document.getElementById('editUserId').value;
 
-  if (!name || !email || !password) { errEl.textContent = 'Name, email and password are required.'; return; }
+  if (!name || !email) { errEl.textContent = 'Name and email are required.'; return; }
+  if (!editId && !password) { errEl.textContent = 'Password is required for new users.'; return; }
   if (!validateCollegeEmail(email) && !email.endsWith('@admin.com')) { errEl.textContent = `Email must use @${getSettings().collegeDomain}`; return; }
 
   try {
     if (editId) {
       const u = getUserById(editId);
-      u.name = name; u.email = email; u.password = password;
+      u.name = name; u.email = email;
+      if (password) {
+        // Hash new password if provided
+        u.passwordHash = await hashPassword(password, email);
+        delete u.password; // Remove any legacy plaintext
+      }
       u.department = dept; u.section = section;
       u.rollNo = role === 'student' ? rollNo : (u.rollNo || '');
       u.subjectIds = role === 'teacher' ? subjectIds : []; u.subjectId = (subjectIds.length ? subjectIds[0] : null);
       saveUser(u);
       showToast('User updated successfully.', 'success');
     } else {
-      addUser({ role, name, email, password, department: dept, section, rollNo: role === 'student' ? rollNo : '', subjectIds: role === 'teacher' ? subjectIds : [], subjectId: role === 'teacher' && subjectIds.length ? subjectIds[0] : null });
+      await addUser({ role, name, email, password, department: dept, section, rollNo: role === 'student' ? rollNo : '', subjectIds: role === 'teacher' ? subjectIds : [], subjectId: role === 'teacher' && subjectIds.length ? subjectIds[0] : null });
       showToast('User created successfully.', 'success');
     }
     closeModal('userModal');
@@ -1181,7 +1190,7 @@ function populateSubjectCheckboxes(selectedIds) {
   container.innerHTML = subs.map(function(s) {
     var checked = selectedIds.indexOf(s.id) > -1 ? "checked" : "";
     return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:13px;">' +
-      '<input type="checkbox" class="subj-cb" value="' + s.id + '" ' + checked + '> ' + s.name + '</label>';
+      '<input type="checkbox" class="subj-cb" value="' + escapeHtml(s.id) + '" ' + checked + '> ' + escapeHtml(s.name) + '</label>';
   }).join("");
   if (!subs.length) container.innerHTML = "<div style=\"font-size:12px;color:var(--text-muted);\">No subjects. Add subjects first.</div>";
 }
@@ -1197,17 +1206,17 @@ function renderSubjects() {
       <div class="section-card" style="margin-bottom:14px;">
         <div class="section-card-header">
           <div>
-            <div class="section-card-title">&#128218; ${sub.name}</div>
-            <div style="font-size:12px; color:var(--text-muted);">${sub.department} &nbsp;&middot;&nbsp; ${teachers.length} teacher(s)</div>
+            <div class="section-card-title">&#128218; ${escapeHtml(sub.name)}</div>
+            <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(sub.department)} &nbsp;&middot;&nbsp; ${teachers.length} teacher(s)</div>
           </div>
           <div style="display:flex; gap:8px;">
-            <button class="btn btn-secondary btn-sm" onclick="openQModal('${sub.id}')">&#9999;&#65039; Edit Questionnaire</button>
-            <button class="btn btn-danger btn-sm" onclick="removeSubject('${sub.id}')">&#128465;&#65039;</button>
+            <button class="btn btn-secondary btn-sm" onclick="openQModal('${escapeHtml(sub.id)}')">&#9999;&#65039; Edit Questionnaire</button>
+            <button class="btn btn-danger btn-sm" onclick="removeSubject('${escapeHtml(sub.id)}')">&#128465;&#65039;</button>
           </div>
         </div>
         ${teachers.length ? `<div class="section-card-body" style="padding-top:0;">
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
-            ${teachers.map(t => `<span class="badge badge-green">&#128104;&#8205;&#127979; ${t.name}</span>`).join('')}
+            ${teachers.map(t => `<span class="badge badge-green">&#128104;&#8205;&#127979; ${escapeHtml(t.name)}</span>`).join('')}
           </div>
         </div>` : ''}
       </div>`;
@@ -1354,7 +1363,7 @@ function renderTeacherPicker() {
     const assignedCount = getEnrollments().filter(e => e.teacherId === t.id).length;
     const isSelected = t.id === selectedTeacherId;
     return `
-      <div onclick="selectTeacher('${t.id}')" style="
+      <div onclick="selectTeacher('${escapeHtml(t.id)}')" style="
         padding:16px; border-radius:var(--radius-sm); cursor:pointer;
         border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border-light)'};
         background:${isSelected ? 'rgba(124,58,237,0.15)' : 'var(--surface)'};
@@ -1362,11 +1371,11 @@ function renderTeacherPicker() {
       ">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;flex-shrink:0;">
-            ${t.name.charAt(0).toUpperCase()}
+            ${escapeHtml(t.name.charAt(0).toUpperCase())}
           </div>
           <div style="min-width:0;">
-            <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.name}</div>
-            <div style="font-size:11px;color:var(--text-muted);">${teacherSubs.length ? teacherSubs.map(function(s){return s.name;}).join(', ') : 'No subject'}</div>
+            <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.name)}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${teacherSubs.length ? escapeHtml(teacherSubs.map(function(s){return s.name;}).join(', ')) : 'No subject'}</div>
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1403,11 +1412,11 @@ function renderSubjectPicker(teacherId) {
       'border:2px solid ' + (isChecked ? 'var(--accent)' : 'var(--border-light)') + ';' +
       'background:' + (isChecked ? 'rgba(124,58,237,0.15)' : 'var(--surface)') + ';' +
       'cursor:pointer;transition:var(--transition);">' +
-      '<input type="checkbox" onchange="toggleSubject(\'' + sub.id + '\')" ' + (isChecked ? 'checked' : '') +
+      '<input type="checkbox" onchange="toggleSubject(\'' + escapeHtml(sub.id) + '\')" ' + (isChecked ? 'checked' : '') +
       ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;" />' +
       '<div style="display:flex;align-items:center;gap:8px;">' +
         '<span style="font-size:22px;">&#128218;</span>' +
-        '<span style="font-weight:700;font-size:14px;">' + sub.name + '</span>' +
+        '<span style="font-weight:700;font-size:14px;">' + escapeHtml(sub.name) + '</span>' +
       '</div>' +
     '</label>';
   }).join('');
@@ -1491,22 +1500,22 @@ function renderStudentChecklist(teacherId) {
   grid.innerHTML = Object.entries(groups).sort().map(([group, grpStudents]) => {
     return `
       <div style="grid-column:1/-1; font-size:11px; font-weight:700; color:var(--accent-light); text-transform:uppercase; letter-spacing:0.8px; padding:6px 0 4px; border-bottom:1px solid var(--border-light); margin-bottom:4px;">
-        &#127991; ${group} <span style="font-weight:400;color:var(--text-muted)">(${grpStudents.length} student${grpStudents.length!==1?'s':''})</span>
+        &#127991; ${escapeHtml(group)} <span style="font-weight:400;color:var(--text-muted)">(${grpStudents.length} student${grpStudents.length!==1?'s':''})</span>
       </div>
       ${grpStudents.map(s => {
         const checked = enrolledForSubjects.has(s.id);
         return `<label style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid ${checked ? 'var(--accent)' : 'var(--border-light)'};background:${checked ? 'rgba(124,58,237,0.1)' : 'var(--surface)'};cursor:pointer;transition:var(--transition);">
-          <input type="checkbox" id="ck_${s.id}" value="${s.id}" ${checked ? 'checked' : ''}
+          <input type="checkbox" id="ck_${escapeHtml(s.id)}" value="${escapeHtml(s.id)}" ${checked ? 'checked' : ''}
             style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;"
             onchange="this.closest('label').style.borderColor=this.checked?'var(--accent)':'var(--border-light)';
                       this.closest('label').style.background=this.checked?'rgba(124,58,237,0.1)':'var(--surface)';" />
           <div style="min-width:0;flex:1;">
-            <div style="font-weight:600;font-size:13px;">${s.name}</div>
-            <div style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.email}</div>
-            ${s.rollNo ? `<div style="font-size:11px;color:var(--accent-light);font-weight:600;margin-top:1px;">&#127991; Roll No: ${s.rollNo}</div>` : ''}
+            <div style="font-weight:600;font-size:13px;">${escapeHtml(s.name)}</div>
+            <div style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.email)}</div>
+            ${s.rollNo ? `<div style="font-size:11px;color:var(--accent-light);font-weight:600;margin-top:1px;">&#127991; Roll No: ${escapeHtml(s.rollNo)}</div>` : ''}
             <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:3px;">
-              ${s.department ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(59,130,246,0.15);color:#93c5fd;">&#127962; ${s.department}</span>` : ''}
-              ${s.section ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(124,58,237,0.15);color:var(--accent-light);">&#127991; ${s.section}</span>` : ''}
+              ${s.department ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(59,130,246,0.15);color:#93c5fd;">&#127962; ${escapeHtml(s.department)}</span>` : ''}
+              ${s.section ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(124,58,237,0.15);color:var(--accent-light);">&#127991; ${escapeHtml(s.section)}</span>` : ''}
             </div>
           </div>
           ${checked ? '<span class="badge badge-green" style="margin-left:auto;flex-shrink:0;font-size:10px;">Enrolled</span>' : ''}
@@ -1647,8 +1656,8 @@ function resetAllForTeacher() {
 function initFeedbackFilters() {
   const tSel = document.getElementById('filterTeacher');
   const sSel = document.getElementById('filterSubject');
-  tSel.innerHTML = '<option value="">All Teachers</option>' + getTeachers().map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-  sSel.innerHTML = '<option value="">All Subjects</option>' + getSubjects().map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  tSel.innerHTML = '<option value="">All Teachers</option>' + getTeachers().map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
+  sSel.innerHTML = '<option value="">All Subjects</option>' + getSubjects().map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`)  .join('');
   renderFeedbackTable();
 }
 
@@ -1670,14 +1679,14 @@ function renderFeedbackTable() {
       const all = Object.values(r.scores||{}).flat();
       const avg = all.length ? (all.reduce((a,b)=>a+b,0)/all.length).toFixed(1) : 'N/A';
       return `<tr>
-        <td><input type="checkbox" class="fb-select-cb" value="${r.id}"></td>
-        <td>${t ? t.name : 'Unknown Teacher'}</td>
-        <td>${r.anonymous ? "<span class=\"badge badge-blue\">&#128274; Anonymous</span>" : (s ? s.name : "&mdash;")}</td>
-        <td>${sub ? sub.name : 'Unknown Subject'}</td>
+        <td><input type="checkbox" class="fb-select-cb" value="${escapeHtml(r.id)}"></td>
+        <td>${escapeHtml(t ? t.name : 'Unknown Teacher')}</td>
+        <td>${r.anonymous ? "<span class=\"badge badge-blue\">&#128274; Anonymous</span>" : escapeHtml(s ? s.name : "—")}</td>
+        <td>${escapeHtml(sub ? sub.name : 'Unknown Subject')}</td>
         <td><span class="badge badge-purple">&#x2B50; ${avg}/5</span></td>
         <td>${r.anonymous ? '<span class="badge badge-blue">Yes</span>' : '<span class="badge badge-gray">No</span>'}</td>
         <td>${new Date(r.submittedAt).toLocaleDateString()}</td>
-        <td><button class="btn btn-danger btn-xs" onclick="clearSingleFeedback('${r.id}')" title="Clear so student can resubmit">&#x1F5D1; Clear</button></td>
+        <td><button class="btn btn-danger btn-xs" onclick="clearSingleFeedback('${escapeHtml(r.id)}')" title="Clear so student can resubmit">&#x1F5D1; Clear</button></td>
       </tr>`;
     }).join('')}</tbody></table>`;
 }
@@ -1749,15 +1758,15 @@ function renderReports() {
     const isUnder = item.stats.overallAvg < threshold;
     const color = isUnder ? 'var(--danger)' : (item.stats.overallAvg >= 4 ? 'var(--success)' : 'var(--warning)');
     return `<tr style="${isUnder ? 'background:rgba(239,68,68,0.05);' : ''}">
-      <td><div style="font-weight:600;">${item.teacher.name}</div></td>
+      <td><div style="font-weight:600;">${escapeHtml(item.teacher.name)}</div></td>
       <td><div style="display:flex;gap:4px;flex-wrap:wrap;">
-        ${item.teacher.department ? `<span class="badge badge-blue" style="font-size:10px;">${item.teacher.department}</span>` : ''}
-        ${item.teacher.section ? `<span class="badge badge-purple" style="font-size:10px;">${item.teacher.section}</span>` : ''}
+        ${item.teacher.department ? `<span class="badge badge-blue" style="font-size:10px;">${escapeHtml(item.teacher.department)}</span>` : ''}
+        ${item.teacher.section ? `<span class="badge badge-purple" style="font-size:10px;">${escapeHtml(item.teacher.section)}</span>` : ''}
       </div></td>
-      <td>${item.subject ? `<span class="badge badge-purple">&#128218; ${item.subject.name}</span>` : '–'}</td>
+      <td>${item.subject ? `<span class="badge badge-purple">&#128218; ${escapeHtml(item.subject.name)}</span>` : '–'}</td>
       <td>${item.stats.totalResponses}</td>
       <td><span style="font-weight:700;color:${color};">${item.stats.overallAvg}/5</span></td>
-      <td style="font-size:12px;">${best ? best[0] + ' (' + best[1] + ')' : '–'}</td>
+      <td style="font-size:12px;">${best ? escapeHtml(best[0]) + ' (' + best[1] + ')' : '–'}</td>
       <td>${isUnder ? '<span class="badge badge-orange">s&#9881;️ Needs Improvement</span>' : '<span class="badge badge-green">&#10004; On Track</span>'}</td>
     </tr>`;
   }).join('')}</tbody></table>`;
@@ -1835,13 +1844,13 @@ function renderReports() {
         <div class="section-card animate-in">
           <div class="section-card-header">
             <div style="display:flex;align-items:center;gap:12px;">
-              <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex-shrink:0;">${initials}</div>
+              <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex-shrink:0;">${escapeHtml(initials)}</div>
               <div>
-                <div class="section-card-title" style="margin:0;">${t.name}</div>
+                <div class="section-card-title" style="margin:0;">${escapeHtml(t.name)}</div>
                 <div style="font-size:12px;color:var(--text-muted);">
-                  ${item.subject ? '&#128218; '+item.subject.name : ''}
-                  ${t.department ? ' &middot; &#127962; '+t.department : ''}
-                  ${t.section ? ' &middot; &#127991; '+t.section : ''}
+                  ${item.subject ? '&#128218; '+escapeHtml(item.subject.name) : ''}
+                  ${t.department ? ' &middot; &#127962; '+escapeHtml(t.department) : ''}
+                  ${t.section ? ' &middot; &#127991; '+escapeHtml(t.section) : ''}
                 </div>
               </div>
             </div>
@@ -2257,12 +2266,12 @@ function parseAttCSV(text) {
     <tbody>${attParsedRows.map(r => {
       const isOk = !r.error;
       const isPass = isOk && r.pct >= thresh;
-      const statusHtml = r.error ? `<span class="badge badge-red" title="${r.error}">O Error</span>` :
+      const statusHtml = r.error ? `<span class="badge badge-red" title="${escapeHtml(r.error)}">O Error</span>` :
         (isPass ? '<span class="badge badge-green">&#10004; Eligible</span>' : '<span class="badge badge-orange">&#9888;️ Blocked</span>');
       return `<tr style="${r.error ? 'opacity:0.6;background:rgba(239,68,68,0.05);' : ''}">
         <td style="color:var(--text-muted);">${r.rowNum}</td>
-        <td style="font-weight:600;">${r.name || '?"'}</td>
-        <td style="font-size:12px;">${r.email}</td>
+        <td style="font-weight:600;">${escapeHtml(r.name || '?')}</td>
+        <td style="font-size:12px;">${escapeHtml(r.email)}</td>
         <td style="font-weight:700;color:${isOk?(isPass?'var(--success)':'var(--danger)'):'inherit'}">${isOk ? r.pct+'%' : r.pct}</td>
         <td>${statusHtml}</td>
       </tr>`;
@@ -2313,9 +2322,9 @@ function renderAttendanceRecords() {
       const student = getUserById(r.studentId) || { name: 'Unknown', email: 'deleted', section: 'N/A' };
       const isPass = r.percentage >= thresh;
       return `<tr>
-        <td style="font-weight:600;">${student.name}</td>
-        <td style="font-size:12px;color:var(--text-muted);">${student.email}</td>
-        <td><span class="badge badge-purple">${r.section}</span></td>
+        <td style="font-weight:600;">${escapeHtml(student.name)}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${escapeHtml(student.email)}</td>
+        <td><span class="badge badge-purple">${escapeHtml(r.section)}</span></td>
         <td style="font-weight:700;color:${isPass?'var(--success)':'var(--danger)'};">${r.percentage}%</td>
         <td>${isPass ? "<span class=\"badge badge-green\">&#9989; Allowed</span>" : "<span class=\"badge badge-orange\">&#128274; Blocked</span>"}</td>
         <td style="font-size:11px;color:var(--text-muted);">${new Date(r.uploadedAt).toLocaleDateString()}</td>
@@ -2489,17 +2498,17 @@ function renderBulkPreview() {
     </tr></thead>
     <tbody>${bulkParsedRows.map(r => {
       const statusHtml = r.skip
-        ? `<span class="badge badge-red" title="${[...r.errors,...r.warnings].join('; ')}">${r.errors.length ? '&#x1F6AB; Error' : '&#x26A0;&#xFE0F; Skip'}</span>`
+        ? `<span class="badge badge-red" title="${escapeHtml([...r.errors,...r.warnings].join('; '))}">${r.errors.length ? '&#x1F6AB; Error' : '&#x26A0;&#xFE0F; Skip'}</span>`
         : '<span class="badge badge-green">&#x2714; Ready</span>';
       const rowStyle = r.skip ? 'opacity:0.5;' : '';
       return `<tr style="${rowStyle}">
         <td style="color:var(--text-muted);">${r.rowNum}</td>
-        <td style="font-weight:600;">${r.name}</td>
-        <td style="font-size:12px; color:var(--text-muted);">${r.email}</td>
+        <td style="font-weight:600;">${escapeHtml(r.name)}</td>
+        <td style="font-size:12px; color:var(--text-muted);">${escapeHtml(r.email)}</td>
         <td>${r.role === 'student' ? "<span class=\"badge badge-blue\">&#127891; Student</span>" : "<span class=\"badge badge-green\">&#128104;‍&#127979; Teacher</span>"}</td>
-        <td>${r.department || '\u2014'}</td>
-        <td>${r.section ? `<span class="badge badge-purple" style="font-size:11px;">${r.section}</span>` : '\u2014'}</td>
-        <td>${r.subjectName || '\u2014'}</td>
+        <td>${escapeHtml(r.department || '—')}</td>
+        <td>${r.section ? `<span class="badge badge-purple" style="font-size:11px;">${escapeHtml(r.section)}</span>` : '—'}</td>
+        <td>${escapeHtml(r.subjectName || '—')}</td>
         <td>${statusHtml}</td>
       </tr>`;
     }).join('')}</tbody>
@@ -2559,7 +2568,7 @@ function deleteSelectedUsers() {
   showToast('Deleted ' + selected.size + ' user(s) and cleaned up enrollments.', 'info');
 }
 
-function executeBulkImport() {
+async function executeBulkImport() {
   const toImport = bulkParsedRows.filter(r => !r.skip);
   if (!toImport.length) { showToast('No rows to import.', 'error'); return; }
 
@@ -2569,18 +2578,20 @@ function executeBulkImport() {
   let imported = 0, skipped = 0;
   const newUsers = [];
 
-  toImport.forEach((r, i) => {
-    if (existingEmails.has(r.email.toLowerCase())) { skipped++; return; }
+  for (let i = 0; i < toImport.length; i++) {
+    const r = toImport[i];
+    if (existingEmails.has(r.email.toLowerCase())) { skipped++; continue; }
     const id = 'u_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2,4);
+    const passwordHash = await hashPassword(r.password, r.email);
     const user = {
-      id, email: r.email, password: r.password, role: r.role, name: r.name,
+      id, email: r.email, passwordHash, role: r.role, name: r.name,
       department: r.department || '', section: r.section || '',
       rollNo: r.rollNo || '', subjectId: r.subjectId || null, active: true
     };
     newUsers.push(user);
     existingEmails.add(r.email.toLowerCase());
     imported++;
-  });
+  }
 
   // Single write to localStorage
   const allUsers = [...existingUsers, ...newUsers];

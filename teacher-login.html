@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
   <title>Teacher Login — Feedback System</title>
   <link rel="stylesheet" href="css/style.css?v=2" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -98,7 +100,7 @@
   }
   window.handleGoogleSignIn = handleGoogleSignIn;
 
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -114,7 +116,7 @@
     if (!ok) return;
 
     try {
-      const s = login(email, password);
+      const s = await login(email, password);
       if (s.role !== 'teacher') { loginErr.textContent = 'This portal is for teachers only.'; loginErr.classList.add('show'); logout(); return; }
       window.location.href = 'teacher-dashboard.html';
     } catch(err) { loginErr.textContent = err.message; loginErr.classList.add('show'); }
