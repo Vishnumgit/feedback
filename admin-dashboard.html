@@ -2603,7 +2603,19 @@ function executeBulkImport() {
   if (imported) showToast('Imported ' + imported + ' user(s) successfully!', 'success');
   if (skipped) showToast(skipped + ' duplicate(s) skipped.', 'info');
 }
-  </script>
+  
+  function adminResetPw(userId) {
+    var newPw = prompt('Enter new password for this user (min 6 chars):');
+    if (!newPw) return;
+    if (newPw.length < 6) { alert('Password must be at least 6 characters.'); return; }
+    try {
+      adminResetPassword(userId, newPw);
+      alert('Password reset successfully!');
+    } catch(e) {
+      alert('Error: ' + e.message);
+    }
+  }
+</script>
 </body>
 
 </html>
