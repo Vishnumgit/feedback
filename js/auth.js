@@ -114,6 +114,31 @@ function requireAuth(expectedRole) {
   return session;
 }
 
+
+// ---- Change Password ----
+function changePassword(userId, currentPassword, newPassword) {
+  var user = getUserById(userId);
+  if (!user) throw new Error('User not found.');
+  if (user.password !== currentPassword) throw new Error('Current password is incorrect.');
+  if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
+  user.password = newPassword;
+  saveUser(user);
+  // Sync to Firestore
+  if (typeof fsSetDoc === 'function') fsSetDoc('users', user.id, user);
+  return true;
+}
+
+// ---- Admin Reset Password ----
+function adminResetPassword(userId, newPassword) {
+  var user = getUserById(userId);
+  if (!user) throw new Error('User not found.');
+  if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
+  user.password = newPassword;
+  saveUser(user);
+  if (typeof fsSetDoc === 'function') fsSetDoc('users', user.id, user);
+  return true;
+}
+
 function validateCollegeEmail(email) {
   var settings = getSettings();
   var domain = settings.collegeDomain || 'college.edu';
