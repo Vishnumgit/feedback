@@ -17,13 +17,15 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const LOGIN_ATTEMPTS_KEY = 'sfft_login_attempts';
 
 function getLoginAttempts(email) {
+  if (!email) return { count: 0, lastAttempt: 0 };
   try {
     const data = JSON.parse(sessionStorage.getItem(LOGIN_ATTEMPTS_KEY) || '{}');
-    return data[email.toLowerCase()] || { count: 0, lastAttempt: 0 };
+    return data[String(email).toLowerCase()] || { count: 0, lastAttempt: 0 };
   } catch(e) { return { count: 0, lastAttempt: 0 }; }
 }
 
 function recordLoginAttempt(email, success) {
+   if (!email) return;
   try {
     const data = JSON.parse(sessionStorage.getItem(LOGIN_ATTEMPTS_KEY) || '{}');
     const key = email.toLowerCase();
