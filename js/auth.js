@@ -4,99 +4,15 @@
 
 const SESSION_KEY = 'sfft_session';
 
-// Use cryptographically secure random token
 function generateSessionToken() {
-  const arr = new Uint8Array(32);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-// ---- Login Rate Limiting ------------------------------------
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
-const LOGIN_ATTEMPTS_KEY = 'sfft_login_attempts';
-
-function getLoginAttempts(email) {
-  if (!email) return { count: 0, lastAttempt: 0 };
-  try {
-    const data = JSON.parse(sessionStorage.getItem(LOGIN_ATTEMPTS_KEY) || '{}');
-    return data[String(email).toLowerCase()] || { count: 0, lastAttempt: 0 };
-  } catch(e) { return { count: 0, lastAttempt: 0 }; }
-}
-
-function recordLoginAttempt(email, success) {
-   if (!email) return;
-  try {
-    const data = JSON.parse(sessionStorage.getItem(LOGIN_ATTEMPTS_KEY) || '{}');
-    const key = email.toLowerCase();
-    if (success) {
-      delete data[key];
-    } else {
-      const now = Date.now();
-      const prev = data[key] || { count: 0, lastAttempt: 0 };
-      if (now - prev.lastAttempt > LOCKOUT_DURATION_MS) {
-        data[key] = { count: 1, lastAttempt: now };
-      } else {
-        data[key] = { count: prev.count + 1, lastAttempt: now };
-      }
-    }
-    sessionStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(data));
-  } catch(e) {}
-}
-
-function checkLoginRateLimit(email) {
-  const attempts = getLoginAttempts(email);
-  if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
-    const elapsed = Date.now() - attempts.lastAttempt;
-    const remaining = Math.ceil((LOCKOUT_DURATION_MS - elapsed) / 60000);
-    if (remaining > 0) {
-      throw new Error('Too many failed login attempts. Please try again in ' + remaining + ' minute(s).');
-    } else {
-      recordLoginAttempt(email, true); // Reset expired lockout
-    }
-  }
-}
-
-async function login(email, password) {
-  checkLoginRateLimit(email);
+function login(email, password) {
   const user = getUserByEmail(email);
-  if (!user) {
-    recordLoginAttempt(email, false);
-    throw new Error('No account found with this email.');
-  }
+  if (!user) throw new Error('No account found with this email.');
   if (!user.active) throw new Error('Your account has been deactivated. Contact admin.');
-
-  let passwordMatch = false;
-  if (user.passwordHash) {
-    const inputHash = await hashPassword(password, email);
-    passwordMatch = (user.passwordHash === inputHash);
-    if (!passwordMatch && user.password) {
-      // Legacy plaintext fallback
-      passwordMatch = (user.password === password);
-      if (passwordMatch) {
-        // Migrate to hashed password
-        user.passwordHash = inputHash.length > 0 ? inputHash : await hashPassword(password, email);
-        delete user.password;
-        saveUser(user);
-      }
-    }
-  } else if (user.password) {
-    // Legacy plaintext — compare and migrate
-    passwordMatch = (user.password === password);
-    if (passwordMatch) {
-      const hash = await hashPassword(password, email);
-      user.passwordHash = hash;
-      delete user.password;
-      saveUser(user);
-    }
-  }
-
-  if (!passwordMatch) {
-    recordLoginAttempt(email, false);
-    throw new Error('Incorrect password.');
-  }
-  recordLoginAttempt(email, true);
-
+  if (user.password !== password) throw new Error('Incorrect password.');
   const sessionToken = generateSessionToken();
   const session = { userId: user.id, role: user.role, email: user.email, name: user.name, department: user.department || '', section: user.section || '', loginAt: Date.now(), sessionToken: sessionToken };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
