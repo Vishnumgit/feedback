@@ -294,30 +294,51 @@
     if (typeof db === 'undefined' || !db) return;
     // Track enrollments we already know about to detect new ones
     var knownEnrollKeys = {};
+    // Track keys that were already in localStorage when the page loaded
+    // so we can distinguish "pre-existing" from "new while offline"
+    var preloadedKeys = {};
     var initialLoad = true;
     try {
       var existing = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
       existing.forEach(function(e) {
-        if (e.studentId === session.userId) knownEnrollKeys[e.studentId + '_' + e.teacherId] = true;
+        if (e.studentId === session.userId) {
+          var k = e.studentId + '_' + e.teacherId;
+          knownEnrollKeys[k] = true;
+          preloadedKeys[k] = true; // remember what was already known at page load
+        }
       });
     } catch(e) {}
 
     db.collection('enrollments').onSnapshot(function(snapshot) {
       snapshot.docChanges().forEach(function(change) {
-        if (change.type === 'added') {
+        if (change.type === 'removed') {
+          var data = change.doc.data();
+          if (data.studentId !== session.userId) return;
+          var key = data.studentId + '_' + data.teacherId;
+          delete knownEnrollKeys[key]; // clear so re-assignment triggers a new notification
+          delete preloadedKeys[key];
+          return;
+        }
+        if (change.type === 'added' || change.type === 'modified') {
           var data = change.doc.data();
           if (data.studentId !== session.userId) return; // not for this student
           var key = data.studentId + '_' + data.teacherId;
-          if (knownEnrollKeys[key]) return; // already known
+          if (knownEnrollKeys[key]) return; // already known — skip notification and re-processing
           knownEnrollKeys[key] = true;
-          if (initialLoad) return; // skip notifications for pre-existing enrollments
+          // Skip notification only if this enrollment was already loaded from localStorage
+          // (i.e., was known before Firestore connected). If it's new from Firestore even
+          // during initial load, the student was assigned while offline — do notify them.
+          if (initialLoad && preloadedKeys[key]) return;
 
           // Sync enrollments to localStorage so UI updates
           var enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
-          if (!enrollments.find(function(e) { return e.studentId === data.studentId && e.teacherId === data.teacherId; })) {
+          var existingIdx = enrollments.findIndex(function(e) { return e.studentId === data.studentId && e.teacherId === data.teacherId; });
+          if (existingIdx === -1) {
             enrollments.push(data);
-            localStorage.setItem('sfft_enrollments', JSON.stringify(enrollments));
+          } else {
+            enrollments[existingIdx] = data; // update existing record with latest subjects
           }
+          localStorage.setItem('sfft_enrollments', JSON.stringify(enrollments));
 
           var teacher = getUserById(data.teacherId);
           var teacherName = teacher ? teacher.name : 'a new teacher';
@@ -357,6 +378,7 @@
           });
           localStorage.setItem('sf_notifications', JSON.stringify(notifs));
           if (typeof updateNotifBadge === 'function') updateNotifBadge();
+          if (typeof renderTeachers === 'function') renderTeachers(); // refresh teachers list
         }
       });
       initialLoad = false;

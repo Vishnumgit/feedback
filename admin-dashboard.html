@@ -1534,6 +1534,7 @@ function saveAssignments() {
   if (!selectedTeacherId) return;
   const checkboxes = document.querySelectorAll('#studentCheckGrid input[type=checkbox]');
   let added = 0, removed = 0;
+  var newlyEnrolledIds = []; // track only students being enrolled for the first time in this save
   checkboxes.forEach(cb => {
     const sId = cb.value;
     const isChecked = cb.checked;
@@ -1547,6 +1548,7 @@ function saveAssignments() {
       // Enroll student with the selected subjects
       enroll(sId, selectedTeacherId, selectedSubjectIds);
       added++;
+      newlyEnrolledIds.push(sId);
     } else if (!isChecked && hasAnySelectedSubject) {
       // Unenroll student from the selected subjects
       unenroll(sId, selectedTeacherId, selectedSubjectIds);
@@ -1559,51 +1561,47 @@ function saveAssignments() {
   if (added > 0) {
     var allResponses = getResponses();
     var cleared = 0;
-    checkboxes.forEach(function(cb) {
-      if (cb.checked) {
-        var oldResp = allResponses.filter(function(r) { return r.studentId === cb.value && r.teacherId === selectedTeacherId; });
-        oldResp.forEach(function(r) { deleteResponse(r.id); cleared++; });
-      }
+    newlyEnrolledIds.forEach(function(sId) {
+      var oldResp = allResponses.filter(function(r) { return r.studentId === sId && r.teacherId === selectedTeacherId; });
+      oldResp.forEach(function(r) { deleteResponse(r.id); cleared++; });
     });
     if (cleared) console.log('[Admin] Cleared ' + cleared + ' old feedback response(s) for resubmission');
-    // Send push notifications to newly enrolled students
+    // Send push notifications to newly enrolled students only
     var teacher = getUserById(selectedTeacherId);
     var teacherName = teacher ? teacher.name : 'a teacher';
     var teacherSubject = teacher ? (teacher.subject || '') : '';
-    checkboxes.forEach(function(cb) {
-      var sId = cb.value;
-      var wasEnrolled = false; // We already enrolled above, check if this was a new one
-      if (cb.checked) {
-        // Look up the student's FCM token from Firestore and send push
-        db.collection('fcm_tokens').doc(sId).get().then(function(doc) {
-          if (doc.exists && doc.data().token) {
-            var fcmToken = doc.data().token;
-            var studentName = doc.data().name || 'Student';
-            console.log('[Push] Sending notification to ' + studentName);
-            var notifBody = teacherSubject
-              ? teacherName + ' (' + teacherSubject + ') has been assigned to you for feedback. Open your dashboard to submit!'
-              : teacherName + ' has been assigned to you for feedback. Open your dashboard to submit!';
-            // Call CodeWords FCM Push Notifier service with type metadata
-            fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-api-key': 'cwk-7823a045f520e66cea8bb225e49afa87562157bc0c788c53785b5784825f48d0' },
-              body: JSON.stringify({
-                fcm_token: fcmToken,
-                title: '🎓 New Teacher Assigned: ' + teacherName,
-                body: notifBody,
-                data: {
-                  type: 'assignment',
-                  teacherName: teacherName,
-                  teacherSubject: teacherSubject,
-                  url: '/feedback/student-dashboard.html#teachers'
-                }
-              })
-            }).then(function(r) { return r.json(); })
-              .then(function(result) { console.log('[Push] Result:', result); })
-              .catch(function(err) { console.warn('[Push] Error:', err.message); });
-          }
-        }).catch(function(err) { console.warn('[Push] Token lookup failed:', err.message); });
-      }
+    newlyEnrolledIds.forEach(function(sId) {
+      // Look up the student's FCM token from Firestore and send push
+      db.collection('fcm_tokens').doc(sId).get().then(function(doc) {
+        if (doc.exists && doc.data().token) {
+          var fcmToken = doc.data().token;
+          var studentName = doc.data().name || 'Student';
+          console.log('[Push] Sending notification to ' + studentName);
+          var notifBody = teacherSubject
+            ? teacherName + ' (' + teacherSubject + ') has been assigned to you for feedback. Open your dashboard to submit!'
+            : teacherName + ' has been assigned to you for feedback. Open your dashboard to submit!';
+          // Call CodeWords FCM Push Notifier service with type metadata
+          fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': 'cwk-7823a045f520e66cea8bb225e49afa87562157bc0c788c53785b5784825f48d0' },
+            body: JSON.stringify({
+              fcm_token: fcmToken,
+              title: '🎓 New Teacher Assigned: ' + teacherName,
+              body: notifBody,
+              data: {
+                type: 'assignment',
+                teacherName: teacherName,
+                teacherSubject: teacherSubject,
+                url: '/feedback/student-dashboard.html#teachers'
+              }
+            })
+          }).then(function(r) { return r.json(); })
+            .then(function(result) { console.log('[Push] Result:', result); })
+            .catch(function(err) { console.warn('[Push] Error:', err.message); });
+        } else {
+          console.log('[Push] No FCM token for student (not registered or missing):', sId);
+        }
+      }).catch(function(err) { console.warn('[Push] Token lookup failed:', err.message); });
     });
   }
   let msg = [];
