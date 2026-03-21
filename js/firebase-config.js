@@ -1,5 +1,9 @@
 // ============================================================
-// firebase-config.js — Firebase Initialization (Compat SDK)
+// firebase-config.js — Firebase Initialization (REST API version)
+// ============================================================
+// Only initializes Firebase App + Messaging (for FCM push notifications).
+// Firestore operations use REST API via firebase-rest.js.
+// No firebase-firestore-compat.js needed → zero WebSocket connections.
 // ============================================================
 
 const firebaseConfig = {
@@ -14,4 +18,6 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
-const db = firebase.firestore();
+
+// NOTE: No `const db = firebase.firestore()` — we use FirestoreREST instead!
+// This eliminates the persistent WebSocket connection.
