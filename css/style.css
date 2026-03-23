@@ -697,3 +697,318 @@ tbody td:last-child { border-radius: 0 var(--radius-xs) var(--radius-xs) 0; bord
   .sidebar, .topbar, .bg-orbs, .toast-container { display: none !important; }
   .glass, .section-card, .card { background: white; border: 1px solid #ddd; backdrop-filter: none; }
 }
+
+
+/* ===== LEGACY VARIABLE COMPATIBILITY ===== */
+:root {
+  --border: rgba(255,255,255,0.06);
+  --danger: #f87171;
+  --success: #34d399;
+  --warning: #fbbf24;
+}
+
+/* ===== LANDING PAGE ===== */
+.landing-hero {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 40px;
+}
+
+.hero-tag {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid rgba(251,146,60,0.2);
+  margin-bottom: 16px;
+}
+
+.hero-title {
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+.hero-title span {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-desc {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ===== ROLE CARDS (Landing Page) ===== */
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.role-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent-gradient);
+}
+
+.role-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(251,146,60,0.2);
+  background: var(--glass-hover);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.role-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.role-card-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.role-card-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.role-card-arrow {
+  font-size: 18px;
+  color: var(--accent);
+  margin-top: auto;
+  transition: transform 0.2s;
+}
+
+.role-card:hover .role-card-arrow {
+  transform: translateX(4px);
+}
+
+/* ===== LOGIN CARD ===== */
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 36px;
+  border-radius: 20px;
+}
+
+.login-card-body {
+  width: 100%;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ===== MAIN CONTENT AREA (Dashboard pages) ===== */
+.main-content, [class*="main-content"], .content-area {
+  flex: 1;
+  padding: 24px;
+  margin-left: 240px;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .main-content, [class*="main-content"], .content-area {
+    margin-left: 0;
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+}
+
+/* ===== DESKTOP ENHANCEMENTS ===== */
+@media (min-width: 769px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .section-card-body {
+    padding: 24px;
+  }
+  
+  .login-card {
+    padding: 40px;
+  }
+
+  .role-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .modal {
+    max-width: 560px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  
+  .stat-card {
+    padding: 22px;
+  }
+  
+  .stat-value {
+    font-size: 28px;
+  }
+}
+
+/* ===== FIX: page-wrapper on pages without sidebar ===== */
+.page-wrapper.center-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  margin-left: 0;
+}
+
+/* ===== TABS ===== */
+.tabs, [class*="tab-group"], [class*="tab-bar"] {
+  display: flex;
+  gap: 4px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.tab-btn, [class*="tab-item"], [role="tab"] {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: var(--font);
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.tab-btn.active, [class*="tab-item"].active, [role="tab"][aria-selected="true"] {
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ===== SEARCH & FILTERS ===== */
+.search-wrap, [class*="search"] {
+  position: relative;
+}
+
+.search-wrap input, [class*="search"] input[type="search"] {
+  padding-left: 40px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ===== RESPONSIVE TABLE ===== */
+@media (max-width: 768px) {
+  .table-wrap {
+    margin: 0 -14px;
+    padding: 0 14px;
+  }
+  
+  table {
+    min-width: 600px;
+  }
+}
+
+/* ===== FEEDBACK FORM SPECIFIC ===== */
+.rating-group, [class*="rating"], [class*="stars-input"] {
+  display: flex;
+  gap: 6px;
+}
+
+.rating-star, [class*="star-btn"] {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-dim);
+}
+
+.rating-star.active, .rating-star.selected, [class*="star-btn"].active {
+  background: rgba(251,191,36,0.15);
+  border-color: rgba(251,191,36,0.3);
+  color: var(--yellow);
+}
+
+/* ===== AVATAR ===== */
+.avatar, [class*="avatar"] {
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* ===== NOTIFICATION DOT ===== */
+.notif-dot, [class*="notif-badge"] {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  top: -2px;
+  right: -2px;
+}
