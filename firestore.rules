@@ -1,0 +1,104 @@
+// ============================================================
+// firestore.rules — Firestore Security Rules (REFERENCE FILE)
+// ============================================================
+// IMPORTANT: This file is a REFERENCE for future implementation.
+// Your app currently uses custom authentication (not Firebase Auth),
+// so request.auth will be null for all requests.
+//
+// To use these rules, you need to:
+//   1. Switch from custom auth to Firebase Authentication
+//   2. Update auth.js to use firebase.auth() methods
+//   3. Then apply these rules in Firebase Console > Firestore > Rules
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helper: Check if user is authenticated ----
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ---- Helper: Check if user is admin ----
+    // (Requires storing admin role in custom claims or a separate admin collection)
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ---- Users Collection ----
+    match /users/{userId} {
+      // Users can read their own document
+      // Admin can read all users
+      allow read: if isAuthenticated()
+                  && (request.auth.uid == userId || isAdmin());
+
+      // Only admin can create/update/delete users
+      // Users can update their own document (for password changes, session tokens)
+      allow write: if isAuthenticated()
+                   && (request.auth.uid == userId || isAdmin());
+    }
+
+    // ---- Subjects Collection ----
+    match /subjects/{subjectId} {
+      // Anyone authenticated can read subjects
+      allow read: if isAuthenticated();
+      // Only admin can create/update/delete subjects
+      allow write: if isAdmin();
+    }
+
+    // ---- Questionnaires Collection ----
+    match /questionnaires/{subjectId} {
+      // Anyone authenticated can read questionnaires
+      allow read: if isAuthenticated();
+      // Only admin can modify questionnaires
+      allow write: if isAdmin();
+    }
+
+    // ---- Enrollments Collection ----
+    match /enrollments/{enrollmentId} {
+      // Students and teachers can read their own enrollments
+      allow read: if isAuthenticated()
+                  && (resource.data.studentId == request.auth.uid
+                      || resource.data.teacherId == request.auth.uid
+                      || isAdmin());
+      // Only admin can create/modify enrollments
+      allow write: if isAdmin();
+    }
+
+    // ---- Responses (Feedback) Collection ----
+    match /responses/{responseId} {
+      // Teachers can read feedback addressed to them
+      // Admin can read all
+      allow read: if isAuthenticated()
+                  && (resource.data.teacherId == request.auth.uid
+                      || resource.data.studentId == request.auth.uid
+                      || isAdmin());
+
+      // Students can create responses (must be their own studentId)
+      allow create: if isAuthenticated()
+                    && request.resource.data.studentId == request.auth.uid;
+
+      // Only admin can update/delete responses
+      allow update, delete: if isAdmin();
+    }
+
+    // ---- Attendance Collection ----
+    match /attendance/{studentId} {
+      // Students can read their own attendance
+      allow read: if isAuthenticated()
+                  && (request.auth.uid == studentId || isAdmin());
+      // Only admin can upload attendance
+      allow write: if isAdmin();
+    }
+
+    // ---- Settings Collection ----
+    match /settings/{docId} {
+      // Anyone authenticated can read settings
+      allow read: if isAuthenticated();
+      // Only admin can modify settings
+      allow write: if isAdmin();
+    }
+  }
+}
