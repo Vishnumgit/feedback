@@ -1,85 +1,324 @@
 // ============================================================
-// firebase-sync.js — NON-BLOCKING background sync
+// firebase-sync.js — OPTIMIZED: Filtered queries, Role-based sync, Cache
 // ============================================================
-// Usage in each HTML page:
-//   Call fbInit() at the TOP of the inline <script>.
-//   All other code (functions, event listeners) stays GLOBAL
-//   so HTML onclick="fn()" handlers work correctly.
+// Solutions applied:
+//   1. Filtered Queries — students/teachers only fetch their own data
+//   2. Role-Based Sync — different sync per role (student/teacher/admin)
+//   3. Cache Timestamps — skip sync if data is less than 5 minutes old
 // ============================================================
 
-// ------ Firestore write helpers ------
+// ------ Firestore write helpers (unchanged) ------
 function fsSetDoc(collection, docId, data) {
   db.collection(collection).doc(docId).set(data)
-    .catch(e => console.warn('[Firebase] Write failed:', collection, docId, e.message));
+    .catch(function(e) { console.warn('[Firebase] Write failed:', collection, docId, e.message); });
 }
 function fsDeleteDoc(collection, docId) {
   db.collection(collection).doc(docId).delete()
-    .catch(e => console.warn('[Firebase] Delete failed:', collection, docId, e.message));
+    .catch(function(e) { console.warn('[Firebase] Delete failed:', collection, docId, e.message); });
 }
 
-// ------ Background sync: Firestore → localStorage (runs after page init) ------
+// ------ Merge helpers (update without overwriting entire arrays) ------
+function mergeById(arr, item) {
+  var idx = -1;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].id === item.id) { idx = i; break; }
+  }
+  if (idx > -1) arr[idx] = item; else arr.push(item);
+}
+
+function mergeByField(arr, item, field) {
+  var idx = -1;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i][field] === item[field]) { idx = i; break; }
+  }
+  if (idx > -1) arr[idx] = item; else arr.push(item);
+}
+
+// ------ SOLUTION 3: Cache with Timestamps ------
+var SYNC_CACHE_KEY = 'sfft_lastSync';
+var SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+function shouldSync() {
+  var lastSync = localStorage.getItem(SYNC_CACHE_KEY);
+  if (!lastSync) return true;
+  return (Date.now() - Number(lastSync)) >= SYNC_INTERVAL;
+}
+
+function markSynced() {
+  localStorage.setItem(SYNC_CACHE_KEY, String(Date.now()));
+}
+
+// Force sync (bypass cache) — useful after data changes
+function forceSync() {
+  localStorage.removeItem(SYNC_CACHE_KEY);
+  syncFromFirestoreInBackground();
+}
+
+// ------ SOLUTION 1 + 2: Role-Based Filtered Sync ------
 function syncFromFirestoreInBackground() {
+  // Solution 3: Skip if recently synced
+  if (!shouldSync()) {
+    console.log('[Firebase] Skipping sync — data is fresh (< 5 min)');
+    window.dispatchEvent(new Event('firestore-synced'));
+    return;
+  }
+
+  // Solution 2: Route by role
+  var session = (typeof getSession === 'function') ? getSession() : null;
+
   setTimeout(async function() {
     try {
-      const [usersSnap, subjectsSnap, qSnap, enrollSnap, responsesSnap, settingsDoc, attendanceSnap] =
-        await Promise.all([
-          db.collection('users').get(),
-          db.collection('subjects').get(),
-          db.collection('questionnaires').get(),
-          db.collection('enrollments').get(),
-          db.collection('responses').get(),
-          db.collection('settings').doc('global').get(),
-          db.collection('attendance').get()
-        ]);
+      if (session && session.role === 'student') {
+        await syncStudentData(session.userId);
+      } else if (session && session.role === 'teacher') {
+        await syncTeacherData(session.userId);
+      } else {
+        // Admin or no session — full sync (original behavior)
+        await syncAllData();
+      }
 
-      const toArray = snap => { const a = []; snap.forEach(d => a.push(d.data())); return a; };
-      const toObj   = snap => { const o = {}; snap.forEach(d => { o[d.id] = d.data(); }); return o; };
-
-      const users          = toArray(usersSnap);
-      const subjects       = toArray(subjectsSnap);
-      const questionnaires = toObj(qSnap);
-      const enrollments    = toArray(enrollSnap);
-      const responses      = toArray(responsesSnap);
-      const attendance     = toArray(attendanceSnap);
-      const settings       = settingsDoc.exists ? settingsDoc.data() : null;
-
-      // Only overwrite localStorage if Firestore has data
-      if (users.length)                       localStorage.setItem('sfft_users',          JSON.stringify(users));
-      if (subjects.length)                    localStorage.setItem('sfft_subjects',        JSON.stringify(subjects));
-      if (Object.keys(questionnaires).length) localStorage.setItem('sfft_questionnaires', JSON.stringify(questionnaires));
-      if (enrollments.length)                 localStorage.setItem('sfft_enrollments',     JSON.stringify(enrollments));
-      if (responses.length)                   localStorage.setItem('sfft_responses',       JSON.stringify(responses));
-      if (attendance.length)                  localStorage.setItem('sfft_attendance',      JSON.stringify(attendance));
-      if (settings)                           localStorage.setItem('sfft_settings',        JSON.stringify(settings));
-
+      markSynced();
       console.log('[Firebase] Background sync complete ✅');
       window.dispatchEvent(new Event('firestore-synced'));
     } catch(e) {
       console.warn('[Firebase] Background sync failed (offline?):', e.message);
     }
 
-    // Push seed data to Firestore if it is empty (first-time setup)
     pushSeedDataIfEmpty();
-  }, 100); // tiny delay so page renders first
+  }, 100);
 }
 
+// ------ STUDENT SYNC: Only fetch student-relevant data ------
+async function syncStudentData(studentId) {
+  console.log('[Firebase] Student sync — filtered queries for:', studentId);
+
+  // Step 1: Fetch student's own data + filtered collections
+  var results = await Promise.all([
+    db.collection('users').doc(studentId).get(),
+    db.collection('enrollments').where('studentId', '==', studentId).get(),
+    db.collection('subjects').get(),
+    db.collection('settings').doc('global').get(),
+    db.collection('attendance').doc(studentId).get()
+  ]);
+
+  var myUserDoc = results[0];
+  var myEnrollmentsSnap = results[1];
+  var subjectsSnap = results[2];
+  var settingsDoc = results[3];
+  var myAttendanceDoc = results[4];
+
+  // Step 2: Extract enrollments and find teacher IDs
+  var enrollments = [];
+  var teacherIds = [];
+  myEnrollmentsSnap.forEach(function(d) {
+    var data = d.data();
+    enrollments.push(data);
+    if (data.teacherId && teacherIds.indexOf(data.teacherId) === -1) {
+      teacherIds.push(data.teacherId);
+    }
+  });
+
+  // Step 3: Fetch only enrolled teachers' user docs
+  var teacherDocs = [];
+  if (teacherIds.length > 0) {
+    teacherDocs = await Promise.all(
+      teacherIds.map(function(tid) {
+        return db.collection('users').doc(tid).get();
+      })
+    );
+  }
+
+  // Step 4: Fetch questionnaires for enrolled subjects only
+  var subjectIds = [];
+  enrollments.forEach(function(e) {
+    (e.subjectIds || []).forEach(function(sid) {
+      if (subjectIds.indexOf(sid) === -1) subjectIds.push(sid);
+    });
+  });
+
+  var qDocs = [];
+  if (subjectIds.length > 0) {
+    qDocs = await Promise.all(
+      subjectIds.map(function(sid) {
+        return db.collection('questionnaires').doc(sid).get();
+      })
+    );
+  }
+
+  // Step 5: MERGE into localStorage (don't overwrite entire arrays!)
+
+  // Users: merge my doc + teacher docs
+  var existingUsers = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+  if (myUserDoc.exists) mergeById(existingUsers, myUserDoc.data());
+  teacherDocs.forEach(function(d) {
+    if (d.exists) mergeById(existingUsers, d.data());
+  });
+  localStorage.setItem('sfft_users', JSON.stringify(existingUsers));
+
+  // Enrollments: replace student's enrollments, keep others
+  var existingEnrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+  var otherEnrollments = existingEnrollments.filter(function(e) { return e.studentId !== studentId; });
+  localStorage.setItem('sfft_enrollments', JSON.stringify(otherEnrollments.concat(enrollments)));
+
+  // Subjects: full replace (small collection, OK to read all)
+  var subjectsArr = [];
+  subjectsSnap.forEach(function(d) { subjectsArr.push(d.data()); });
+  if (subjectsArr.length) localStorage.setItem('sfft_subjects', JSON.stringify(subjectsArr));
+
+  // Questionnaires: merge enrolled subjects' questionnaires
+  var existingQ = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  qDocs.forEach(function(d) {
+    if (d.exists) existingQ[d.id] = d.data();
+  });
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(existingQ));
+
+  // Attendance: merge my record
+  if (myAttendanceDoc.exists) {
+    var existingAtt = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
+    mergeByField(existingAtt, myAttendanceDoc.data(), 'studentId');
+    localStorage.setItem('sfft_attendance', JSON.stringify(existingAtt));
+  }
+
+  // Settings: single document
+  if (settingsDoc.exists) localStorage.setItem('sfft_settings', JSON.stringify(settingsDoc.data()));
+
+  console.log('[Firebase] Student sync done — used filtered queries ✅');
+}
+
+// ------ TEACHER SYNC: Only fetch teacher-relevant data ------
+async function syncTeacherData(teacherId) {
+  console.log('[Firebase] Teacher sync — filtered queries for:', teacherId);
+
+  // Step 1: Fetch teacher's own data + their responses/enrollments
+  var results = await Promise.all([
+    db.collection('users').doc(teacherId).get(),
+    db.collection('enrollments').where('teacherId', '==', teacherId).get(),
+    db.collection('responses').where('teacherId', '==', teacherId).get(),
+    db.collection('subjects').get(),
+    db.collection('questionnaires').get(),
+    db.collection('settings').doc('global').get()
+  ]);
+
+  var myUserDoc = results[0];
+  var myEnrollmentsSnap = results[1];
+  var myResponsesSnap = results[2];
+  var subjectsSnap = results[3];
+  var qSnap = results[4];
+  var settingsDoc = results[5];
+
+  // Step 2: Extract enrollments and find student IDs
+  var enrollments = [];
+  var studentIds = [];
+  myEnrollmentsSnap.forEach(function(d) {
+    var data = d.data();
+    enrollments.push(data);
+    if (data.studentId && studentIds.indexOf(data.studentId) === -1) {
+      studentIds.push(data.studentId);
+    }
+  });
+
+  // Step 3: Fetch enrolled students' user docs
+  var studentDocs = [];
+  if (studentIds.length > 0) {
+    studentDocs = await Promise.all(
+      studentIds.map(function(sid) {
+        return db.collection('users').doc(sid).get();
+      })
+    );
+  }
+
+  // Step 4: Extract responses
+  var responses = [];
+  myResponsesSnap.forEach(function(d) { responses.push(d.data()); });
+
+  // Step 5: MERGE into localStorage
+
+  // Users: merge my doc + student docs
+  var existingUsers = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+  if (myUserDoc.exists) mergeById(existingUsers, myUserDoc.data());
+  studentDocs.forEach(function(d) {
+    if (d.exists) mergeById(existingUsers, d.data());
+  });
+  localStorage.setItem('sfft_users', JSON.stringify(existingUsers));
+
+  // Enrollments: replace teacher's enrollments, keep others
+  var existingEnrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+  var otherEnrollments = existingEnrollments.filter(function(e) { return e.teacherId !== teacherId; });
+  localStorage.setItem('sfft_enrollments', JSON.stringify(otherEnrollments.concat(enrollments)));
+
+  // Responses: replace teacher's responses, keep others
+  var existingResp = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+  var otherResp = existingResp.filter(function(r) { return r.teacherId !== teacherId; });
+  localStorage.setItem('sfft_responses', JSON.stringify(otherResp.concat(responses)));
+
+  // Subjects: full replace
+  var subjectsArr = [];
+  subjectsSnap.forEach(function(d) { subjectsArr.push(d.data()); });
+  if (subjectsArr.length) localStorage.setItem('sfft_subjects', JSON.stringify(subjectsArr));
+
+  // Questionnaires: full replace (teachers may need all for reference)
+  var questionnaires = {};
+  qSnap.forEach(function(d) { questionnaires[d.id] = d.data(); });
+  if (Object.keys(questionnaires).length) localStorage.setItem('sfft_questionnaires', JSON.stringify(questionnaires));
+
+  // Settings
+  if (settingsDoc.exists) localStorage.setItem('sfft_settings', JSON.stringify(settingsDoc.data()));
+
+  console.log('[Firebase] Teacher sync done — used filtered queries ✅');
+}
+
+// ------ ADMIN SYNC: Full sync (original behavior) ------
+async function syncAllData() {
+  console.log('[Firebase] Admin/full sync — all collections');
+
+  var results = await Promise.all([
+    db.collection('users').get(),
+    db.collection('subjects').get(),
+    db.collection('questionnaires').get(),
+    db.collection('enrollments').get(),
+    db.collection('responses').get(),
+    db.collection('settings').doc('global').get(),
+    db.collection('attendance').get()
+  ]);
+
+  var toArray = function(snap) { var a = []; snap.forEach(function(d) { a.push(d.data()); }); return a; };
+  var toObj   = function(snap) { var o = {}; snap.forEach(function(d) { o[d.id] = d.data(); }); return o; };
+
+  var users          = toArray(results[0]);
+  var subjects       = toArray(results[1]);
+  var questionnaires = toObj(results[2]);
+  var enrollments    = toArray(results[3]);
+  var responses      = toArray(results[4]);
+  var settings       = results[5].exists ? results[5].data() : null;
+  var attendance     = toArray(results[6]);
+
+  if (users.length)                       localStorage.setItem('sfft_users',          JSON.stringify(users));
+  if (subjects.length)                    localStorage.setItem('sfft_subjects',        JSON.stringify(subjects));
+  if (Object.keys(questionnaires).length) localStorage.setItem('sfft_questionnaires', JSON.stringify(questionnaires));
+  if (enrollments.length)                 localStorage.setItem('sfft_enrollments',     JSON.stringify(enrollments));
+  if (responses.length)                   localStorage.setItem('sfft_responses',       JSON.stringify(responses));
+  if (attendance.length)                  localStorage.setItem('sfft_attendance',      JSON.stringify(attendance));
+  if (settings)                           localStorage.setItem('sfft_settings',        JSON.stringify(settings));
+}
+
+// ------ Seed data push (unchanged) ------
 async function pushSeedDataIfEmpty() {
   try {
-    const snap = await db.collection('users').limit(1).get();
+    var snap = await db.collection('users').limit(1).get();
     if (!snap.empty) return;
 
     console.log('[Firebase] Firestore is empty — pushing seed data…');
-    const users    = JSON.parse(localStorage.getItem('sfft_users')          || '[]');
-    const subjects = JSON.parse(localStorage.getItem('sfft_subjects')       || '[]');
-    const qAll     = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
-    const settings = JSON.parse(localStorage.getItem('sfft_settings')       || '{}');
+    var users    = JSON.parse(localStorage.getItem('sfft_users')          || '[]');
+    var subjects = JSON.parse(localStorage.getItem('sfft_subjects')       || '[]');
+    var qAll     = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+    var settings = JSON.parse(localStorage.getItem('sfft_settings')       || '{}');
 
-    if (!users.length) return; // nothing to push yet
+    if (!users.length) return;
 
-    const batch = db.batch();
-    users.forEach(u    => batch.set(db.collection('users').doc(u.id), u));
-    subjects.forEach(s => batch.set(db.collection('subjects').doc(s.id), s));
-    Object.entries(qAll).forEach(([id, q]) => batch.set(db.collection('questionnaires').doc(id), q));
+    var batch = db.batch();
+    users.forEach(function(u) { batch.set(db.collection('users').doc(u.id), u); });
+    subjects.forEach(function(s) { batch.set(db.collection('subjects').doc(s.id), s); });
+    Object.entries(qAll).forEach(function(entry) { batch.set(db.collection('questionnaires').doc(entry[0]), entry[1]); });
     if (settings && settings.collegeName) batch.set(db.collection('settings').doc('global'), settings);
     await batch.commit();
     console.log('[Firebase] Seed data pushed ✅');
@@ -88,129 +327,128 @@ async function pushSeedDataIfEmpty() {
   }
 }
 
-// ------ Patch data.js write functions to also sync to Firestore ------
+// ------ Patch data.js write functions (unchanged, but clears sync cache on write) ------
 function patchDataFunctions() {
 
   // ---- Users ----
-  const _addUser = window.addUser;
+  var _addUser = window.addUser;
   window.addUser = function(userData) {
-    const result = _addUser(userData);
-    const users = JSON.parse(localStorage.getItem('sfft_users') || '[]');
-    const newUser = users[users.length - 1];
+    var result = _addUser(userData);
+    var users = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+    var newUser = users[users.length - 1];
     if (newUser) fsSetDoc('users', newUser.id, newUser);
+    localStorage.removeItem(SYNC_CACHE_KEY); // Clear cache so next load re-syncs
     return result;
   };
 
-  const _saveUser = window.saveUser;
+  var _saveUser = window.saveUser;
   window.saveUser = function(user) {
-    const result = _saveUser(user);
+    var result = _saveUser(user);
     fsSetDoc('users', user.id, user);
     return result;
   };
 
-  const _deleteUser = window.deleteUser;
+  var _deleteUser = window.deleteUser;
   window.deleteUser = function(userId) {
-    const result = _deleteUser(userId);
+    var result = _deleteUser(userId);
     fsDeleteDoc('users', userId);
+    localStorage.removeItem(SYNC_CACHE_KEY);
     return result;
   };
 
   // ---- Subjects ----
-  const _addSubject = window.addSubject;
+  var _addSubject = window.addSubject;
   window.addSubject = function(subjectData) {
-    const result = _addSubject(subjectData);
-    const subjects = JSON.parse(localStorage.getItem('sfft_subjects') || '[]');
-    const newSub = subjects[subjects.length - 1];
+    var result = _addSubject(subjectData);
+    var subjects = JSON.parse(localStorage.getItem('sfft_subjects') || '[]');
+    var newSub = subjects[subjects.length - 1];
     if (newSub) fsSetDoc('subjects', newSub.id, newSub);
     return result;
   };
 
-  const _deleteSubject = window.deleteSubject;
+  var _deleteSubject = window.deleteSubject;
   window.deleteSubject = function(subjectId) {
-    const result = _deleteSubject(subjectId);
+    var result = _deleteSubject(subjectId);
     fsDeleteDoc('subjects', subjectId);
     fsDeleteDoc('questionnaires', subjectId);
     return result;
   };
 
   // ---- Questionnaires ----
-  const _saveQuestionnaire = window.saveQuestionnaire;
+  var _saveQuestionnaire = window.saveQuestionnaire;
   window.saveQuestionnaire = function(subjectId, data) {
-    const result = _saveQuestionnaire(subjectId, data);
+    var result = _saveQuestionnaire(subjectId, data);
     fsSetDoc('questionnaires', subjectId, data);
     return result;
   };
 
   // ---- Enrollments ----
-  const _enroll = window.enroll;
+  var _enroll = window.enroll;
   window.enroll = function(studentId, teacherId, subjectIds) {
-    const result = _enroll(studentId, teacherId, subjectIds);
-    const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
-    const e = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
-    if (e) fsSetDoc('enrollments', `${studentId}_${teacherId}`, e);
+    var result = _enroll(studentId, teacherId, subjectIds);
+    var enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+    var e = enrollments.find(function(e) { return e.studentId === studentId && e.teacherId === teacherId; });
+    if (e) fsSetDoc('enrollments', studentId + '_' + teacherId, e);
+    localStorage.removeItem(SYNC_CACHE_KEY);
     return result;
   };
 
-  const _unenroll = window.unenroll;
+  var _unenroll = window.unenroll;
   window.unenroll = function(studentId, teacherId, subjectIds) {
-    const result = _unenroll(studentId, teacherId, subjectIds);
-    // Check if enrollment still exists after unenroll (might have remaining subjects)
-    const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
-    const e = enrollments.find(e => e.studentId === studentId && e.teacherId === teacherId);
+    var result = _unenroll(studentId, teacherId, subjectIds);
+    var enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+    var e = enrollments.find(function(e) { return e.studentId === studentId && e.teacherId === teacherId; });
     if (e) {
-      // Enrollment still exists with other subjects, update it
-      fsSetDoc('enrollments', `${studentId}_${teacherId}`, e);
+      fsSetDoc('enrollments', studentId + '_' + teacherId, e);
     } else {
-      // Enrollment completely removed, delete from Firestore
-      fsDeleteDoc('enrollments', `${studentId}_${teacherId}`);
+      fsDeleteDoc('enrollments', studentId + '_' + teacherId);
     }
+    localStorage.removeItem(SYNC_CACHE_KEY);
     return result;
   };
 
   // ---- Responses ----
-  const _addResponse = window.addResponse;
+  var _addResponse = window.addResponse;
   if (_addResponse) {
     window.addResponse = function(responseData) {
-      const result = _addResponse(responseData);
-      const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-      const newResp = responses[responses.length - 1];
+      var result = _addResponse(responseData);
+      var responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+      var newResp = responses[responses.length - 1];
       if (newResp) fsSetDoc('responses', newResp.id, newResp);
       return result;
     };
   }
 
-  // Patch saveResponse to also sync to Firestore
-  const _saveResponse = window.saveResponse;
+  var _saveResponse = window.saveResponse;
   if (_saveResponse) {
     window.saveResponse = function(data) {
-      const result = _saveResponse(data);
-      // After saving, find the response in localStorage and sync to Firestore
-      const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-      const saved = responses.find(function(r) { return r.studentId === data.studentId && r.teacherId === data.teacherId; });
+      var result = _saveResponse(data);
+      var responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+      var saved = responses.find(function(r) { return r.studentId === data.studentId && r.teacherId === data.teacherId; });
       if (saved) fsSetDoc('responses', saved.id, saved);
       return result;
     };
   }
 
-  const _deleteResponse = window.deleteResponse;
+  var _deleteResponse = window.deleteResponse;
   if (_deleteResponse) {
     window.deleteResponse = function(responseId) {
-      const result = _deleteResponse(responseId);
+      var result = _deleteResponse(responseId);
       fsDeleteDoc('responses', responseId);
       return result;
     };
   }
 
-  const _deleteResponses = window.deleteResponses;
+  var _deleteResponses = window.deleteResponses;
   if (_deleteResponses) {
     window.deleteResponses = function(responseIds) {
-      const result = _deleteResponses(responseIds);
+      var result = _deleteResponses(responseIds);
       responseIds.forEach(function(id) { fsDeleteDoc('responses', id); });
       return result;
     };
   }
 
-  const _clearAllResponses = window.clearAllResponses;
+  var _clearAllResponses = window.clearAllResponses;
   if (_clearAllResponses) {
     window.clearAllResponses = function() {
       var responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
@@ -221,22 +459,21 @@ function patchDataFunctions() {
   }
 
   // ---- Settings ----
-  const _saveSettings = window.saveSettings;
+  var _saveSettings = window.saveSettings;
   window.saveSettings = function(settings) {
-    const result = _saveSettings(settings);
-    const s = JSON.parse(localStorage.getItem('sfft_settings') || '{}');
+    var result = _saveSettings(settings);
+    var s = JSON.parse(localStorage.getItem('sfft_settings') || '{}');
     fsSetDoc('settings', 'global', s);
     return result;
   };
 
   // ---- Attendance ----
-  const _saveAttendanceRecords = window.saveAttendanceRecords;
+  var _saveAttendanceRecords = window.saveAttendanceRecords;
   window.saveAttendanceRecords = function(records) {
-    const result = _saveAttendanceRecords(records);
-    // Each attendance record is keyed by studentId
-    const allRecords = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
-    records.forEach(rec => {
-      const saved = allRecords.find(a => a.studentId === rec.studentId);
+    var result = _saveAttendanceRecords(records);
+    var allRecords = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
+    records.forEach(function(rec) {
+      var saved = allRecords.find(function(a) { return a.studentId === rec.studentId; });
       if (saved) fsSetDoc('attendance', saved.studentId, saved);
     });
     return result;
@@ -244,17 +481,17 @@ function patchDataFunctions() {
 }
 
 
-// ------ Main entry point: call at TOP of each page's <script> ------
-// fbInit() runs instantly (no blocking). All page functions must stay
-// at global scope (NOT inside a callback) for onclick handlers to work.
+// ------ Main entry point (unchanged interface) ------
 window.fbInit = function() {
-  if (typeof initDB === 'function') initDB();  // load from localStorage immediately
-  patchDataFunctions();                         // mirror future writes to Firestore
-  syncFromFirestoreInBackground();              // pull latest Firestore data in background
+  if (typeof initDB === 'function') initDB();
+  patchDataFunctions();
+  syncFromFirestoreInBackground();
 };
 
-// Alias kept for any legacy usage
 window.startApp = function(callback) {
   window.fbInit();
   if (typeof callback === 'function') callback();
 };
+
+// Expose forceSync for manual re-sync
+window.forceSync = forceSync;
