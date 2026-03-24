@@ -199,13 +199,21 @@ async function syncStudentData(studentId) {
     localStorage.setItem('sfft_attendance', JSON.stringify(existingAtt));
   }
 
-  // Responses: merge student's responses from Firestore
+  // Responses: UNION local + Firestore (don't lose local responses not yet in Firestore)
   var responses = [];
   myResponsesSnap.forEach(function(d) { responses.push(d.data()); });
+  var existingResp = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+  var otherResp = existingResp.filter(function(r) { return r.studentId !== studentId; });
+  var myLocalResp = existingResp.filter(function(r) { return r.studentId === studentId; });
   if (responses.length > 0) {
-    var existingResp = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-    var otherResp = existingResp.filter(function(r) { return r.studentId !== studentId; });
-    localStorage.setItem('sfft_responses', JSON.stringify(otherResp.concat(responses)));
+    // Keep local responses that aren't in Firestore yet (race condition protection)
+    var firestoreIds = {};
+    responses.forEach(function(r) { firestoreIds[r.id] = true; });
+    var localOnly = myLocalResp.filter(function(r) { return !firestoreIds[r.id]; });
+    localStorage.setItem('sfft_responses', JSON.stringify(otherResp.concat(responses).concat(localOnly)));
+  } else if (myLocalResp.length > 0) {
+    // No Firestore data but local data exists — keep it
+    localStorage.setItem('sfft_responses', JSON.stringify(existingResp));
   }
 
   // Settings: single document
