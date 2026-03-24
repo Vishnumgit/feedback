@@ -36,7 +36,7 @@ function initDB() {
 
   // Admin account
   const users = [
-    { id: 'u_admin', email: 'admin@college.edu', passwordHash: 'e86f78a8a3caf0b60d8e74e5942aa6d86dc150cd3c03338aef25b7d2d7e3acc7' // SHA-256 hashed, never store plaintext, role: 'admin', name: 'System Administrator', department: 'Administration', active: true }
+    { id: 'u_admin', email: 'admin@college.edu', passwordHash: 'e86f78a8a3caf0b60d8e74e5942aa6d86dc150cd3c03338aef25b7d2d7e3acc7', role: 'admin', name: 'System Administrator', department: 'Administration', active: true }
   ];
   set(DB.USERS, users);
 
