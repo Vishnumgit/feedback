@@ -24,7 +24,13 @@ async function login(email, password) {
   } catch(e) {
     if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
       // Auto-migrate: user in localStorage but not Firebase Auth
-      if (localUser.password !== password) throw new Error('Incorrect password.');
+      var inputHash = await hashPassword(password);
+      // Support both legacy plaintext and new hashed passwords
+      if (localUser.passwordHash) {
+        if (localUser.passwordHash !== inputHash) throw new Error('Incorrect password.');
+      } else if (localUser.password !== password) {
+        throw new Error('Incorrect password.');
+      }
       console.log('[Auth] Auto-migrating user to Firebase Auth:', email);
       try {
         userCredential = await auth.createUserWithEmailAndPassword(email, password);
@@ -193,7 +199,13 @@ function requireAuth(expectedRole) {
 async function changePassword(userId, currentPassword, newPassword) {
   var user = getUserById(userId);
   if (!user) throw new Error('User not found.');
-  if (user.password !== currentPassword) throw new Error('Current password is incorrect.');
+  var currentHash = await hashPassword(currentPassword);
+  // Support both legacy plaintext and new hashed passwords
+  if (user.passwordHash) {
+    if (user.passwordHash !== currentHash) throw new Error('Current password is incorrect.');
+  } else if (user.password !== currentPassword) {
+    throw new Error('Current password is incorrect.');
+  }
   if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
 
   var fbUser = auth.currentUser;
@@ -209,7 +221,8 @@ async function changePassword(userId, currentPassword, newPassword) {
     }
   }
 
-  user.password = newPassword;
+  user.passwordHash = await hashPassword(newPassword);
+  delete user.password; // Remove legacy plaintext
   saveUser(user);
   if (typeof fsSetDoc === 'function') fsSetDoc('users', user.firebaseUid || user.id, user);
   return true;
@@ -219,7 +232,8 @@ async function adminResetPassword(userId, newPassword) {
   var user = getUserById(userId);
   if (!user) throw new Error('User not found.');
   if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
-  user.password = newPassword;
+  user.passwordHash = await hashPassword(newPassword);
+  delete user.password; // Remove legacy plaintext
   saveUser(user);
   if (typeof fsSetDoc === 'function') fsSetDoc('users', user.firebaseUid || user.id, user);
   return true;
