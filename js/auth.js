@@ -1,5 +1,9 @@
 // ============================================================
-// auth.js — Authentication & Session Management
+// auth.js — Firebase Authentication & Session Management
+// ============================================================
+// MIGRATED: Uses firebase.auth() for Firestore security rules.
+// Auto-migration: Existing localStorage users get Firebase Auth
+// accounts on their first login. NO DATA LOSS.
 // ============================================================
 
 const SESSION_KEY = 'sfft_session';
@@ -8,92 +12,159 @@ function generateSessionToken() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-function login(email, password) {
-  const user = getUserByEmail(email);
-  if (!user) throw new Error('No account found with this email.');
-  if (!user.active) throw new Error('Your account has been deactivated. Contact admin.');
-  if (user.password !== password) throw new Error('Incorrect password.');
-  const sessionToken = generateSessionToken();
-  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, department: user.department || '', section: user.section || '', loginAt: Date.now(), sessionToken: sessionToken };
+// ---- Firebase Auth Login ----
+async function login(email, password) {
+  var localUser = getUserByEmail(email);
+  if (!localUser) throw new Error('No account found with this email.');
+  if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
+
+  var userCredential;
+  try {
+    userCredential = await auth.signInWithEmailAndPassword(email, password);
+  } catch(e) {
+    if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+      // Auto-migrate: user in localStorage but not Firebase Auth
+      if (localUser.password !== password) throw new Error('Incorrect password.');
+      console.log('[Auth] Auto-migrating user to Firebase Auth:', email);
+      try {
+        userCredential = await auth.createUserWithEmailAndPassword(email, password);
+      } catch(createErr) {
+        if (createErr.code === 'auth/email-already-in-use') {
+          throw new Error('Account exists but password may differ. Try resetting.');
+        }
+        throw createErr;
+      }
+    } else if (e.code === 'auth/wrong-password') {
+      throw new Error('Incorrect password.');
+    } else {
+      throw new Error('Login failed: ' + e.message);
+    }
+  }
+
+  var firebaseUid = userCredential.user.uid;
+
+  // Write Firestore user doc (keyed by Firebase UID)
+  try {
+    await db.collection('users').doc(firebaseUid).set({
+      customId: localUser.id,
+      email: localUser.email,
+      name: localUser.name,
+      role: localUser.role,
+      department: localUser.department || '',
+      section: localUser.section || '',
+      subjectId: localUser.subjectId || null,
+      active: localUser.active,
+      lastLogin: Date.now()
+    }, { merge: true });
+  } catch(fsErr) {
+    console.warn('[Auth] Firestore user doc write failed:', fsErr.message);
+  }
+
+  // Save Firebase UID mapping in localStorage
+  if (!localUser.firebaseUid || localUser.firebaseUid !== firebaseUid) {
+    localUser.firebaseUid = firebaseUid;
+    saveUser(localUser);
+  }
+
+  var session = {
+    userId: localUser.id,
+    firebaseUid: firebaseUid,
+    role: localUser.role,
+    email: localUser.email,
+    name: localUser.name,
+    department: localUser.department || '',
+    section: localUser.section || '',
+    loginAt: Date.now(),
+    sessionToken: generateSessionToken()
+  };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  // Note: Firestore write happens in startSessionListener() on the dashboard page
-  // because the login page redirects away too fast for async writes to complete
   return session;
 }
 
 // ---- Google Sign-In ----
 function decodeGoogleJWT(credential) {
   try {
-    const parts = credential.split('.');
+    var parts = credential.split('.');
     if (parts.length !== 3) throw new Error('Invalid JWT');
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-    return payload;
+    return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
   } catch(e) {
     throw new Error('Failed to decode Google credential.');
   }
 }
 
-function googleLogin(credential, expectedRole) {
-  const payload  = decodeGoogleJWT(credential);
-  const email    = (payload.email || '').toLowerCase();
-  const name     = payload.name  || email;
+async function googleLogin(credential, expectedRole) {
+  var payload = decodeGoogleJWT(credential);
+  var email = (payload.email || '').toLowerCase();
 
-  const user = getUserByEmail(email);
-  if (!user) throw new Error('No account found for ' + email + '.\nAsk your admin to register this Google email.');
-  if (!user.active) throw new Error('Your account has been deactivated. Contact admin.');
-  if (expectedRole && user.role !== expectedRole) {
-    throw new Error('This portal is for ' + expectedRole + 's only.\nYour account role is: ' + user.role + '.');
+  var localUser = getUserByEmail(email);
+  if (!localUser) throw new Error('No account found for ' + email + '.\nAsk your admin to register this Google email.');
+  if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
+  if (expectedRole && localUser.role !== expectedRole) {
+    throw new Error('This portal is for ' + expectedRole + 's only.\nYour account role is: ' + localUser.role + '.');
   }
 
-  const sessionToken = generateSessionToken();
-  const session = { userId: user.id, role: user.role, email: user.email, name: user.name, department: user.department || '', section: user.section || '', loginAt: Date.now(), viaGoogle: true, sessionToken: sessionToken };
+  var firebaseUid = null;
+  try {
+    var googleCred = firebase.auth.GoogleAuthProvider.credential(credential);
+    var userCredential = await auth.signInWithCredential(googleCred);
+    firebaseUid = userCredential.user.uid;
+
+    await db.collection('users').doc(firebaseUid).set({
+      customId: localUser.id, email: localUser.email, name: localUser.name,
+      role: localUser.role, department: localUser.department || '',
+      section: localUser.section || '', active: localUser.active, lastLogin: Date.now()
+    }, { merge: true });
+
+    localUser.firebaseUid = firebaseUid;
+    saveUser(localUser);
+  } catch(e) {
+    console.warn('[Auth] Google Firebase auth fallback:', e.message);
+    try { await auth.signInAnonymously(); } catch(ae) {}
+  }
+
+  var session = {
+    userId: localUser.id, firebaseUid: firebaseUid, role: localUser.role,
+    email: localUser.email, name: localUser.name, department: localUser.department || '',
+    section: localUser.section || '', loginAt: Date.now(), viaGoogle: true,
+    sessionToken: generateSessionToken()
+  };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
 }
 
-// ---- Session Listener (single-session enforcement) ----
+// ---- Session Listener ----
 var _sessionUnsub = null;
 
 function startSessionListener() {
   var session = getSession();
-  if (!session || !session.sessionToken || !session.userId) return;
+  if (!session || !session.sessionToken) return;
   if (typeof db === 'undefined') return;
 
+  var docId = session.firebaseUid || session.userId;
   var myToken = session.sessionToken;
-  var myUserId = session.userId;
 
-  // Step 1: Write our session token to Firestore (from the dashboard page, which stays open)
-  db.collection('users').doc(myUserId).set({ sessionToken: myToken }, { merge: true })
-    .then(function() {
-      console.log('[Auth] Session token written to Firestore:', myToken);
-    })
-    .catch(function(e) {
-      console.warn('[Auth] Failed to write session token:', e.message);
-    });
+  db.collection('users').doc(docId).set({ sessionToken: myToken }, { merge: true })
+    .then(function() { console.log('[Auth] Session token written'); })
+    .catch(function(e) { console.warn('[Auth] Session token write failed:', e.message); });
 
-  // Step 2: Listen for changes — if another device overwrites the token, force logout
-  _sessionUnsub = db.collection('users').doc(myUserId).onSnapshot(function(doc) {
+  _sessionUnsub = db.collection('users').doc(docId).onSnapshot(function(doc) {
     if (!doc.exists) return;
     var data = doc.data();
-    var localSession = getSession();
-    if (!localSession || !localSession.sessionToken) return;
-
-    // Only check once Firestore has a token (skip the initial undefined)
-    if (data.sessionToken && data.sessionToken !== localSession.sessionToken) {
-      console.log('[Auth] Another device logged in! Forcing logout.');
+    var local = getSession();
+    if (!local || !local.sessionToken) return;
+    if (data.sessionToken && data.sessionToken !== local.sessionToken) {
       if (_sessionUnsub) { _sessionUnsub(); _sessionUnsub = null; }
       sessionStorage.removeItem(SESSION_KEY);
       alert('You have been logged out because your account was signed in on another device.');
       window.location.href = 'index.html';
     }
-  }, function(err) {
-    console.warn('[Auth] Session listener error:', err.message);
-  });
+  }, function(err) { console.warn('[Auth] Listener error:', err.message); });
 }
 
-function logout() {
+async function logout() {
   if (_sessionUnsub) { _sessionUnsub(); _sessionUnsub = null; }
   sessionStorage.removeItem(SESSION_KEY);
+  try { await auth.signOut(); } catch(e) {}
   if (window.google && google.accounts && google.accounts.id) {
     google.accounts.id.disableAutoSelect();
   }
@@ -108,34 +179,44 @@ function requireAuth(expectedRole) {
   var session = getSession();
   if (!session) { window.location.href = 'index.html'; return null; }
   if (expectedRole && session.role !== expectedRole) {
-    window.location.href = 'index.html';
-    return null;
+    window.location.href = 'index.html'; return null;
   }
   return session;
 }
 
-
 // ---- Change Password ----
-function changePassword(userId, currentPassword, newPassword) {
+async function changePassword(userId, currentPassword, newPassword) {
   var user = getUserById(userId);
   if (!user) throw new Error('User not found.');
   if (user.password !== currentPassword) throw new Error('Current password is incorrect.');
   if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
+
+  var fbUser = auth.currentUser;
+  if (fbUser) {
+    try {
+      await fbUser.updatePassword(newPassword);
+    } catch(e) {
+      if (e.code === 'auth/requires-recent-login') {
+        var cred = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+        await fbUser.reauthenticateWithCredential(cred);
+        await fbUser.updatePassword(newPassword);
+      }
+    }
+  }
+
   user.password = newPassword;
   saveUser(user);
-  // Sync to Firestore
-  if (typeof fsSetDoc === 'function') fsSetDoc('users', user.id, user);
+  if (typeof fsSetDoc === 'function') fsSetDoc('users', user.firebaseUid || user.id, user);
   return true;
 }
 
-// ---- Admin Reset Password ----
-function adminResetPassword(userId, newPassword) {
+async function adminResetPassword(userId, newPassword) {
   var user = getUserById(userId);
   if (!user) throw new Error('User not found.');
   if (!newPassword || newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
   user.password = newPassword;
   saveUser(user);
-  if (typeof fsSetDoc === 'function') fsSetDoc('users', user.id, user);
+  if (typeof fsSetDoc === 'function') fsSetDoc('users', user.firebaseUid || user.id, user);
   return true;
 }
 
