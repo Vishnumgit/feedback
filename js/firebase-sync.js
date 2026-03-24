@@ -27,8 +27,17 @@ function mergeById(arr, item) {
   var idx = -1;
   for (var i = 0; i < arr.length; i++) {
     if (arr[i].id === item.id) { idx = i; break; }
+    // Fallback: match by email to prevent duplicates from dual-keyed Firestore docs
+    if (item.email && arr[i].email && arr[i].email.toLowerCase() === item.email.toLowerCase()) { idx = i; break; }
   }
-  if (idx > -1) arr[idx] = item; else arr.push(item);
+  if (idx > -1) {
+    // Merge: keep existing fields, overlay with new data
+    arr[idx] = Object.assign({}, arr[idx], item);
+    // Preserve the original id if the new item lacks one
+    if (!item.id && arr[idx].customId) arr[idx].id = arr[idx].id || arr[idx].customId;
+  } else {
+    arr.push(item);
+  }
 }
 
 function mergeByField(arr, item, field) {
@@ -294,6 +303,19 @@ async function syncAllData() {
   var toObj   = function(snap) { var o = {}; snap.forEach(function(d) { o[d.id] = d.data(); }); return o; };
 
   var users          = toArray(results[0]);
+  // Deduplicate users by email (dual-keyed Firestore docs can cause duplicates)
+  var seen = {};
+  users = users.filter(function(u) {
+    var key = (u.email || '').toLowerCase();
+    if (!key) return true; // keep users without email
+    if (seen[key]) {
+      // Merge into the existing entry (keep the one with more data)
+      Object.assign(seen[key], u);
+      return false;
+    }
+    seen[key] = u;
+    return true;
+  });
   var subjects       = toArray(results[1]);
   var questionnaires = toObj(results[2]);
   var enrollments    = toArray(results[3]);
