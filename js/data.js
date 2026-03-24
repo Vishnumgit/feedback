@@ -20,13 +20,23 @@ const set = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 const getObj = (key) => JSON.parse(localStorage.getItem(key) || '{}');
 const setObj = (key, val) => localStorage.setItem(key, JSON.stringify(val));
 
+
+// ---- Password Hashing (SHA-256 via Web Crypto API) ----
+async function hashPassword(password) {
+  var encoder = new TextEncoder();
+  var data = encoder.encode(password);
+  var hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  var hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
 // ---- Init / Seed --------------------------------------------
 function initDB() {
   if (localStorage.getItem('sfft_initialized')) return;
 
   // Admin account
   const users = [
-    { id: 'u_admin', email: 'admin@college.edu', password: 'Admin@123', role: 'admin', name: 'System Administrator', department: 'Administration', active: true }
+    { id: 'u_admin', email: 'admin@college.edu', passwordHash: 'e86f78a8a3caf0b60d8e74e5942aa6d86dc150cd3c03338aef25b7d2d7e3acc7' // SHA-256 hashed, never store plaintext, role: 'admin', name: 'System Administrator', department: 'Administration', active: true }
   ];
   set(DB.USERS, users);
 
@@ -119,10 +129,11 @@ function deleteUser(userId) {
   // clean enrollments
   set(DB.ENROLLMENTS, get(DB.ENROLLMENTS).filter(e => e.studentId !== userId && e.teacherId !== userId));
 }
-function addUser({ role, name, email, password, department, section, subjectId, rollNo }) {
+async function addUser({ role, name, email, password, department, section, subjectId, rollNo }) {
   if (getUserByEmail(email)) throw new Error('Email already registered.');
   const id = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-  const user = { id, email, password, role, name, department: department || '', section: section || '', subjectId: subjectId || null, rollNo: rollNo || '', active: true };
+  const pwHash = await hashPassword(password);
+  const user = { id, email, passwordHash: pwHash, role, name, department: department || '', section: section || '', subjectId: subjectId || null, rollNo: rollNo || '', active: true };
   saveUser(user);
   return user;
 }
