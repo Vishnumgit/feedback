@@ -15,3 +15,22 @@ if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ---- Auth State Ready Promise ----
+var _authReady = false;
+var _authReadyResolve = null;
+var authReadyPromise = new Promise(function(resolve) {
+  _authReadyResolve = resolve;
+});
+
+auth.onAuthStateChanged(function(user) {
+  if (!_authReady) {
+    _authReady = true;
+    _authReadyResolve(user);
+  }
+});
+
+function getFirebaseUser() {
+  return auth.currentUser;
+}
