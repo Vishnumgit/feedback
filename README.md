@@ -246,3 +246,48 @@ This project is built for educational purposes at MGIT.
 Made with ❤️ for better education
 
 </div>
+
+
+---
+
+## 🔥 Firebase Setup (Required)
+
+This project uses **Firebase Authentication** and **Firestore** for secure data management.
+
+### Step 1: Enable Authentication
+
+1. Go to [Firebase Console](https://console.firebase.google.com/) → Select your project
+2. Navigate to **Authentication** → **Sign-in method** tab
+3. Enable **Email/Password** → Toggle ON → Save
+4. Enable **Anonymous** → Toggle ON → Save (fallback for Google Sign-In)
+
+> 💡 Both are **completely free** on the Spark plan (unlimited auth operations).
+
+### Step 2: Deploy Firestore Security Rules
+
+1. Go to **Firestore Database** → **Rules** tab
+2. Replace existing rules with the content from [`firestore.rules`](./firestore.rules)
+3. Click **Publish**
+
+### Security Model
+
+| Role | Users | Subjects | Enrollments | Responses | Settings |
+|------|-------|----------|-------------|-----------|----------|
+| **Admin** | Read/Write All | Read/Write | Read/Write | Read/Write/Delete | Read/Write |
+| **Student** | Read Own | Read | Read | Read + Create | Read |
+| **Teacher** | Read Own | Read | Read | Read | Read |
+| **Unauthenticated** | ❌ Blocked | ❌ Blocked | ❌ Blocked | ❌ Blocked | ❌ Blocked |
+
+### Auto-Migration
+
+Existing users (from localStorage) are **automatically migrated** to Firebase Auth on their first login. No manual account creation needed — the system handles it seamlessly.
+
+### Free Plan Limits
+
+| Resource | Free Limit | Our Usage |
+|----------|-----------|-----------|
+| Authentication | Unlimited | ✅ Well within |
+| Firestore Reads | 50,000/day | ✅ Reduced by role-based sync + 5-min cache |
+| Firestore Writes | 20,000/day | ✅ Reduced by security rules blocking unauthorized writes |
+| Storage | 1 GiB | ✅ Minimal |
+
