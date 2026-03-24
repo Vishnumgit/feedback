@@ -71,10 +71,11 @@ function syncFromFirestoreInBackground() {
   // Solution 2: Route by role
   var session = (typeof getSession === 'function') ? getSession() : null;
 
-  // Wait for Firebase Auth to be ready before syncing
-  var waitForAuth = (typeof authReadyPromise !== 'undefined') ? authReadyPromise : Promise.resolve();
-  waitForAuth.then(function() {
   setTimeout(async function() {
+    // Wait for Firebase Auth if available
+    if (typeof authReadyPromise !== 'undefined') {
+      try { await authReadyPromise; } catch(e) {}
+    }
     try {
       if (session && session.role === 'student') {
         await syncStudentData(session.userId);
