@@ -230,6 +230,8 @@
 <script src="js/notifications.js"></script>
 <script>
   fbInit();
+  // Force sync on every student dashboard load to ensure cross-device data is fresh
+  if (typeof forceSync === 'function') forceSync();
   const session = requireAuth('student');
     startSessionListener();
   if (!session) throw new Error('No session');
