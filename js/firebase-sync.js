@@ -116,7 +116,8 @@ async function syncStudentData(studentId) {
     db.collection('enrollments').where('studentId', '==', studentId).get(),
     db.collection('subjects').get(),
     db.collection('settings').doc('global').get(),
-    db.collection('attendance').doc(studentId).get()
+    db.collection('attendance').doc(studentId).get(),
+    db.collection('responses').where('studentId', '==', studentId).get()
   ]);
 
   var myUserDoc = results[0];
@@ -124,6 +125,7 @@ async function syncStudentData(studentId) {
   var subjectsSnap = results[2];
   var settingsDoc = results[3];
   var myAttendanceDoc = results[4];
+  var myResponsesSnap = results[5];
 
   // Step 2: Extract enrollments and find teacher IDs
   var enrollments = [];
@@ -195,6 +197,15 @@ async function syncStudentData(studentId) {
     var existingAtt = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
     mergeByField(existingAtt, myAttendanceDoc.data(), 'studentId');
     localStorage.setItem('sfft_attendance', JSON.stringify(existingAtt));
+  }
+
+  // Responses: merge student's responses from Firestore
+  var responses = [];
+  myResponsesSnap.forEach(function(d) { responses.push(d.data()); });
+  if (responses.length > 0) {
+    var existingResp = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+    var otherResp = existingResp.filter(function(r) { return r.studentId !== studentId; });
+    localStorage.setItem('sfft_responses', JSON.stringify(otherResp.concat(responses)));
   }
 
   // Settings: single document
