@@ -14,7 +14,11 @@ function fsSetDoc(collection, docId, data) {
   if (collection === 'users' && data && data.firebaseUid) {
     finalDocId = data.firebaseUid;
   }
-  db.collection(collection).doc(finalDocId).set(data)
+  // SECURITY: Strip password fields before writing to Firestore
+  var cleanData = Object.assign({}, data);
+  delete cleanData.password;
+  delete cleanData.passwordHash;
+  db.collection(collection).doc(finalDocId).set(cleanData)
     .catch(function(e) { console.warn('[Firebase] Write failed:', collection, finalDocId, e.message); });
 }
 function fsDeleteDoc(collection, docId) {
@@ -366,7 +370,12 @@ async function pushSeedDataIfEmpty() {
     if (!users.length) return;
 
     var batch = db.batch();
-    users.forEach(function(u) { batch.set(db.collection('users').doc(u.id), u); });
+    users.forEach(function(u) {
+      var clean = Object.assign({}, u);
+      delete clean.password;
+      delete clean.passwordHash;
+      batch.set(db.collection('users').doc(u.id), clean);
+    });
     subjects.forEach(function(s) { batch.set(db.collection('subjects').doc(s.id), s); });
     Object.entries(qAll).forEach(function(entry) { batch.set(db.collection('questionnaires').doc(entry[0]), entry[1]); });
     if (settings && settings.collegeName) batch.set(db.collection('settings').doc('global'), settings);
