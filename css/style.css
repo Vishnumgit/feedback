@@ -643,10 +643,3 @@ tbody tr:last-child td { border-bottom: none; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.35); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
-
-/* ═══════════ 3D EFFECTS COMPATIBILITY ═══════════ */
-#fx-three-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-.page-wrapper { position: relative; z-index: 1; }
-.sidebar, .admin-sidebar, .teacher-sidebar { position: relative; z-index: 2; }
-body { position: relative; }
