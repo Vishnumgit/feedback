@@ -39,6 +39,8 @@
 | 📱 **Responsive Design** | Works on desktop, tablet, and mobile screens |
 | 🔑 **Password Reset** | EmailJS-powered forgot password flow with Firestore token validation |
 | 🚀 **Zero Dependencies** | No frameworks, no build step — just open `index.html` |
+| 🔒 **SHA-256 Password Hashing** | Secure credential storage using Web Crypto API with legacy migration support |
+| ⚡ **Performance Optimized** | Non-blocking login writes and 5-min sync cache reduce Firestore reads |
 
 ---
 
@@ -93,7 +95,7 @@
 | 📊 **Overview** | Score cards, radar chart, bar chart, trend line, performance status banner |
 | 💬 **Student Comments** | View all student feedback comments |
 | 📈 **Score Breakdown** | Category-wise detailed scores |
-| 🏢 **Department Feedback** | Compare with department peers |
+| 🏢 **Department Feedback** | Rank-based comparison with department peers (individual scores hidden) |
 | 📋 **Section-wise Feedback** | Breakdown by student section |
 | 📄 **Download Report** | Beautiful HTML report with SVG charts, data table, comments — print as PDF |
 
@@ -119,6 +121,8 @@
 | `attendance` | `sfft_attendance` | Student attendance records per section |
 | `settings` | `sfft_settings` | College name, domain, min threshold |
 | `password_resets` | — | Reset tokens with expiry for forgot password flow |
+| `fcm_tokens` | — | Firebase Cloud Messaging device tokens |
+| `notifications` | — | Push notification records for users |
 
 ---
 
@@ -184,6 +188,8 @@ start index.html   # Windows
 
 > 💡 First visit auto-seeds the database with default subjects, questionnaires, and the admin account.
 
+> ⚠️ **Security Note**: Default admin passwords are now hashed with SHA-256 on first use. The system supports legacy plaintext passwords during migration and automatically upgrades them to secure hashes.
+
 ---
 
 ## 🛠️ Technology Stack
@@ -221,6 +227,19 @@ start index.html   # Windows
 | ⚡ Build Step | **None** |
 
 </div>
+
+---
+
+## 📋 Recent Changes (2026-03-24)
+
+| Category | Commits | Changes |
+|----------|---------|---------|
+| 🔒 **Security** | `0544965`, `3b33142`, `dfc1059` | SHA-256 password hashing via Web Crypto API; hash-before-compare in auth flows; strip password fields before Firestore writes; remove hardcoded admin credentials |
+| 🛡️ **Firestore Rules** | `549ba56`, `165e316` | Replace catch-all with per-collection access control; anonymous auth fallback for whitelisted collections; default deny for unlisted |
+| 📦 **Schema** | `efc26d5` | Add `fcm_tokens` and `notifications` collections to Firestore whitelist |
+| ✨ **Features** | `bfc4f3d` | Department feedback shows rank instead of average score (individual scores hidden) |
+| ⚡ **Performance** | `84a0a99`, `23a8f5c` | Non-blocking Firestore user doc write for faster login; replace forceSync with 5-min cache to reduce reads |
+| 🐛 **Bug Fixes** | `3f48875` | Fix inline comment that broke admin object literal causing SyntaxError |
 
 ---
 
@@ -270,6 +289,8 @@ This project uses **Firebase Authentication** and **Firestore** for secure data 
 3. Click **Publish**
 
 ### Security Model
+
+> **Updated**: Security rules now use explicit per-collection access control instead of a catch-all rule. Anonymous auth users can read whitelisted collections but cannot write to sensitive ones. All unlisted collections are denied by default.
 
 | Role | Users | Subjects | Enrollments | Responses | Settings |
 |------|-------|----------|-------------|-----------|----------|
