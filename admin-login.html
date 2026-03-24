@@ -90,11 +90,11 @@
   fbInit();
   if (getSession()?.role === 'admin') window.location.href = 'admin-dashboard.html';
 
-  function handleGoogleSignIn(response) {
+  async function handleGoogleSignIn(response) {
     const errEl = document.getElementById('googleErr');
     errEl.textContent = '';
     try {
-      googleLogin(response.credential, 'admin');
+      await googleLogin(response.credential, 'admin');
       window.location.href = 'admin-dashboard.html';
     } catch(err) {
       errEl.textContent = '&#x26A0;&#xFE0F; ' + err.message;
@@ -102,7 +102,7 @@
   }
   window.handleGoogleSignIn = handleGoogleSignIn;
 
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -117,7 +117,7 @@
     if (!ok) return;
 
     try {
-      const s = login(email, password);
+      const s = await login(email, password);
       if (s.role !== 'admin') { loginErr.textContent = 'Access denied. Admin credentials required.'; loginErr.classList.add('show'); logout(); return; }
       window.location.href = 'admin-dashboard.html';
     } catch(err) { loginErr.textContent = err.message; loginErr.classList.add('show'); }
