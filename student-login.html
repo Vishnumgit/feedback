@@ -95,11 +95,11 @@
   if (session && session.role === 'student') window.location.href = 'student-dashboard.html';
 
   // Google callback
-  function handleGoogleSignIn(response) {
+  async function handleGoogleSignIn(response) {
     const errEl = document.getElementById('googleErr');
     errEl.textContent = '';
     try {
-      const s = googleLogin(response.credential, 'student');
+      const s = await googleLogin(response.credential, 'student');
       window.location.href = 'student-dashboard.html';
     } catch(err) {
       errEl.textContent = '&#x26A0;&#xFE0F; ' + err.message;
@@ -107,7 +107,7 @@
   }
   window.handleGoogleSignIn = handleGoogleSignIn;
 
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -127,7 +127,7 @@
     if (!ok) return;
 
     try {
-      const s = login(email, password);
+      const s = await login(email, password);
       if (s.role !== 'student') { loginErr.textContent = 'This portal is for students only.'; loginErr.classList.add('show'); logout(); return; }
       window.location.href = 'student-dashboard.html';
     } catch(err) {
