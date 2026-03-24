@@ -9,8 +9,13 @@
 
 // ------ Firestore write helpers (unchanged) ------
 function fsSetDoc(collection, docId, data) {
-  db.collection(collection).doc(docId).set(data)
-    .catch(function(e) { console.warn('[Firebase] Write failed:', collection, docId, e.message); });
+  // For users collection, prefer Firebase UID as document key
+  var finalDocId = docId;
+  if (collection === 'users' && data && data.firebaseUid) {
+    finalDocId = data.firebaseUid;
+  }
+  db.collection(collection).doc(finalDocId).set(data)
+    .catch(function(e) { console.warn('[Firebase] Write failed:', collection, finalDocId, e.message); });
 }
 function fsDeleteDoc(collection, docId) {
   db.collection(collection).doc(docId).delete()
@@ -66,6 +71,9 @@ function syncFromFirestoreInBackground() {
   // Solution 2: Route by role
   var session = (typeof getSession === 'function') ? getSession() : null;
 
+  // Wait for Firebase Auth to be ready before syncing
+  var waitForAuth = (typeof authReadyPromise !== 'undefined') ? authReadyPromise : Promise.resolve();
+  waitForAuth.then(function() {
   setTimeout(async function() {
     try {
       if (session && session.role === 'student') {
