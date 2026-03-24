@@ -145,7 +145,9 @@ function startSessionListener() {
   if (!session || !session.sessionToken) return;
   if (typeof db === 'undefined') return;
 
-  var docId = session.firebaseUid || session.userId;
+  // Use session.userId for session token tracking — it's consistent across devices
+  // (firebaseUid can differ per device due to anonymous auth fallback)
+  var docId = session.userId;
   var myToken = session.sessionToken;
 
   db.collection('users').doc(docId).set({ sessionToken: myToken }, { merge: true })
