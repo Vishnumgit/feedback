@@ -90,11 +90,11 @@
   fbInit();
   if (getSession()?.role === 'teacher') window.location.href = 'teacher-dashboard.html';
 
-  function handleGoogleSignIn(response) {
+  async function handleGoogleSignIn(response) {
     const errEl = document.getElementById('googleErr');
     errEl.textContent = '';
     try {
-      googleLogin(response.credential, 'teacher');
+      await googleLogin(response.credential, 'teacher');
       window.location.href = 'teacher-dashboard.html';
     } catch(err) {
       errEl.textContent = '&#x26A0;&#xFE0F; ' + err.message;
@@ -102,7 +102,7 @@
   }
   window.handleGoogleSignIn = handleGoogleSignIn;
 
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -118,7 +118,7 @@
     if (!ok) return;
 
     try {
-      const s = login(email, password);
+      const s = await login(email, password);
       if (s.role !== 'teacher') { loginErr.textContent = 'This portal is for teachers only.'; loginErr.classList.add('show'); logout(); return; }
       window.location.href = 'teacher-dashboard.html';
     } catch(err) { loginErr.textContent = err.message; loginErr.classList.add('show'); }
