@@ -1,15 +1,21 @@
-// ============================================================
-// firestore.rules — Firestore Security Rules
-// ============================================================
-// All logged-in users can read/write. Unauthorized access blocked.
-// User documents protected: each user can only access their own.
-// Role-based filtering handled client-side by firebase-sync.js.
+// =============================================================
+// firestore.rules — Firestore Security Rules (HARDENED)
+// =============================================================
+// SECURITY FIX: Replaced overly permissive catch-all rule with
+// per-collection rules. Anonymous auth users blocked from writes.
+// Unlisted collections denied by default.
 // Deploy in Firebase Console > Firestore > Rules tab.
-// ============================================================
+// =============================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper: non-anonymous authenticated user
+    function isSignedIn() {
+      return request.auth != null
+             && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
 
     // Users: each user can only read/write their OWN document
     match /users/{userId} {
@@ -17,10 +23,46 @@ service cloud.firestore {
                          && request.auth.uid == userId;
     }
 
-    // All other collections: any logged-in user can read/write
-    // Blocks all unauthenticated/unauthorized access
-    match /{collection}/{docId} {
-      allow read, write: if request.auth != null;
+    // Subjects: all authenticated can read, only non-anonymous can write
+    match /subjects/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isSignedIn();
+    }
+
+    // Questionnaires: all authenticated can read, only non-anonymous can write
+    match /questionnaires/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isSignedIn();
+    }
+
+    // Settings: all authenticated can read, only non-anonymous can write
+    match /settings/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isSignedIn();
+    }
+
+    // Enrollments: all authenticated can read, only non-anonymous can write
+    match /enrollments/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isSignedIn();
+    }
+
+    // Responses: all authenticated can read, only non-anonymous can write
+    match /responses/{docId} {
+      allow read: if request.auth != null;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn();
+    }
+
+    // Attendance: all authenticated can read, only non-anonymous can write
+    match /attendance/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isSignedIn();
+    }
+
+    // Deny all other collections by default
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
