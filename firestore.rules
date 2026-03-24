@@ -1,103 +1,65 @@
 // ============================================================
-// firestore.rules — Firestore Security Rules (REFERENCE FILE)
+// firestore.rules — Firestore Security Rules
 // ============================================================
-// IMPORTANT: This file is a REFERENCE for future implementation.
-// Your app currently uses custom authentication (not Firebase Auth),
-// so request.auth will be null for all requests.
-//
-// To use these rules, you need to:
-//   1. Switch from custom auth to Firebase Authentication
-//   2. Update auth.js to use firebase.auth() methods
-//   3. Then apply these rules in Firebase Console > Firestore > Rules
+// Deploy these in Firebase Console > Firestore > Rules tab.
+// Works with Firebase Auth (email/password + Google Sign-In).
 // ============================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---- Helper: Check if user is authenticated ----
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // ---- Helper: Check if user is admin ----
-    // (Requires storing admin role in custom claims or a separate admin collection)
     function isAdmin() {
       return isAuthenticated()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // ---- Users Collection ----
+    // Users: read/write own doc, admin reads/writes all
     match /users/{userId} {
-      // Users can read their own document
-      // Admin can read all users
       allow read: if isAuthenticated()
                   && (request.auth.uid == userId || isAdmin());
-
-      // Only admin can create/update/delete users
-      // Users can update their own document (for password changes, session tokens)
       allow write: if isAuthenticated()
                    && (request.auth.uid == userId || isAdmin());
     }
 
-    // ---- Subjects Collection ----
+    // Subjects: anyone authenticated reads, admin writes
     match /subjects/{subjectId} {
-      // Anyone authenticated can read subjects
       allow read: if isAuthenticated();
-      // Only admin can create/update/delete subjects
       allow write: if isAdmin();
     }
 
-    // ---- Questionnaires Collection ----
+    // Questionnaires: anyone authenticated reads, admin writes
     match /questionnaires/{subjectId} {
-      // Anyone authenticated can read questionnaires
       allow read: if isAuthenticated();
-      // Only admin can modify questionnaires
       allow write: if isAdmin();
     }
 
-    // ---- Enrollments Collection ----
+    // Enrollments: anyone authenticated reads, admin writes
     match /enrollments/{enrollmentId} {
-      // Students and teachers can read their own enrollments
-      allow read: if isAuthenticated()
-                  && (resource.data.studentId == request.auth.uid
-                      || resource.data.teacherId == request.auth.uid
-                      || isAdmin());
-      // Only admin can create/modify enrollments
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // ---- Responses (Feedback) Collection ----
+    // Responses: authenticated reads, students create, admin manages
     match /responses/{responseId} {
-      // Teachers can read feedback addressed to them
-      // Admin can read all
-      allow read: if isAuthenticated()
-                  && (resource.data.teacherId == request.auth.uid
-                      || resource.data.studentId == request.auth.uid
-                      || isAdmin());
-
-      // Students can create responses (must be their own studentId)
-      allow create: if isAuthenticated()
-                    && request.resource.data.studentId == request.auth.uid;
-
-      // Only admin can update/delete responses
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
-    // ---- Attendance Collection ----
-    match /attendance/{studentId} {
-      // Students can read their own attendance
-      allow read: if isAuthenticated()
-                  && (request.auth.uid == studentId || isAdmin());
-      // Only admin can upload attendance
+    // Attendance: anyone authenticated reads, admin writes
+    match /attendance/{docId} {
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // ---- Settings Collection ----
+    // Settings: anyone authenticated reads, admin writes
     match /settings/{docId} {
-      // Anyone authenticated can read settings
       allow read: if isAuthenticated();
-      // Only admin can modify settings
       allow write: if isAdmin();
     }
   }
