@@ -25,6 +25,16 @@ var authReadyPromise = new Promise(function(resolve) {
 });
 
 auth.onAuthStateChanged(function(user) {
+  if (!user) {
+    // No user signed in — auto sign-in anonymously
+    // This allows pages like reset-password to access Firestore
+    auth.signInAnonymously().catch(function(e) {
+      console.warn('[Auth] Anonymous sign-in failed:', e.message);
+      // Still resolve so the app doesn't hang
+      if (!_authReady) { _authReady = true; _authReadyResolve(null); }
+    });
+    return; // onAuthStateChanged will fire again after anonymous sign-in
+  }
   if (!_authReady) {
     _authReady = true;
     _authReadyResolve(user);
