@@ -256,6 +256,17 @@
       comments
     });
 
+    // Explicit Firestore sync — ensure response reaches Firestore for cross-device access
+    try {
+      var allResp = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+      var justSaved = allResp.find(function(r) { return r.studentId === session.userId && r.teacherId === teacherId; });
+      if (justSaved && typeof db !== 'undefined') {
+        db.collection('responses').doc(justSaved.id).set(justSaved)
+          .then(function() { console.log('[FeedbackForm] ✅ Response synced to Firestore:', justSaved.id); })
+          .catch(function(e) { console.warn('[FeedbackForm] ❌ Firestore write failed:', e.message); });
+      }
+    } catch(syncErr) { console.warn('[FeedbackForm] Sync error:', syncErr); }
+
     document.getElementById('successModal').classList.remove('hidden');
   });
 
