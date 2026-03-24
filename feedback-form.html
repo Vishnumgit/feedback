@@ -258,7 +258,7 @@
 
     // Explicit Firestore sync — WAIT for write before showing success
     var allResp = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-    var justSaved = allResp.find(function(r) { return r.studentId === session.userId && r.teacherId === teacherId; });
+    var justSaved = allResp.find(function(r) { return r.studentId === session.userId && r.teacherId === teacherId && r.subjectId === (resolvedSubjectId || null); });
     if (justSaved && typeof db !== 'undefined') {
       console.log('[FeedbackForm] Writing response to Firestore:', justSaved.id);
       db.collection('responses').doc(justSaved.id).set(justSaved)
