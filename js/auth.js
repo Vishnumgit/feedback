@@ -48,22 +48,20 @@ async function login(email, password) {
 
   var firebaseUid = userCredential.user.uid;
 
-  // Write Firestore user doc (keyed by Firebase UID)
-  try {
-    await db.collection('users').doc(firebaseUid).set({
-      customId: localUser.id,
-      email: localUser.email,
-      name: localUser.name,
-      role: localUser.role,
-      department: localUser.department || '',
-      section: localUser.section || '',
-      subjectId: localUser.subjectId || null,
-      active: localUser.active,
-      lastLogin: Date.now()
-    }, { merge: true });
-  } catch(fsErr) {
+  // Write Firestore user doc — fire-and-forget (non-blocking for faster login)
+  db.collection('users').doc(firebaseUid).set({
+    customId: localUser.id,
+    email: localUser.email,
+    name: localUser.name,
+    role: localUser.role,
+    department: localUser.department || '',
+    section: localUser.section || '',
+    subjectId: localUser.subjectId || null,
+    active: localUser.active,
+    lastLogin: Date.now()
+  }, { merge: true }).catch(function(fsErr) {
     console.warn('[Auth] Firestore user doc write failed:', fsErr.message);
-  }
+  });
 
   // Save Firebase UID mapping in localStorage
   if (!localUser.firebaseUid || localUser.firebaseUid !== firebaseUid) {
