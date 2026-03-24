@@ -1,66 +1,26 @@
 // ============================================================
 // firestore.rules — Firestore Security Rules
 // ============================================================
-// Deploy these in Firebase Console > Firestore > Rules tab.
-// Works with Firebase Auth (email/password + Google Sign-In).
+// All logged-in users can read/write. Unauthorized access blocked.
+// User documents protected: each user can only access their own.
+// Role-based filtering handled client-side by firebase-sync.js.
+// Deploy in Firebase Console > Firestore > Rules tab.
 // ============================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isAdmin() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Users: read/write own doc, admin reads/writes all
+    // Users: each user can only read/write their OWN document
     match /users/{userId} {
-      allow read: if isAuthenticated()
-                  && (request.auth.uid == userId || isAdmin());
-      allow write: if isAuthenticated()
-                   && (request.auth.uid == userId || isAdmin());
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
     }
 
-    // Subjects: anyone authenticated reads, admin writes
-    match /subjects/{subjectId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Questionnaires: anyone authenticated reads, admin writes
-    match /questionnaires/{subjectId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Enrollments: anyone authenticated reads, admin writes
-    match /enrollments/{enrollmentId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Responses: authenticated reads, students create, admin manages
-    match /responses/{responseId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
-    }
-
-    // Attendance: anyone authenticated reads, admin writes
-    match /attendance/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Settings: anyone authenticated reads, admin writes
-    match /settings/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    // All other collections: any logged-in user can read/write
+    // Blocks all unauthenticated/unauthorized access
+    match /{collection}/{docId} {
+      allow read, write: if request.auth != null;
     }
   }
 }
