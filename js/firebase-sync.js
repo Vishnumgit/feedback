@@ -474,7 +474,8 @@ function patchDataFunctions() {
     window.saveResponse = function(data) {
       var result = _saveResponse(data);
       var responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
-      var saved = responses.find(function(r) { return r.studentId === data.studentId && r.teacherId === data.teacherId; });
+      // Match by studentId + teacherId + subjectId (a teacher can have multiple subjects)
+      var saved = responses.find(function(r) { return r.studentId === data.studentId && r.teacherId === data.teacherId && r.subjectId === data.subjectId; });
       if (saved) fsSetDoc('responses', saved.id, saved);
       return result;
     };
