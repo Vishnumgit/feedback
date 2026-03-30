@@ -14,8 +14,11 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
-const db = firebase.firestore();
+const db   = firebase.firestore();
 const auth = firebase.auth();
+// firebase.functions() is only available when firebase-functions-compat.js is loaded.
+// reset-password.html loads that SDK explicitly; other pages leave 'functions' undefined.
+const functions = (typeof firebase.functions === 'function') ? firebase.functions() : null;
 
 // ---- Auth State Ready Promise ----
 var _authReady = false;
@@ -26,8 +29,8 @@ var authReadyPromise = new Promise(function(resolve) {
 
 auth.onAuthStateChanged(function(user) {
   if (!user) {
-    // No user signed in — auto sign-in anonymously
-    // This allows pages like reset-password to access Firestore
+    // No user signed in — auto sign-in anonymously so that authenticated
+    // Firestore collections remain accessible from other pages.
     auth.signInAnonymously().catch(function(e) {
       console.warn('[Auth] Anonymous sign-in failed:', e.message);
       // Still resolve so the app doesn't hang
