@@ -9,10 +9,8 @@
 //
 // Environment variables (set via Firebase Functions config or
 // Secret Manager before deploying):
-//   EMAILJS_SERVICE_ID   — EmailJS service ID
-//   EMAILJS_TEMPLATE_ID  — EmailJS template ID
-//   EMAILJS_PUBLIC_KEY   — EmailJS public / user key
-//   EMAILJS_PRIVATE_KEY  — EmailJS private / access token
+//   GMAIL_SENDER_EMAIL   — Gmail address to send from
+//   GMAIL_APP_PASSWORD   — Gmail App Password (16-char code)
 // ============================================================
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
@@ -20,6 +18,7 @@ const { setGlobalOptions }   = require('firebase-functions/v2');
 const admin  = require('firebase-admin');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
 
 // Default region — change if you prefer a different one.
 setGlobalOptions({ region: 'us-central1' });
@@ -29,33 +28,40 @@ const db = admin.firestore();
 
 // ---- helpers ----
 
-/** Send a transactional email via the EmailJS server-side REST API. */
-async function sendViaEmailJS(templateParams) {
-  const serviceId  = process.env.EMAILJS_SERVICE_ID;
-  const templateId = process.env.EMAILJS_TEMPLATE_ID;
-  const publicKey  = process.env.EMAILJS_PUBLIC_KEY;
-  const privateKey = process.env.EMAILJS_PRIVATE_KEY;
+/** Send a password-reset email via Gmail SMTP using Nodemailer. */
+async function sendResetEmail(toEmail, resetLink) {
+  const senderEmail = process.env.GMAIL_SENDER_EMAIL;
+  const appPassword = process.env.GMAIL_APP_PASSWORD;
 
-  if (!serviceId || !templateId || !publicKey || !privateKey) {
-    throw new Error('EmailJS environment variables are not configured.');
+  if (!senderEmail || !appPassword) {
+    throw new Error('GMAIL_SENDER_EMAIL and GMAIL_APP_PASSWORD must be set.');
   }
 
-  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      service_id:      serviceId,
-      template_id:     templateId,
-      user_id:         publicKey,
-      accessToken:     privateKey,
-      template_params: templateParams
-    })
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: senderEmail, pass: appPassword }
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`EmailJS API error ${response.status}: ${text}`);
-  }
+  const html = `
+    <div style="font-family:'Segoe UI',Arial,sans-serif;text-align:center;padding:40px;background:#f8fafc;">
+      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:40px;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <div style="font-size:40px;margin-bottom:16px;">&#128274;</div>
+        <h2 style="color:#1e293b;margin-bottom:8px;">Password Reset</h2>
+        <p style="color:#64748b;font-size:14px;">Click the button below to reset your password:</p>
+        <a href="${resetLink}" style="display:inline-block;margin:24px 0;padding:14px 36px;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-weight:700;font-size:16px;text-decoration:none;border-radius:12px;box-shadow:0 4px 15px rgba(124,58,237,0.3);">
+          Reset Password
+        </a>
+        <p style="color:#94a3b8;font-size:13px;">This link expires in <strong>1 hour</strong>.</p>
+        <p style="color:#cbd5e1;font-size:11px;margin-top:20px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    </div>`;
+
+  await transporter.sendMail({
+    from: senderEmail,
+    to:   toEmail,
+    subject: 'Password Reset — Feedback System',
+    html
+  });
 }
 
 // ============================================================
@@ -106,10 +112,10 @@ exports.requestPasswordReset = onCall(async (request) => {
 
     // Build the reset link — falls back to the GitHub Pages URL if BASE_URL is not set
     const baseUrl   = process.env.BASE_URL ||
-      'https://vishnumgit.github.io/feedback/reset-password.html';
+      'https://mgitfeedback.me/reset-password.html';
     const resetLink = baseUrl + '?token=' + token;
 
-    await sendViaEmailJS({ email, link: resetLink });
+    await sendResetEmail(email, resetLink);
 
   } catch (err) {
     // Log server-side but never expose details to the client
