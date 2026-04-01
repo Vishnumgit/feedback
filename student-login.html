@@ -172,7 +172,7 @@
     };
     var session = demoUsers[role] || demoUsers.student;
     session.isDemo = true;
-    localStorage.setItem('sfft_session', JSON.stringify(session));
+    sessionStorage.setItem('sfft_session', JSON.stringify(session));
     
     // Load demo data if not exists
     if (!localStorage.getItem('sfft_demo_loaded')) {
