@@ -4,11 +4,11 @@
    CSS Variables & Reset
    ============================ */
 :root {
-  --bg: #faf8f5;
-  --surface: rgba(255,255,255,0.65);
-  --surface2: rgba(255,255,255,0.4);
-  --border: rgba(180, 130, 80, 0.1);
-  --border-light: rgba(180,130,80,0.06);
+  --bg: #f5f0e8;
+  --surface: rgba(245,235,220,0.75);
+  --surface2: rgba(240,228,210,0.6);
+  --border: rgba(180, 130, 80, 0.16);
+  --border-light: rgba(180,130,80,0.1);
   --accent: #92400e;
   --accent-light: #b45309;
   --accent-glow: rgba(146, 64, 14, 0.15);
@@ -21,7 +21,7 @@
   --text-sub: #78614a;
   --radius: 18px;
   --radius-sm: 12px;
-  --shadow: 0 4px 20px rgba(146,64,14,0.04);
+  --shadow: 0 4px 20px rgba(146,64,14,0.06), 0 1px 3px rgba(146,64,14,0.04);
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -66,7 +66,7 @@ body {
    Glass Card
    ============================ */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(248, 240, 228, 0.8);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
   border: 1px solid var(--border);
@@ -74,7 +74,7 @@ body {
   box-shadow: 0 8px 40px rgba(146,64,14,0.04);
 }
 .glass-light {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(245, 235, 220, 0.7);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
@@ -95,7 +95,7 @@ body {
    ============================ */
 .sidebar {
   width: 260px; min-height: 100vh;
-  background: rgba(255,255,255,0.75);
+  background: rgba(248,240,228,0.9);
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
   padding: 0;
@@ -300,7 +300,7 @@ tbody tr:last-child td { border-bottom: none; }
    Modal
    ============================ */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+  position: fixed; inset: 0; background: rgba(44,24,16,0.25);
   backdrop-filter: blur(4px); z-index: 1000;
   display: flex; align-items: center; justify-content: center; padding: 20px;
   animation: fadeIn 0.2s ease;
@@ -389,7 +389,7 @@ tbody tr:last-child td { border-bottom: none; }
   padding: 32px 28px; border-radius: var(--radius);
   cursor: pointer; transition: var(--transition);
   text-align: center;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(248, 240, 228, 0.8);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   text-decoration: none; display: block;
