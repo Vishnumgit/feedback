@@ -73,6 +73,28 @@
         <span style="margin-top:6px; display:block;">For Google login, your Google account email must match the admin email above.</span>
       </div>
       <div style="text-align:center; margin-top:16px;">
+        
+        <div style="margin-top:20px;text-align:center;">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Want to explore first?</div>
+          <button onclick="enterDemoMode('admin')" style="padding:12px 28px;background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:0.2s;display:inline-flex;align-items:center;gap:8px;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+            &#9658; Try Demo
+          </button>
+        </div>
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border-light);text-align:center;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">&#11088; Rate This Website</div>
+          <div id="starRating" style="display:flex;justify-content:center;gap:4px;margin-bottom:10px;">
+            <span onclick="setRating(1)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(2)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(3)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(4)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(5)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+          </div>
+          <input id="reviewName" type="text" placeholder="Your name (optional)" style="width:100%;padding:10px 14px;border:1.5px solid var(--border-light);border-radius:10px;background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:8px;outline:none;" />
+          <textarea id="reviewComment" placeholder="Share your thoughts..." rows="2" style="width:100%;padding:10px 14px;border:1.5px solid var(--border-light);border-radius:10px;background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;outline:none;"></textarea>
+          <button onclick="submitReview()" style="margin-top:8px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Submit Review</button>
+          <div id="reviewMsg" style="font-size:12px;color:var(--success);margin-top:6px;display:none;"></div>
+        </div>
+
         <a href="index.html" style="color:var(--text-muted); font-size:12.5px; text-decoration:none;">← Back to Home</a>
       </div>
     </div>
@@ -123,5 +145,13 @@
     } catch(err) { loginErr.textContent = err.message; loginErr.classList.add('show'); }
   });
 </script>
+
+<script>
+function enterDemoMode(role){var s={student:{userId:'demo_student',name:'Demo Student',email:'demo@student.edu',role:'student',department:'CSE',section:'CSE-4',rollNo:'DEMO001'},teacher:{userId:'demo_teacher',name:'Demo Teacher',email:'demo@teacher.edu',role:'teacher',department:'CSE'},admin:{userId:'demo_admin',name:'Demo Admin',email:'demo@admin.edu',role:'admin'}};var session=s[role]||s.student;session.isDemo=true;localStorage.setItem('sfft_session',JSON.stringify(session));if(!localStorage.getItem('sfft_demo_loaded')){var existing=JSON.parse(localStorage.getItem('sfft_users')||'[]');if(existing.length<=3){existing.push({id:'demo_s1',name:'Rahul Kumar',email:'rahul@demo.edu',role:'student',department:'CSE',section:'CSE-1',rollNo:'D001',active:true,password:'demo123'},{id:'demo_s2',name:'Priya Sharma',email:'priya@demo.edu',role:'student',department:'CSE',section:'CSE-2',rollNo:'D002',active:true,password:'demo123'},{id:'demo_t1',name:'Prof. Demo Singh',email:'singh@demo.edu',role:'teacher',department:'CSE',subjectIds:['demo_sub1'],active:true,password:'demo123'},{id:'demo_admin',name:'Demo Admin',email:'admin@demo.edu',role:'admin',active:true,password:'admin123'});localStorage.setItem('sfft_users',JSON.stringify(existing));var subs=JSON.parse(localStorage.getItem('sfft_subjects')||'[]');subs.push({id:'demo_sub1',name:'Data Structures'},{id:'demo_sub2',name:'Web Development'});localStorage.setItem('sfft_subjects',JSON.stringify(subs));}localStorage.setItem('sfft_demo_loaded','1');}if(role==='admin')window.location.href='admin-dashboard.html';else if(role==='teacher')window.location.href='teacher-dashboard.html';else window.location.href='student-dashboard.html';}
+var selectedRating=0;
+function setRating(n){selectedRating=n;document.querySelectorAll('#starRating span').forEach(function(s,i){s.style.color=i<n?'#d97706':'var(--border)';});}
+function submitReview(){if(!selectedRating){alert('Please select a rating');return;}var name=document.getElementById('reviewName').value.trim()||'Anonymous';var comment=document.getElementById('reviewComment').value.trim();var reviews=JSON.parse(localStorage.getItem('sfft_website_reviews')||'[]');reviews.push({id:'rev_'+Date.now(),name:name,rating:selectedRating,comment:comment,timestamp:new Date().toISOString(),page:window.location.pathname});localStorage.setItem('sfft_website_reviews',JSON.stringify(reviews));document.getElementById('reviewName').value='';document.getElementById('reviewComment').value='';selectedRating=0;document.querySelectorAll('#starRating span').forEach(function(s){s.style.color='var(--border)';});var msg=document.getElementById('reviewMsg');msg.textContent='\u2713 Thank you for your review!';msg.style.display='';setTimeout(function(){msg.style.display='none';},3000);}
+</script>
+
 </body>
 </html>
