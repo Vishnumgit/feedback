@@ -147,6 +147,7 @@ var _sessionUnsub = null;
 function startSessionListener() {
   var session = getSession();
   if (!session || !session.sessionToken) return;
+  if (session.isDemo) return; // Skip Firestore session tracking in demo mode
   if (typeof db === 'undefined') return;
 
   // Use session.userId for session token tracking — it's consistent across devices

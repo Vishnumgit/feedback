@@ -162,9 +162,10 @@
 </script>
 
 <script>
-  // Demo Mode
+  // Demo Mode — sets session with isDemo flag and redirects.
+  // Demo data is seeded by js/demo-isolator.js on the dashboard page,
+  // which intercepts localStorage to use isolated demo_* keys.
   function enterDemoMode(role) {
-    // Create demo session
     var demoUsers = {
       student: { userId: 'demo_student', name: 'Demo Student', email: 'demo@student.edu', role: 'student', department: 'CSE', section: 'CSE-4', rollNo: 'DEMO001' },
       teacher: { userId: 'demo_teacher', name: 'Demo Teacher', email: 'demo@teacher.edu', role: 'teacher', department: 'CSE' },
@@ -173,40 +174,11 @@
     var session = demoUsers[role] || demoUsers.student;
     session.isDemo = true;
     sessionStorage.setItem('sfft_session', JSON.stringify(session));
-    
-    // Load demo data if not exists
-    if (!localStorage.getItem('sfft_demo_loaded')) {
-      loadDemoData();
-      localStorage.setItem('sfft_demo_loaded', '1');
-    }
-    
-    // Redirect
+
+    // Redirect to appropriate dashboard
     if (role === 'admin') window.location.href = 'admin-dashboard.html';
     else if (role === 'teacher') window.location.href = 'teacher-dashboard.html';
     else window.location.href = 'student-dashboard.html';
-  }
-  
-  function loadDemoData() {
-    var existing = JSON.parse(localStorage.getItem('sfft_users') || '[]');
-    if (existing.length > 3) return; // Already has real data
-    
-    var demoData = [
-      { id:'demo_s1', name:'Rahul Kumar', email:'rahul@demo.edu', role:'student', department:'CSE', section:'CSE-1', rollNo:'D001', active:true, password:'demo123' },
-      { id:'demo_s2', name:'Priya Sharma', email:'priya@demo.edu', role:'student', department:'CSE', section:'CSE-2', rollNo:'D002', active:true, password:'demo123' },
-      { id:'demo_s3', name:'Amit Reddy', email:'amit@demo.edu', role:'student', department:'ECE', section:'ECE-1', rollNo:'D003', active:true, password:'demo123' },
-      { id:'demo_t1', name:'Prof. Demo Singh', email:'singh@demo.edu', role:'teacher', department:'CSE', subjectIds:['demo_sub1','demo_sub2'], active:true, password:'demo123' },
-      { id:'demo_t2', name:'Dr. Demo Patel', email:'patel@demo.edu', role:'teacher', department:'ECE', subjectIds:['demo_sub3'], active:true, password:'demo123' },
-      { id:'demo_admin', name:'Demo Admin', email:'admin@demo.edu', role:'admin', active:true, password:'admin123' }
-    ];
-    localStorage.setItem('sfft_users', JSON.stringify(existing.concat(demoData)));
-    
-    var subjects = JSON.parse(localStorage.getItem('sfft_subjects') || '[]');
-    if (!subjects.some(function(s) { return s.id === 'demo_sub1'; })) {
-      subjects.push({ id:'demo_sub1', name:'Data Structures', department:'CSE' });
-      subjects.push({ id:'demo_sub2', name:'Web Development', department:'CSE' });
-      subjects.push({ id:'demo_sub3', name:'Digital Electronics', department:'ECE' });
-      localStorage.setItem('sfft_subjects', JSON.stringify(subjects));
-    }
   }
   
   // Review System

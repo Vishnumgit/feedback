@@ -74,6 +74,13 @@ function forceSync() {
 
 // ------ SOLUTION 1 + 2: Role-Based Filtered Sync ------
 function syncFromFirestoreInBackground() {
+  // Skip sync entirely in demo mode
+  if (window.__DEMO_MODE__) {
+    console.log('[Firebase] Skipping sync — demo mode active');
+    window.dispatchEvent(new Event('firestore-synced'));
+    return;
+  }
+
   // Solution 3: Skip if recently synced
   if (!shouldSync()) {
     console.log('[Firebase] Skipping sync — data is fresh (< 5 min)');
@@ -388,6 +395,11 @@ async function pushSeedDataIfEmpty() {
 
 // ------ Patch data.js write functions (unchanged, but clears sync cache on write) ------
 function patchDataFunctions() {
+  // Skip Firestore write patching in demo mode — demo data stays local only
+  if (window.__DEMO_MODE__) {
+    console.log('[Firebase] Skipping Firestore write patches — demo mode');
+    return;
+  }
 
   // ---- Users ----
   var _addUser = window.addUser;
