@@ -169,54 +169,15 @@ function initDB() {
   setObj(DB.QUESTIONNAIRES, questionnaires);
 
   // ----- Enrollments: Students assigned to Teachers/Subjects -----
-  const enrollments = [
-    { studentId: 'u_s1', teacherId: 'u_t1', subjectIds: ['sub_math'], enrolledAt: Date.now() - 86400000 * 30 },
-    { studentId: 'u_s1', teacherId: 'u_t2', subjectIds: ['sub_cs'], enrolledAt: Date.now() - 86400000 * 30 },
-    { studentId: 'u_s2', teacherId: 'u_t1', subjectIds: ['sub_math'], enrolledAt: Date.now() - 86400000 * 28 },
-    { studentId: 'u_s2', teacherId: 'u_t3', subjectIds: ['sub_phys'], enrolledAt: Date.now() - 86400000 * 28 },
-    { studentId: 'u_s3', teacherId: 'u_t2', subjectIds: ['sub_cs'], enrolledAt: Date.now() - 86400000 * 25 },
-    { studentId: 'u_s3', teacherId: 'u_t3', subjectIds: ['sub_phys'], enrolledAt: Date.now() - 86400000 * 25 },
-    { studentId: 'u_s4', teacherId: 'u_t1', subjectIds: ['sub_math'], enrolledAt: Date.now() - 86400000 * 20 },
-    { studentId: 'u_s4', teacherId: 'u_t2', subjectIds: ['sub_cs'], enrolledAt: Date.now() - 86400000 * 20 },
-    { studentId: 'u_s5', teacherId: 'u_t3', subjectIds: ['sub_phys'], enrolledAt: Date.now() - 86400000 * 15 },
-    { studentId: 'u_s5', teacherId: 'u_t1', subjectIds: ['sub_math'], enrolledAt: Date.now() - 86400000 * 15 },
-  ];
+  const enrollments = [];
   set(DB.ENROLLMENTS, enrollments);
 
   // ----- Attendance -----
-  const attendance = [
-    { studentId: 'u_s1', percentage: 92, section: 'A', uploadedAt: Date.now() - 86400000 * 5 },
-    { studentId: 'u_s2', percentage: 85, section: 'A', uploadedAt: Date.now() - 86400000 * 5 },
-    { studentId: 'u_s3', percentage: 78, section: 'B', uploadedAt: Date.now() - 86400000 * 5 },
-    { studentId: 'u_s4', percentage: 88, section: 'A', uploadedAt: Date.now() - 86400000 * 5 },
-    { studentId: 'u_s5', percentage: 95, section: 'B', uploadedAt: Date.now() - 86400000 * 5 },
-  ];
+  const attendance = [];
   set(DB.ATTENDANCE, attendance);
 
   // ----- Sample Feedback Responses -----
-  const responses = [
-    { id: 'r_demo_1', teacherId: 'u_t1', studentId: 'u_s1', subjectId: 'sub_math', anonymous: false,
-      scores: { 'Teaching Methodology': [5, 4, 5, 4, 5], 'Communication Skills': [4, 5, 4, 5], 'Subject Knowledge': [5, 5, 4, 5], 'Classroom Management': [4, 5, 4], 'Subject-Specific (Maths)': [5, 4, 5] },
-      comments: 'The teacher explains concepts very clearly with good examples.', submittedAt: Date.now() - 86400000 * 7 },
-    { id: 'r_demo_2', teacherId: 'u_t2', studentId: 'u_s1', subjectId: 'sub_cs', anonymous: true,
-      scores: { 'Teaching Methodology': [5, 5, 4, 5, 4], 'Communication Skills': [5, 4, 5, 4], 'Subject Knowledge': [5, 5, 5, 4], 'Classroom Management': [4, 5, 4], 'Subject-Specific (CS)': [5, 5, 4] },
-      comments: 'Excellent practical demonstrations. The hands-on approach is very effective.', submittedAt: Date.now() - 86400000 * 6 },
-    { id: 'r_demo_3', teacherId: 'u_t1', studentId: 'u_s2', subjectId: 'sub_math', anonymous: false,
-      scores: { 'Teaching Methodology': [4, 4, 3, 4, 4], 'Communication Skills': [4, 4, 3, 4], 'Subject Knowledge': [5, 4, 4, 4], 'Classroom Management': [3, 4, 4], 'Subject-Specific (Maths)': [4, 3, 4] },
-      comments: 'Good teaching overall. More practice problems would be helpful.', submittedAt: Date.now() - 86400000 * 5 },
-    { id: 'r_demo_4', teacherId: 'u_t3', studentId: 'u_s2', subjectId: 'sub_phys', anonymous: true,
-      scores: { 'Teaching Methodology': [4, 5, 4, 4, 3], 'Communication Skills': [4, 4, 5, 4], 'Subject Knowledge': [5, 5, 4, 5], 'Classroom Management': [4, 3, 4], 'Subject-Specific (Physics)': [5, 4, 4] },
-      comments: 'Lab demonstrations are excellent and help understand the concepts better.', submittedAt: Date.now() - 86400000 * 4 },
-    { id: 'r_demo_5', teacherId: 'u_t2', studentId: 'u_s3', subjectId: 'sub_cs', anonymous: false,
-      scores: { 'Teaching Methodology': [4, 5, 5, 4, 4], 'Communication Skills': [4, 5, 4, 5], 'Subject Knowledge': [5, 5, 4, 5], 'Classroom Management': [5, 4, 4], 'Subject-Specific (CS)': [4, 5, 5] },
-      comments: 'Very approachable and explains complex topics in an easy way.', submittedAt: Date.now() - 86400000 * 3 },
-    { id: 'r_demo_6', teacherId: 'u_t3', studentId: 'u_s3', subjectId: 'sub_phys', anonymous: false,
-      scores: { 'Teaching Methodology': [3, 4, 4, 3, 3], 'Communication Skills': [3, 3, 4, 3], 'Subject Knowledge': [4, 4, 3, 4], 'Classroom Management': [3, 3, 3], 'Subject-Specific (Physics)': [4, 3, 3] },
-      comments: 'Good subject knowledge but teaching pace could be adjusted.', submittedAt: Date.now() - 86400000 * 2 },
-    { id: 'r_demo_7', teacherId: 'u_t1', studentId: 'u_s4', subjectId: 'sub_math', anonymous: true,
-      scores: { 'Teaching Methodology': [5, 5, 4, 5, 4], 'Communication Skills': [5, 5, 5, 4], 'Subject Knowledge': [5, 5, 5, 5], 'Classroom Management': [5, 4, 5], 'Subject-Specific (Maths)': [5, 5, 4] },
-      comments: 'Excellent teaching methodology. Makes difficult topics easy to understand.', submittedAt: Date.now() - 86400000 * 1 },
-  ];
+  const responses = [];
   set(DB.RESPONSES, responses);
 
   // ----- Settings -----
