@@ -185,58 +185,32 @@ async function googleLogin(credential, expectedRole) {
   return session;
 }
 
-// ---- Google Sign-In via Firebase Popup ----
-// Uses Firebase Auth popup instead of Google Identity Services (GIS).
-// This avoids the "origin not allowed" error because the OAuth flow
-// happens on the Firebase authDomain (firebaseapp.com), which is
-// already authorized — no need to configure origins in Google Cloud Console.
+// ---- Google Sign-In via Google Identity Services (GIS) ----
+// Uses Google Identity Services (GIS) instead of Firebase popup for Google OAuth2.
 async function googleLoginWithPopup(expectedRole) {
-  var provider = new firebase.auth.GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-
-  var userCredential = await auth.signInWithPopup(provider);
-  var email = (userCredential.user.email || '').toLowerCase();
-  var firebaseUid = userCredential.user.uid;
-
-  var localUser = getUserByEmail(email);
-  if (!localUser) {
-    console.log('[Auth] Google popup user not in localStorage, trying Firestore for:', email);
-    localUser = await fetchUserFromFirestore(email);
-  }
-  if (!localUser) {
-    // Sign out the Google user since they don't have an account
-    try { await auth.signOut(); } catch(e) {}
-    throw new Error('No account found for ' + email + '.\nAsk your admin to register this Google email.');
-  }
-  if (!localUser.active) {
-    try { await auth.signOut(); } catch(e) {}
-    throw new Error('Your account has been deactivated. Contact admin.');
-  }
-  if (expectedRole && localUser.role !== expectedRole) {
-    try { await auth.signOut(); } catch(e) {}
-    throw new Error('This portal is for ' + expectedRole + 's only.\nYour account role is: ' + localUser.role + '.');
-  }
-
-  // Write Firestore user doc
-  db.collection('users').doc(firebaseUid).set({
-    customId: localUser.id, email: localUser.email, name: localUser.name,
-    role: localUser.role, department: localUser.department || '',
-    section: localUser.section || '', active: localUser.active, lastLogin: Date.now()
-  }, { merge: true }).catch(function(e) {
-    console.warn('[Auth] Firestore user doc write failed:', e.message);
+  return new Promise(function(resolve, reject) {
+    google.accounts.id.initialize({
+      client_id: '592918420084-qgj2566dvssfqboiv7bbassro1tui3eb.apps.googleusercontent.com',
+      callback: async function(response) {
+        try {
+          var session = await googleLogin(response.credential, expectedRole);
+          resolve(session);
+        } catch(e) {
+          reject(e);
+        }
+      },
+      cancel_on_tap_outside: false
+    });
+    google.accounts.id.prompt(function(notification) {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Fallback: render Sign In With Google button
+        google.accounts.id.renderButton(
+          document.getElementById('googleSignInWrap'),
+          { theme: 'outline', size: 'large', width: 320 }
+        );
+      }
+    });
   });
-
-  localUser.firebaseUid = firebaseUid;
-  saveUser(localUser);
-
-  var session = {
-    userId: localUser.id, firebaseUid: firebaseUid, role: localUser.role,
-    email: localUser.email, name: localUser.name, department: localUser.department || '',
-    section: localUser.section || '', loginAt: Date.now(), viaGoogle: true,
-    sessionToken: generateSessionToken()
-  };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
 }
 
 // ---- Session Listener ----
