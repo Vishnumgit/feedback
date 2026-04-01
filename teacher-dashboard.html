@@ -9,7 +9,7 @@
   function showToast(msg, type) {
     const t = document.createElement('div');
     t.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:10px;color:#fff;font-size:14px;z-index:9999;animation:fadeIn 0.3s;';
-    t.style.background = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#7c3aed';
+    t.style.background = type === 'success' ? '#22c55e' : type === 'error' ? '#dc2626' : '#92400e';
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3000);
@@ -348,7 +348,7 @@
         labels: ['&#x2B50; 1 - Poor','&#x2B50;&#x2B50; 2 - Fair','&#x2B50;&#x2B50;&#x2B50; 3 - Good','&#x2B50;&#x2B50;&#x2B50;&#x2B50; 4 - Very Good','&#x2B50;&#x2B50;&#x2B50;&#x2B50;&#x2B50; 5 - Excellent'],
         datasets: [{
           data: Object.values(freq),
-          backgroundColor: ['rgba(239,68,68,0.8)','rgba(249,115,22,0.8)','rgba(234,179,8,0.8)','rgba(34,197,94,0.8)','rgba(124,58,237,0.8)'],
+          backgroundColor: ['rgba(239,68,68,0.8)','rgba(249,115,22,0.8)','rgba(234,179,8,0.8)','rgba(34,197,94,0.8)','rgba(146,64,14,0.8)'],
           borderColor: 'rgba(0,0,0,0.2)',
           borderWidth: 2,
           hoverOffset: 8,
@@ -516,7 +516,7 @@
         <div class="section-card" style="margin-bottom:14px;">
           <div class="section-card-body">
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-              <div style="width:32px;height:32px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-size:13px;">
+              <div style="width:32px;height:32px;border-radius:50%;background:rgba(146,64,14,0.1);display:flex;align-items:center;justify-content:center;font-size:13px;">
                 ${r.anonymous ? '&#x1F512;' : '&#x1F393;'}
               </div>
               <div>
@@ -595,7 +595,7 @@
       const isMe = t.id === session.userId;
       const rankColor = rank === 1 ? '#fbbf24' : rank === 2 ? '#94a3b8' : rank === 3 ? '#cd7f32' : 'var(--text-sub)';
       const rankIcon = rank === 1 ? '&#x1F947;' : rank === 2 ? '&#x1F948;' : rank === 3 ? '&#x1F949;' : '';
-      return `<tr style="${isMe ? 'background:rgba(124,58,237,0.07);' : ''}">
+      return `<tr style="${isMe ? 'background:rgba(146,64,14,0.04);' : ''}">
         <td style="font-weight:${isMe?700:500};">${t.name}${isMe ? ' <span class="badge badge-purple" style="font-size:10px;">You</span>' : ''}</td>
         <td>${sub ? sub.name : '—'}</td>
         <td>${t.section ? `<span class="badge badge-purple" style="font-size:11px;">${t.section}</span>` : '—'}</td>
@@ -721,7 +721,7 @@
 
     // Bar chart colors
     const barColors = ['#ef4444','#f97316','#eab308','#22c55e','#10b981'];
-    const catColors = ['#7c3aed','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6'];
+    const catColors = ['#92400e','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#ec4899','#b45309'];
 
     // Best & worst categories
     const sortedCats = Object.entries(sectionAvgs).sort((a,b)=>b[1]-a[1]);
@@ -789,7 +789,7 @@
     // Comments list
     const commentsList = responses.filter(r => r.comments).map((r,i) => {
       const student = r.anonymous ? null : getUserById(r.studentId);
-      return `<div style="background:#f8fafc;border-left:4px solid #7c3aed;padding:10px 14px;border-radius:8px;margin-bottom:10px;">
+      return `<div style="background:#f8fafc;border-left:4px solid #92400e;padding:10px 14px;border-radius:8px;margin-bottom:10px;">
         <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${r.anonymous ? 'Anonymous Student' : (student?student.name:'Student')} &mdash; ${new Date(r.submittedAt).toLocaleDateString()}</div>
         <div style="font-size:14px;color:#1e293b;">"${r.comments}"</div>
       </div>`;
@@ -809,8 +809,8 @@
   .container { max-width:900px; margin:0 auto; padding:30px 36px; }
 
   /* Header */
-  .report-header { text-align:center; padding:28px 20px; border-bottom:3px solid #7c3aed; margin-bottom:28px; }
-  .report-header h1 { font-size:22px; font-weight:800; color:#7c3aed; margin-bottom:4px; letter-spacing:-0.5px; }
+  .report-header { text-align:center; padding:28px 20px; border-bottom:3px solid #92400e; margin-bottom:28px; }
+  .report-header h1 { font-size:22px; font-weight:800; color:#92400e; margin-bottom:4px; letter-spacing:-0.5px; }
   .report-header .college { font-size:16px; font-weight:600; color:#334155; }
   .report-header .subtitle { font-size:13px; color:#64748b; margin-top:6px; }
 
@@ -829,7 +829,7 @@
   /* Summary cards */
   .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
   .card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; text-align:center; }
-  .card .num { font-size:26px; font-weight:800; color:#7c3aed; }
+  .card .num { font-size:26px; font-weight:800; color:#92400e; }
   .card .lbl { font-size:11px; color:#64748b; margin-top:2px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
 
   /* Section headers */
@@ -842,7 +842,7 @@
 
   /* Table */
   table { width:100%; border-collapse:collapse; font-size:12px; }
-  th { background:#7c3aed; color:#fff; padding:10px 8px; text-align:left; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.3px; }
+  th { background:#92400e; color:#fff; padding:10px 8px; text-align:left; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.3px; }
   td { padding:9px 8px; border-bottom:1px solid #e2e8f0; }
   tr:nth-child(even) { background:#f8fafc; }
   tr.summary-row { background:#ede9fe; font-weight:700; }
@@ -850,7 +850,7 @@
   /* Footer */
   .report-footer { text-align:center; padding:20px 0; margin-top:24px; border-top:2px solid #e2e8f0; font-size:11px; color:#94a3b8; }
 
-  .print-btn { position:fixed; top:16px; right:16px; background:#7c3aed; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px; z-index:100; }
+  .print-btn { position:fixed; top:16px; right:16px; background:#92400e; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px; z-index:100; }
   .print-btn:hover { background:#6d28d9; }
 </style>
 </head>
@@ -887,7 +887,7 @@
   <!-- Summary Cards -->
   <div class="cards">
     <div class="card"><div class="num">${responses.length}</div><div class="lbl">Total Responses</div></div>
-    <div class="card"><div class="num" style="color:${isUnder?'#ef4444':'#7c3aed'};">${overallAvg}/5</div><div class="lbl">Overall Average</div></div>
+    <div class="card"><div class="num" style="color:${isUnder?'#ef4444':'#92400e'};">${overallAvg}/5</div><div class="lbl">Overall Average</div></div>
     <div class="card"><div class="num" style="font-size:18px;color:#10b981;">${bestCat[0].length>18?bestCat[0].slice(0,18)+'...':bestCat[0]}</div><div class="lbl">&#127942; Best: ${bestCat[1]}/5</div></div>
     <div class="card"><div class="num" style="font-size:18px;color:#ef4444;">${worstCat[0].length>18?worstCat[0].slice(0,18)+'...':worstCat[0]}</div><div class="lbl">&#9888;&#65039; Lowest: ${worstCat[1]}/5</div></div>
   </div>
@@ -916,9 +916,9 @@
     <tbody>
       ${tableRows}
       <tr class="summary-row">
-        <td colspan="4" style="text-align:right;font-weight:700;color:#7c3aed;">AVERAGE</td>
-        ${summaryScores.map(sc => `<td style="text-align:center;font-weight:700;color:#7c3aed;">${sc}</td>`).join('')}
-        <td style="text-align:center;font-weight:800;font-size:14px;color:#7c3aed;">${overallAvg}</td>
+        <td colspan="4" style="text-align:right;font-weight:700;color:#92400e;">AVERAGE</td>
+        ${summaryScores.map(sc => `<td style="text-align:center;font-weight:700;color:#92400e;">${sc}</td>`).join('')}
+        <td style="text-align:center;font-weight:800;font-size:14px;color:#92400e;">${overallAvg}</td>
         <td></td>
       </tr>
     </tbody>
