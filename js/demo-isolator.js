@@ -241,6 +241,7 @@
     // --- Timetable (sf_timetables key) ---
     var timetables = [
       {
+        id: 'tt_demo_1',
         title: 'CSE Semester 4 — Weekly Schedule',
         department: 'CSE',
         section: 'CSE-4',
