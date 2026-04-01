@@ -94,17 +94,17 @@ function initDB() {
   // ----- Users: 1 Admin + 3 Teachers + 5 Students -----
   const users = [
     // Admin
-    { id: 'u_admin', email: 'admin@college.edu', passwordHash: ADMIN_HASH, role: 'admin', name: 'Dr. Suresh Iyer', department: 'Administration', active: true },
+    { id: 'u_admin', email: 'admin@college.edu', passwordHash: ADMIN_HASH, role: 'admin', name: 'Demo Admin', department: 'Administration', active: true },
     // Teachers
-    { id: 'u_t1', email: 'rajesh@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Dr. Rajesh Kumar', department: 'Science', subjectId: 'sub_math', active: true },
-    { id: 'u_t2', email: 'priya@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Prof. Priya Sharma', department: 'Technology', subjectId: 'sub_cs', active: true },
-    { id: 'u_t3', email: 'anitha@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Dr. Anitha Reddy', department: 'Science', subjectId: 'sub_phys', active: true },
+    { id: 'u_t1', email: 'teacher1@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Sample Teacher 1', department: 'Science', subjectId: 'sub_math', active: true },
+    { id: 'u_t2', email: 'teacher2@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Sample Teacher 2', department: 'Technology', subjectId: 'sub_cs', active: true },
+    { id: 'u_t3', email: 'teacher3@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Sample Teacher 3', department: 'Science', subjectId: 'sub_phys', active: true },
     // Students
-    { id: 'u_s1', email: 'rahul@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Rahul Verma', department: 'Science', section: 'A', rollNo: 'CSE-101', active: true },
-    { id: 'u_s2', email: 'sneha@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Sneha Patel', department: 'Science', section: 'A', rollNo: 'CSE-102', active: true },
-    { id: 'u_s3', email: 'amit@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Amit Singh', department: 'Technology', section: 'B', rollNo: 'CSE-201', active: true },
-    { id: 'u_s4', email: 'kavya@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Kavya Nair', department: 'Science', section: 'A', rollNo: 'CSE-103', active: true },
-    { id: 'u_s5', email: 'deepak@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Deepak Joshi', department: 'Technology', section: 'B', rollNo: 'CSE-202', active: true },
+    { id: 'u_s1', email: 'student1@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Sample Student 1', department: 'Science', section: 'A', rollNo: 'CSE-101', active: true },
+    { id: 'u_s2', email: 'student2@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Sample Student 2', department: 'Science', section: 'A', rollNo: 'CSE-102', active: true },
+    { id: 'u_s3', email: 'student3@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Sample Student 3', department: 'Technology', section: 'B', rollNo: 'CSE-201', active: true },
+    { id: 'u_s4', email: 'student4@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Sample Student 4', department: 'Science', section: 'A', rollNo: 'CSE-103', active: true },
+    { id: 'u_s5', email: 'student5@college.edu', passwordHash: STUDENT_HASH, role: 'student', name: 'Sample Student 5', department: 'Technology', section: 'B', rollNo: 'CSE-202', active: true },
   ];
   set(DB.USERS, users);
 
@@ -197,25 +197,25 @@ function initDB() {
   const responses = [
     { id: 'r_demo_1', teacherId: 'u_t1', studentId: 'u_s1', subjectId: 'sub_math', anonymous: false,
       scores: { 'Teaching Methodology': [5, 4, 5, 4, 5], 'Communication Skills': [4, 5, 4, 5], 'Subject Knowledge': [5, 5, 4, 5], 'Classroom Management': [4, 5, 4], 'Subject-Specific (Maths)': [5, 4, 5] },
-      comments: 'Dr. Rajesh explains concepts very clearly. The step-by-step approach helps a lot in understanding complex problems.', submittedAt: Date.now() - 86400000 * 7 },
+      comments: 'The teacher explains concepts very clearly with good examples.', submittedAt: Date.now() - 86400000 * 7 },
     { id: 'r_demo_2', teacherId: 'u_t2', studentId: 'u_s1', subjectId: 'sub_cs', anonymous: true,
       scores: { 'Teaching Methodology': [5, 5, 4, 5, 4], 'Communication Skills': [5, 4, 5, 4], 'Subject Knowledge': [5, 5, 5, 4], 'Classroom Management': [4, 5, 4], 'Subject-Specific (CS)': [5, 5, 4] },
-      comments: 'Excellent live coding sessions. The practical approach makes CS concepts easy to grasp.', submittedAt: Date.now() - 86400000 * 6 },
+      comments: 'Excellent practical demonstrations. The hands-on approach is very effective.', submittedAt: Date.now() - 86400000 * 6 },
     { id: 'r_demo_3', teacherId: 'u_t1', studentId: 'u_s2', subjectId: 'sub_math', anonymous: false,
       scores: { 'Teaching Methodology': [4, 4, 3, 4, 4], 'Communication Skills': [4, 4, 3, 4], 'Subject Knowledge': [5, 4, 4, 4], 'Classroom Management': [3, 4, 4], 'Subject-Specific (Maths)': [4, 3, 4] },
-      comments: 'Good teaching overall. Could provide more practice problems for competitive exams.', submittedAt: Date.now() - 86400000 * 5 },
+      comments: 'Good teaching overall. More practice problems would be helpful.', submittedAt: Date.now() - 86400000 * 5 },
     { id: 'r_demo_4', teacherId: 'u_t3', studentId: 'u_s2', subjectId: 'sub_phys', anonymous: true,
       scores: { 'Teaching Methodology': [4, 5, 4, 4, 3], 'Communication Skills': [4, 4, 5, 4], 'Subject Knowledge': [5, 5, 4, 5], 'Classroom Management': [4, 3, 4], 'Subject-Specific (Physics)': [5, 4, 4] },
-      comments: 'Lab demonstrations are the highlight. Dr. Anitha connects theory to real-world experiments brilliantly.', submittedAt: Date.now() - 86400000 * 4 },
+      comments: 'Lab demonstrations are excellent and help understand the concepts better.', submittedAt: Date.now() - 86400000 * 4 },
     { id: 'r_demo_5', teacherId: 'u_t2', studentId: 'u_s3', subjectId: 'sub_cs', anonymous: false,
       scores: { 'Teaching Methodology': [4, 5, 5, 4, 4], 'Communication Skills': [4, 5, 4, 5], 'Subject Knowledge': [5, 5, 4, 5], 'Classroom Management': [5, 4, 4], 'Subject-Specific (CS)': [4, 5, 5] },
-      comments: 'Prof. Priya is very approachable and explains debugging techniques well. Great industry examples.', submittedAt: Date.now() - 86400000 * 3 },
+      comments: 'Very approachable and explains complex topics in an easy way.', submittedAt: Date.now() - 86400000 * 3 },
     { id: 'r_demo_6', teacherId: 'u_t3', studentId: 'u_s3', subjectId: 'sub_phys', anonymous: false,
       scores: { 'Teaching Methodology': [3, 4, 4, 3, 3], 'Communication Skills': [3, 3, 4, 3], 'Subject Knowledge': [4, 4, 3, 4], 'Classroom Management': [3, 3, 3], 'Subject-Specific (Physics)': [4, 3, 3] },
-      comments: 'Good knowledge but pace could be slower. Some derivations are rushed.', submittedAt: Date.now() - 86400000 * 2 },
+      comments: 'Good subject knowledge but teaching pace could be adjusted.', submittedAt: Date.now() - 86400000 * 2 },
     { id: 'r_demo_7', teacherId: 'u_t1', studentId: 'u_s4', subjectId: 'sub_math', anonymous: true,
       scores: { 'Teaching Methodology': [5, 5, 4, 5, 4], 'Communication Skills': [5, 5, 5, 4], 'Subject Knowledge': [5, 5, 5, 5], 'Classroom Management': [5, 4, 5], 'Subject-Specific (Maths)': [5, 5, 4] },
-      comments: 'One of the best math teachers. Makes complex topics feel simple. Highly recommended!', submittedAt: Date.now() - 86400000 * 1 },
+      comments: 'Excellent teaching methodology. Makes difficult topics easy to understand.', submittedAt: Date.now() - 86400000 * 1 },
   ];
   set(DB.RESPONSES, responses);
 
