@@ -9,7 +9,7 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Chart.js](https://img.shields.io/badge/Chart.js-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white)](https://www.chartjs.org/)
-[![EmailJS](https://img.shields.io/badge/EmailJS-FF6C37?style=for-the-badge&logo=maildotru&logoColor=white)](https://www.emailjs.com/)
+[![Python](https://img.shields.io/badge/Python_OTP-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
 
 <br/>
 
@@ -37,7 +37,7 @@
 | 📄 **Report Generator** | Downloadable HTML reports with SVG charts — print as PDF |
 | 🔥 **Firebase Cloud Sync** | Offline-first with automatic Firestore background sync |
 | 📱 **Responsive Design** | Works on desktop, tablet, and mobile screens |
-| 🔑 **Password Reset** | Cloud Functions–backed forgot-password flow — EmailJS sends reset links, no unauthenticated Firestore access |
+| 🔑 **Password Reset** | Cloud Functions–backed forgot-password flow — OTP verification via Python Gmail SMTP (PythonAnywhere) |
 | 🚀 **Zero Dependencies** | No frameworks, no build step — just open `index.html` |
 | 🔒 **SHA-256 Password Hashing** | Secure credential storage using Web Crypto API with legacy migration support |
 | ⚡ **Performance Optimized** | Non-blocking login writes and 5-min sync cache reduce Firestore reads |
@@ -105,7 +105,7 @@
 |---------|-------------|
 | 📝 **Feedback Form** | Multi-section 1-5 star ratings, anonymous option, comments, attendance-gated (≥75%) |
 | 👤 **Dashboard** | Profile with Roll No, assigned teachers list, submission status per teacher |
-| 🔑 **Forgot Password** | Email-based password reset via EmailJS with secure Firestore tokens (1-hour expiry, single-use) |
+| 🔑 **Forgot Password** | OTP-based password reset via Python Gmail SMTP hosted on PythonAnywhere (6-digit code, 5-min expiry, 3 attempts) |
 
 ---
 
@@ -136,7 +136,7 @@ feedback/
 ├── 🔐 admin-login.html        # Admin login
 ├── 🔐 teacher-login.html      # Teacher login
 ├── 🔐 student-login.html      # Student login
-├── 🔑 reset-password.html     # Forgot / Reset password (EmailJS + Firestore)
+├── 🔑 reset-password.html     # Forgot / Reset password (OTP via PythonAnywhere)
 │
 ├── 📊 admin-dashboard.html    # Admin panel (1,968 lines — 7 tabs)
 ├── 📊 teacher-dashboard.html  # Teacher portal (877 lines)
@@ -203,7 +203,7 @@ start index.html   # Windows
 | **Database** | Firebase Firestore | Cloud NoSQL database |
 | **Offline** | localStorage | Fast offline-first data access |
 | **Sync** | firebase-sync.js | Background bidirectional sync |
-| **Email** | EmailJS (server-side via Cloud Functions) | Password reset emails — keys never exposed in client |
+| **Email** | PythonAnywhere (Python Flask + Gmail SMTP) | OTP verification emails — credentials stored server-side |
 | **Functions** | Firebase Cloud Functions v2 | Secure backend for password-reset flow (bcrypt hashing, token management) |
 | **Auth** | Session-based (localStorage) | Role-based access control |
 | **Fonts** | Google Fonts (Inter) | Professional typography |
@@ -236,11 +236,11 @@ start index.html   # Windows
 | Category | Changes |
 |----------|---------|
 | ☁️ **Cloud Functions** | Add `functions/` with three callable functions (`requestPasswordReset`, `verifyResetToken`, `confirmPasswordReset`) that handle the full password-reset flow server-side using Admin SDK |
-| 🔒 **Security** | Move all token/Firestore operations out of the browser; store passwords as bcrypt (server) and SHA-256 (localStorage fallback, computed server-side); EmailJS private key stored in Firebase Secret Manager |
+| 🔒 **Security** | Move all token/Firestore operations out of the browser; store passwords as bcrypt (server) and SHA-256 (localStorage fallback, computed server-side); PythonAnywhere OTP private key stored in Firebase Secret Manager |
 | 🛡️ **Firestore Rules** | Explicitly deny client access to `password_resets` collection |
-| 🔑 **reset-password.html** | Replace direct Firestore calls with Firebase callable function invocations; remove EmailJS browser SDK and exposed keys |
+| 🔑 **reset-password.html** | Replace direct Firestore calls with Firebase callable function invocations; remove PythonAnywhere OTP browser SDK and exposed keys |
 | ⚙️ **firebase-config.js** | Initialize `firebase.functions()` for callable invocations |
-| 📄 **README** | Add Cloud Functions setup guide and EmailJS key configuration instructions |
+| 📄 **README** | Add Cloud Functions setup guide and PythonAnywhere OTP key configuration instructions |
 
 ---
 
@@ -252,7 +252,7 @@ The forgot-password / reset-password flow is backed by three Firebase Cloud Func
 
 | Function | Description |
 |----------|-------------|
-| `requestPasswordReset` | Looks up the user, creates a one-time token in `password_resets`, sends the reset link via EmailJS |
+| `requestPasswordReset` | Looks up the user, creates a one-time token in `password_resets`, sends OTP via Gmail SMTP (PythonAnywhere) |
 | `verifyResetToken` | Checks that a token exists, is not used, and has not expired |
 | `confirmPasswordReset` | Validates the token, hashes the new password with **bcrypt** (server-side), updates Firestore + Firebase Auth, marks the token used |
 
@@ -262,52 +262,100 @@ The forgot-password / reset-password flow is backed by three Firebase Cloud Func
 - [Firebase CLI](https://firebase.google.com/docs/cli): `npm install -g firebase-tools`
 - A [Firebase project](https://console.firebase.google.com/) with Firestore and Authentication enabled
 
-### EmailJS private key
+### 🐍 PythonAnywhere OTP Setup
 
-Server-side calls to the EmailJS REST API require a **private (access) token** — this is different from the public key used in the browser.
+The password reset system uses a **Python Flask API** hosted for free on PythonAnywhere that sends OTP codes via Gmail SMTP.
 
-1. Log in to [EmailJS dashboard](https://dashboard.emailjs.com/) → **Account** → **API Keys**
-2. Copy your **Private Key**
+#### How the OTP Flow Works
 
-> ⚠️ **Never put the private key in client-side code or commit it to the repository.**
-
-### Deploy the functions
-
-```bash
-# 1. Install dependencies
-cd functions
-npm install
-
-# 2. Authenticate and select your project
-firebase login
-firebase use <your-firebase-project-id>   # e.g. student-feedback-form-489916
-
-# 3. Set EmailJS secrets as environment variables
-firebase functions:secrets:set EMAILJS_SERVICE_ID
-firebase functions:secrets:set EMAILJS_TEMPLATE_ID
-firebase functions:secrets:set EMAILJS_PUBLIC_KEY
-firebase functions:secrets:set EMAILJS_PRIVATE_KEY
-firebase functions:secrets:set BASE_URL
-# BASE_URL should be the full URL to reset-password.html, e.g.:
-#   https://vishnumgit.github.io/feedback/reset-password.html
-# (The CLI will prompt you to paste each value securely)
-
-# 4. Deploy
-firebase deploy --only functions
+```
+User clicks "Forgot Password"
+  → Enters email
+  → Website calls PythonAnywhere API (/send-otp)
+  → Python generates 6-digit OTP
+  → Gmail SMTP sends styled OTP email
+  → User enters OTP code
+  → Website calls PythonAnywhere API (/verify-otp)
+  → Python verifies (3 attempts, 5-min expiry)
+  → User sets new password
+  → Password updated in localStorage + Firestore
 ```
 
-The functions are deployed to the `us-central1` region by default. Change `setGlobalOptions({ region: ... })` in `functions/index.js` if you need a different region.
+#### Setup Steps
 
-### EmailJS template variables
+1. **Create free account** at [pythonanywhere.com](https://www.pythonanywhere.com)
+2. **Create a Flask web app** (Web tab → Add new web app → Flask → Python 3.10)
+3. **Paste the OTP code** into `mysite/flask_app.py`:
 
-Your EmailJS template (ID stored in `EMAILJS_TEMPLATE_ID`) must contain two variables:
+```python
+import smtplib, random, time
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from flask import Flask, request, jsonify
 
-| Variable | Value sent |
-|----------|-----------|
-| `{{email}}` | Recipient email address |
-| `{{link}}` | Full password-reset URL |
+app = Flask(__name__)
+SENDER_EMAIL = "your-email@gmail.com"      # Your Gmail
+SENDER_PASSWORD = "xxxx xxxx xxxx xxxx"     # Gmail App Password
+otp_store = {}
 
----
+@app.after_request
+def cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    return response
+
+@app.route("/send-otp", methods=["POST", "OPTIONS"])
+def send_otp():
+    if request.method == "OPTIONS": return jsonify({"ok": True})
+    data = request.get_json()
+    email = (data.get("email") or "").strip().lower()
+    otp = str(random.randint(100000, 999999))
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Your OTP Code"
+    msg["From"] = SENDER_EMAIL
+    msg["To"] = email
+    msg.attach(MIMEText(f"<h1>{otp}</h1><p>Expires in 5 minutes.</p>", "html"))
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+        s.login(SENDER_EMAIL, SENDER_PASSWORD)
+        s.sendmail(SENDER_EMAIL, email, msg.as_string())
+    otp_store[email] = {"otp": otp, "expires_at": time.time() + 300, "attempts": 0}
+    return jsonify({"success": True, "message": "OTP sent!"})
+
+@app.route("/verify-otp", methods=["POST", "OPTIONS"])
+def verify_otp():
+    if request.method == "OPTIONS": return jsonify({"ok": True})
+    data = request.get_json()
+    email, user_otp = data.get("email","").lower(), data.get("otp","")
+    rec = otp_store.get(email)
+    if not rec or time.time() > rec["expires_at"]: return jsonify({"success": False, "message": "OTP expired."})
+    if rec["attempts"] >= 3: return jsonify({"success": False, "message": "Too many attempts."})
+    if rec["otp"] == user_otp:
+        del otp_store[email]
+        return jsonify({"success": True, "message": "Verified!"})
+    rec["attempts"] += 1
+    return jsonify({"success": False, "message": f"Wrong OTP. {3-rec['attempts']} left."})
+```
+
+4. **Set your Gmail App Password** (Google Account → Security → 2-Step Verification → App Passwords)
+5. **Click Reload** on PythonAnywhere Web tab
+6. **Update `reset-password.html`** to point to your PythonAnywhere URL
+
+#### API Endpoints
+
+| Endpoint | Method | Body | Response |
+|----------|--------|------|----------|
+| `/send-otp` | POST | `{"email": "user@college.edu"}` | `{"success": true, "message": "OTP sent!"}` |
+| `/verify-otp` | POST | `{"email": "...", "otp": "123456"}` | `{"success": true/false, "message": "..."}` |
+
+#### Security Features
+- 🔢 **6-digit random OTP** (100000–999999)
+- ⏱️ **5-minute expiry**
+- 🚫 **3 attempt limit** per OTP
+- 🔒 **Gmail App Password** (not regular password)
+- 🌐 **CORS enabled** for cross-origin requests
+- 📧 **Styled HTML emails** with purple theme
+
 
 ## 👨‍💻 Author
 
