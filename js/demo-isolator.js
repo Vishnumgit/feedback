@@ -139,8 +139,15 @@
       { studentId: 'demo_s1', teacherId: 'demo_t1', subjectIds: ['demo_sub1', 'demo_sub2'], enrolledAt: Date.now() - 86400000 },
       { studentId: 'demo_s2', teacherId: 'demo_t1', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 },
       { studentId: 'demo_s3', teacherId: 'demo_t2', subjectIds: ['demo_sub3'], enrolledAt: Date.now() - 86400000 },
+      { studentId: 'demo_s3', teacherId: 'demo_t1', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 },
+      { studentId: 'demo_s1', teacherId: 'demo_t2', subjectIds: ['demo_sub3'], enrolledAt: Date.now() - 86400000 },
       { studentId: 'demo_student', teacherId: 'demo_t1', subjectIds: ['demo_sub1', 'demo_sub2'], enrolledAt: Date.now() - 86400000 },
-      { studentId: 'demo_student', teacherId: 'demo_t2', subjectIds: ['demo_sub3'], enrolledAt: Date.now() - 86400000 }
+      { studentId: 'demo_student', teacherId: 'demo_t2', subjectIds: ['demo_sub3'], enrolledAt: Date.now() - 86400000 },
+      // Enrollments for demo_teacher so teacher dashboard shows enrolled students
+      { studentId: 'demo_s1', teacherId: 'demo_teacher', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 },
+      { studentId: 'demo_s2', teacherId: 'demo_teacher', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 },
+      { studentId: 'demo_student', teacherId: 'demo_teacher', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 },
+      { studentId: 'demo_s3', teacherId: 'demo_teacher', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 }
     ];
 
     // --- Attendance ---
@@ -152,26 +159,111 @@
     ];
 
     // --- Sample Feedback Responses ---
+    // Responses from various students to demo_t1 (Prof. Demo Singh — Data Structures)
     var responses = [
       {
         id: 'r_demo_1', teacherId: 'demo_t1', studentId: 'demo_s1', subjectId: 'demo_sub1', anonymous: true,
         scores: { 'Teaching Methodology': [5, 4, 5, 4, 5], 'Communication Skills': [4, 5, 4, 5], 'Subject Knowledge': [5, 5, 4] },
-        comments: 'Excellent teaching! Very clear explanations.', submittedAt: Date.now() - 172800000
+        comments: 'Excellent teaching! Very clear explanations of trees and graphs.', submittedAt: Date.now() - 604800000
       },
       {
         id: 'r_demo_2', teacherId: 'demo_t1', studentId: 'demo_s2', subjectId: 'demo_sub1', anonymous: false,
         scores: { 'Teaching Methodology': [4, 4, 3, 4, 4], 'Communication Skills': [4, 3, 4, 4], 'Subject Knowledge': [4, 4, 5] },
-        comments: 'Good overall, could use more practice problems.', submittedAt: Date.now() - 86400000
+        comments: 'Good overall, could use more practice problems for sorting algorithms.', submittedAt: Date.now() - 518400000
       },
+      // Responses to demo_t2 (Dr. Demo Patel — Digital Electronics)
       {
         id: 'r_demo_3', teacherId: 'demo_t2', studentId: 'demo_s3', subjectId: 'demo_sub3', anonymous: true,
         scores: { 'Teaching Methodology': [5, 5, 4, 5], 'Communication Skills': [5, 4, 5], 'Subject Knowledge': [5, 5, 4] },
-        comments: 'Great practical demonstrations!', submittedAt: Date.now() - 259200000
+        comments: 'Great practical demonstrations with breadboard circuits!', submittedAt: Date.now() - 432000000
+      },
+      // Responses FROM demo_student (so student Dashboard, Records, Profile show data)
+      {
+        id: 'r_demo_4', teacherId: 'demo_t1', studentId: 'demo_student', subjectId: 'demo_sub1', anonymous: false,
+        scores: { 'Teaching Methodology': [4, 5, 4, 5, 4], 'Communication Skills': [5, 4, 5, 4], 'Subject Knowledge': [5, 4, 5] },
+        comments: 'Prof. Singh makes data structures very interesting. The linked-list visualization was helpful.', submittedAt: Date.now() - 345600000
+      },
+      {
+        id: 'r_demo_5', teacherId: 'demo_t2', studentId: 'demo_student', subjectId: 'demo_sub3', anonymous: true,
+        scores: { 'Teaching Methodology': [4, 4, 5, 4], 'Communication Skills': [4, 5, 4], 'Subject Knowledge': [5, 4, 5] },
+        comments: 'Dr. Patel explains flip-flops and counters very well. Lab sessions are excellent.', submittedAt: Date.now() - 259200000
+      },
+      // Additional responses for demo_teacher (Demo Teacher — Data Structures)
+      // so that teacher dashboard shows charts, comments, analytics
+      {
+        id: 'r_demo_6', teacherId: 'demo_teacher', studentId: 'demo_s1', subjectId: 'demo_sub1', anonymous: true,
+        scores: { 'Teaching Methodology': [4, 3, 4, 4, 3], 'Communication Skills': [4, 4, 3, 4], 'Subject Knowledge': [4, 4, 3] },
+        comments: 'Good explanations but could improve pacing. Sometimes rushes through complex topics.', submittedAt: Date.now() - 518400000
+      },
+      {
+        id: 'r_demo_7', teacherId: 'demo_teacher', studentId: 'demo_s2', subjectId: 'demo_sub1', anonymous: false,
+        scores: { 'Teaching Methodology': [5, 4, 5, 4, 4], 'Communication Skills': [5, 5, 4, 5], 'Subject Knowledge': [5, 5, 4] },
+        comments: 'Really enjoyed the hands-on coding sessions. Best DSA class so far!', submittedAt: Date.now() - 432000000
+      },
+      {
+        id: 'r_demo_8', teacherId: 'demo_teacher', studentId: 'demo_student', subjectId: 'demo_sub1', anonymous: true,
+        scores: { 'Teaching Methodology': [3, 4, 3, 4, 4], 'Communication Skills': [4, 3, 4, 3], 'Subject Knowledge': [4, 5, 4] },
+        comments: 'Decent teaching. Would appreciate more real-world examples and industry applications.', submittedAt: Date.now() - 345600000
+      },
+      {
+        id: 'r_demo_9', teacherId: 'demo_teacher', studentId: 'demo_s3', subjectId: 'demo_sub1', anonymous: false,
+        scores: { 'Teaching Methodology': [4, 5, 4, 5, 5], 'Communication Skills': [5, 4, 5, 4], 'Subject Knowledge': [5, 4, 5] },
+        comments: 'Very approachable and patient. Explains recursion and dynamic programming clearly.', submittedAt: Date.now() - 172800000
+      },
+      // More responses to demo_t1 for richer trend data
+      {
+        id: 'r_demo_10', teacherId: 'demo_t1', studentId: 'demo_s3', subjectId: 'demo_sub1', anonymous: false,
+        scores: { 'Teaching Methodology': [3, 4, 4, 3, 4], 'Communication Skills': [3, 4, 3, 4], 'Subject Knowledge': [4, 3, 4] },
+        comments: 'Satisfactory lectures but needs more interactive sessions.', submittedAt: Date.now() - 172800000
+      },
+      // Additional response to demo_t2 for richer analytics
+      {
+        id: 'r_demo_11', teacherId: 'demo_t2', studentId: 'demo_s1', subjectId: 'demo_sub3', anonymous: true,
+        scores: { 'Teaching Methodology': [4, 4, 5, 4], 'Communication Skills': [4, 5, 4], 'Subject Knowledge': [4, 5, 5] },
+        comments: 'Really enjoyed the logic gate experiments. Well-structured syllabus.', submittedAt: Date.now() - 86400000
       }
     ];
 
     // --- Settings ---
     var settings = { collegeDomain: 'demo.edu', collegeName: 'Demo College of Engineering', minThreshold: 3.5 };
+
+    // --- Notifications (sf_notifications key) ---
+    var now = Date.now();
+    var notifications = [
+      { id: 'n_demo_1', title: 'Welcome to Demo Mode', message: 'You are exploring the Student Feedback System in demo mode. All data here is sample data — no real changes will be made.', category: 'general', timestamp: new Date(now - 60000).toISOString() },
+      { id: 'n_demo_2', title: 'Feedback Reminder', message: 'You have pending feedback for 1 teacher. Please submit your feedback before the deadline on Friday.', category: 'assignment', timestamp: new Date(now - 3600000).toISOString() },
+      { id: 'n_demo_3', title: 'New Teacher Assigned', message: 'Dr. Demo Patel (Digital Electronics) has been assigned to you. You can now submit feedback.', category: 'assignment', timestamp: new Date(now - 86400000).toISOString() },
+      { id: 'n_demo_4', title: 'Attendance Updated', message: 'Your attendance for the current semester has been updated. Current attendance: 85%.', category: 'general', timestamp: new Date(now - 172800000).toISOString() },
+      { id: 'n_demo_5', title: 'System Maintenance', message: 'The feedback portal will undergo scheduled maintenance on Sunday 2:00 AM — 4:00 AM IST. Please plan accordingly.', category: 'urgent', timestamp: new Date(now - 259200000).toISOString() },
+      { id: 'n_demo_6', title: 'Feedback Results Published', message: 'Teacher feedback results for the previous semester are now available. Check the Reports section.', category: 'general', timestamp: new Date(now - 432000000).toISOString() }
+    ];
+
+    // --- Timetable (sf_timetables key) ---
+    var timetables = [
+      {
+        id: 'tt_demo_1',
+        title: 'CSE Semester 4 — Weekly Schedule',
+        department: 'CSE',
+        section: 'CSE-4',
+        timestamp: new Date(now - 604800000).toISOString(),
+        content:
+          '╔══════════╦══════════════════╦══════════════════╦══════════════════╦══════════════════╦══════════════════╗\n' +
+          '║  Time    ║    Monday        ║    Tuesday       ║   Wednesday      ║   Thursday       ║    Friday        ║\n' +
+          '╠══════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╣\n' +
+          '║ 9:00-10  ║ Data Structures  ║ Web Development  ║ Data Structures  ║ Digital Elec.    ║ Web Development  ║\n' +
+          '║          ║ Prof. Singh      ║ Demo Teacher     ║ Prof. Singh      ║ Dr. Patel        ║ Demo Teacher     ║\n' +
+          '╠══════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╣\n' +
+          '║ 10-11:00 ║ Web Development  ║ Data Structures  ║ Digital Elec.    ║ Data Structures  ║ Data Structures  ║\n' +
+          '║          ║ Demo Teacher     ║ Prof. Singh      ║ Dr. Patel        ║ Prof. Singh      ║ Prof. Singh      ║\n' +
+          '╠══════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╣\n' +
+          '║ 11-12:00 ║ Mathematics      ║ Physics          ║ Mathematics      ║ Web Development  ║ Physics          ║\n' +
+          '╠══════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╣\n' +
+          '║ 1:00-2   ║      LUNCH       ║      LUNCH       ║      LUNCH       ║      LUNCH       ║      LUNCH       ║\n' +
+          '╠══════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╬══════════════════╣\n' +
+          '║ 2:00-4   ║ DSA Lab          ║ —                ║ Web Dev Lab      ║ —                ║ Electronics Lab  ║\n' +
+          '╚══════════╩══════════════════╩══════════════════╩══════════════════╩══════════════════╩══════════════════╝'
+      }
+    ];
 
     // Write through the intercepted localStorage (auto-prefixed with demo_)
     localStorage.setItem('sfft_users', JSON.stringify(users));
@@ -182,6 +274,10 @@
     localStorage.setItem('sfft_responses', JSON.stringify(responses));
     localStorage.setItem('sfft_settings', JSON.stringify(settings));
     localStorage.setItem('sfft_initialized', '1');
+
+    // Notifications & timetable use sf_ prefix (also intercepted)
+    localStorage.setItem('sf_notifications', JSON.stringify(notifications));
+    localStorage.setItem('sf_timetables', JSON.stringify(timetables));
   }
 
   // --- Mark window as demo mode for other scripts to check ---
