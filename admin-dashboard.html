@@ -27,6 +27,7 @@
       <div class="sidebar-nav">
         <div class="nav-group-label">Overview</div>
         <div class="nav-item" id="navDashboard" onclick="switchTab('dashboard')"><span class="nav-icon">&#128202;</span> Dashboard</div>
+        <div class="nav-item" id="navReviews" onclick="switchTab('reviews')"><span class="nav-icon">&#11088;</span> Website Reviews</div>
         <div class="nav-group-label" style="margin-top:12px;">Management</div>
         <div class="nav-item active" id="navUsers" onclick="switchTab('users')"><span class="nav-icon">&#128101;</span> User
           Management</div>
@@ -432,6 +433,42 @@
         </div>
 
         <!-- ==================== TAB: SETTINGS ==================== -->
+      <!-- ==================== TAB: WEBSITE REVIEWS ==================== -->
+      <div id="tabReviews" style="display:none;">
+        <div class="topbar">
+          <div>
+            <div class="page-title">Website Reviews</div>
+            <div class="page-subtitle">Public ratings and feedback about your feedback system</div>
+          </div>
+          <button class="btn btn-sm" onclick="clearAllReviews()" style="background:var(--danger);color:#fff;">&#128465; Clear All</button>
+        </div>
+        <div class="stats-grid animate-in" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+          <div class="stat-card">
+            <div class="stat-icon">&#11088;</div>
+            <div class="stat-value" id="reviewAvgRating">0</div>
+            <div class="stat-label">Average Rating</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">&#128172;</div>
+            <div class="stat-value" id="reviewTotalCount">0</div>
+            <div class="stat-label">Total Reviews</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">&#128200;</div>
+            <div class="stat-value" id="review5StarPct">0%</div>
+            <div class="stat-label">5-Star Rate</div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-card-header">
+            <div class="section-card-title">All Reviews</div>
+          </div>
+          <div class="section-card-body" id="reviewsList">
+            <div style="text-align:center;padding:30px;color:var(--text-muted);">No reviews yet</div>
+          </div>
+        </div>
+      </div>
+
         <div id="tabSettings" style="display:none;">
           <div class="topbar">
             <div>
@@ -732,7 +769,7 @@
 
     // ---- Tab Switching ----
     function switchTab(tab, skipHistory) {
-      const tabs = ['dashboard', 'users', 'subjects', 'assign', 'feedback', 'reports', 'settings', 'attendance'];
+      const tabs = ['dashboard', 'users', 'subjects', 'assign', 'feedback', 'reports', 'reviews', 'settings', 'attendance'];
       tabs.forEach(t => {
         document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? '' : 'none';
         document.getElementById('nav' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
@@ -743,6 +780,7 @@
       if (tab === 'assign') renderAssignTab();
       if (tab === 'feedback') initFeedbackFilters();
       if (tab === 'reports') renderReports();
+      if (tab === 'reviews') renderWebsiteReviews();
       if (tab === 'settings') { loadSettings(); renderNotifHistory(); renderTTHistory(); }
       if (tab === 'attendance') { populateAttendanceSections(); renderAttendanceRecords(); }
     }
@@ -993,6 +1031,60 @@
       localStorage.setItem('sf_timetables', JSON.stringify(tts));
       renderTTHistory();
       showToast('Timetable deleted', 'info');
+    }
+
+
+    // ==================== WEBSITE REVIEWS ====================
+    function renderWebsiteReviews() {
+      var reviews = JSON.parse(localStorage.getItem('sfft_website_reviews') || '[]');
+      reviews.sort(function(a,b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+      
+      // Stats
+      var total = reviews.length;
+      var avg = total ? (reviews.reduce(function(s,r) { return s + r.rating; }, 0) / total).toFixed(1) : '0';
+      var fiveStar = total ? Math.round(reviews.filter(function(r) { return r.rating === 5; }).length / total * 100) : 0;
+      
+      document.getElementById('reviewTotalCount').textContent = total;
+      document.getElementById('reviewAvgRating').textContent = avg + '/5';
+      document.getElementById('review5StarPct').textContent = fiveStar + '%';
+      
+      var el = document.getElementById('reviewsList');
+      if (!reviews.length) {
+        el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><div style="font-size:36px;margin-bottom:8px;">&#11088;</div><div style="font-weight:600;">No reviews yet</div><div style="font-size:13px;margin-top:4px;">Reviews from login pages will appear here</div></div>';
+        return;
+      }
+      
+      el.innerHTML = reviews.map(function(r) {
+        var stars = '';
+        for (var i = 0; i < 5; i++) stars += '<span style="color:' + (i < r.rating ? '#d97706' : 'var(--border-light)') + ';font-size:16px;">&#9733;</span>';
+        return '<div style="padding:16px;border-bottom:1px solid var(--border-light);">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<div style="font-weight:600;font-size:14px;">' + (r.name || 'Anonymous') + '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<span style="font-size:11px;color:var(--text-muted);">' + (r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '') + '</span>' +
+              '<button onclick="deleteReview(\'' + r.id + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;">&#128465;</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-bottom:6px;">' + stars + '</div>' +
+          (r.comment ? '<div style="font-size:13px;color:var(--text-sub);line-height:1.5;">' + r.comment + '</div>' : '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">No comment</div>') +
+          '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;">From: ' + (r.page || 'Unknown page') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+    
+    function deleteReview(id) {
+      var reviews = JSON.parse(localStorage.getItem('sfft_website_reviews') || '[]');
+      reviews = reviews.filter(function(r) { return r.id !== id; });
+      localStorage.setItem('sfft_website_reviews', JSON.stringify(reviews));
+      renderWebsiteReviews();
+      showToast('Review deleted', 'info');
+    }
+    
+    function clearAllReviews() {
+      if (!confirm('Delete all website reviews?')) return;
+      localStorage.setItem('sfft_website_reviews', '[]');
+      renderWebsiteReviews();
+      showToast('All reviews cleared', 'info');
     }
 
     // ---- Toast ----
