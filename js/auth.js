@@ -12,9 +12,48 @@ function generateSessionToken() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
+// ---- Firestore user lookup fallback ----
+// Used when a user exists in Firestore but hasn't been synced to localStorage yet.
+async function fetchUserFromFirestore(email) {
+  try {
+    if (typeof db === 'undefined') return null;
+    var normalizedEmail = email.toLowerCase();
+    var snap = await db.collection('users').where('email', '==', normalizedEmail).get();
+    if (snap.empty) {
+      // Some documents may have been stored with original casing
+      snap = await db.collection('users').where('email', '==', email).get();
+    }
+    if (snap.empty) return null;
+    var data = snap.docs[0].data();
+    // Ensure the local id field is populated (Firestore may store it as customId)
+    if (!data.id && data.customId) data.id = data.customId;
+    if (!data.email) data.email = normalizedEmail;
+    // Merge into localStorage so subsequent calls use the fast path
+    var users = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+    var idx = users.findIndex(function(u) {
+      return (u.email || '').toLowerCase() === normalizedEmail;
+    });
+    if (idx > -1) {
+      users[idx] = Object.assign({}, users[idx], data);
+    } else {
+      users.push(data);
+    }
+    localStorage.setItem('sfft_users', JSON.stringify(users));
+    return getUserByEmail(email);
+  } catch (e) {
+    console.warn('[Auth] Firestore user lookup failed:', e.message);
+    return null;
+  }
+}
+
 // ---- Firebase Auth Login ----
 async function login(email, password) {
   var localUser = getUserByEmail(email);
+  if (!localUser) {
+    // User may not have been synced to localStorage yet — try Firestore directly
+    console.log('[Auth] User not in localStorage, trying Firestore for:', email);
+    localUser = await fetchUserFromFirestore(email);
+  }
   if (!localUser) throw new Error('No account found with this email.');
   if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
 
@@ -106,6 +145,11 @@ async function googleLogin(credential, expectedRole) {
   var email = (payload.email || '').toLowerCase();
 
   var localUser = getUserByEmail(email);
+  if (!localUser) {
+    // User may not have been synced to localStorage yet — try Firestore directly
+    console.log('[Auth] Google user not in localStorage, trying Firestore for:', email);
+    localUser = await fetchUserFromFirestore(email);
+  }
   if (!localUser) throw new Error('No account found for ' + email + '.\nAsk your admin to register this Google email.');
   if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
   if (expectedRole && localUser.role !== expectedRole) {

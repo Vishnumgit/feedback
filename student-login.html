@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Student Login — Feedback System</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
   <link rel="stylesheet" href="css/style.css?v=2" />
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -143,20 +144,50 @@
 
     let ok = true;
     if (!email) { emailErr.textContent = 'Email is required.'; emailErr.classList.add('show'); ok = false; }
-    else if (!validateCollegeEmail(email)) {
-      const d = getSettings().collegeDomain;
-      emailErr.textContent = `Please use your college email (@${d}).`;
-      emailErr.classList.add('show'); ok = false;
+    else {
+      // Fetch latest settings from Firestore before validating the domain
+      // so a fresh browser session uses the actual college domain, not the seed default.
+      try {
+        if (typeof db !== 'undefined') {
+          const settingsDoc = await db.collection('settings').doc('global').get();
+          if (settingsDoc.exists) {
+            const remoteSettings = settingsDoc.data();
+            if (remoteSettings && remoteSettings.collegeDomain) {
+              const localSettings = getSettings();
+              if (localSettings.collegeDomain !== remoteSettings.collegeDomain) {
+                localSettings.collegeDomain = remoteSettings.collegeDomain;
+                if (localSettings.collegeName !== remoteSettings.collegeName && remoteSettings.collegeName) {
+                  localSettings.collegeName = remoteSettings.collegeName;
+                }
+                saveSettings(localSettings);
+              }
+            }
+          }
+        }
+      } catch (settingsErr) {
+        console.warn('[Login] Could not fetch remote settings:', settingsErr.message);
+      }
+      if (!validateCollegeEmail(email)) {
+        const d = getSettings().collegeDomain;
+        emailErr.textContent = `Please use your college email (@${d}).`;
+        emailErr.classList.add('show'); ok = false;
+      }
     }
     if (!password) { passErr.textContent = 'Password is required.'; passErr.classList.add('show'); ok = false; }
     if (!ok) return;
 
+    const loginBtn = document.getElementById('loginBtn');
+    loginBtn.disabled = true;
+    loginBtn.querySelector('span').textContent = 'Signing in…';
     try {
       const s = await login(email, password);
       if (s.role !== 'student') { loginErr.textContent = 'This portal is for students only.'; loginErr.classList.add('show'); logout(); return; }
       window.location.href = 'student-dashboard.html';
     } catch(err) {
       loginErr.textContent = err.message; loginErr.classList.add('show');
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.querySelector('span').textContent = 'Sign In';
     }
   });
 </script>
