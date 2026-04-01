@@ -139,6 +139,8 @@
       { studentId: 'demo_s1', teacherId: 'demo_t1', subjectIds: ['demo_sub1', 'demo_sub2'], enrolledAt: Date.now() - 86400000 },
       { studentId: 'demo_s2', teacherId: 'demo_t1', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 },
       { studentId: 'demo_s3', teacherId: 'demo_t2', subjectIds: ['demo_sub3'], enrolledAt: Date.now() - 86400000 },
+      { studentId: 'demo_s3', teacherId: 'demo_t1', subjectIds: ['demo_sub1'], enrolledAt: Date.now() - 86400000 },
+      { studentId: 'demo_s1', teacherId: 'demo_t2', subjectIds: ['demo_sub3'], enrolledAt: Date.now() - 86400000 },
       { studentId: 'demo_student', teacherId: 'demo_t1', subjectIds: ['demo_sub1', 'demo_sub2'], enrolledAt: Date.now() - 86400000 },
       { studentId: 'demo_student', teacherId: 'demo_t2', subjectIds: ['demo_sub3'], enrolledAt: Date.now() - 86400000 },
       // Enrollments for demo_teacher so teacher dashboard shows enrolled students
