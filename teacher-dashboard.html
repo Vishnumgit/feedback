@@ -937,7 +937,7 @@
     <div style="margin-top:4px;">Confidential &mdash; For authorized use only &mdash; ${reportDate}</div>
   </div>
 </div>
-<script>window.onload=function(){setTimeout(window.print,400);};<\/script>
+<script>window.onload=function(){if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){window.print();});}else{setTimeout(window.print,400);}};<\/script>
 </body>
 </html>`;
 
