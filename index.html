@@ -49,34 +49,52 @@
     <div class="landing-hero animate-in">
       <div class="hero-tag">&#x1F393; Educational Quality Platform</div>
       <h1 class="hero-title">Student Feedback<br><span>for Teachers</span></h1>
+
+      <!-- ✅ FIX 1: Visible LCP image — fixes NO_LCP error on mobile -->
+      <img
+        src="images/image.png"
+        alt="MGIT Student Feedback System — Feedback platform for students and teachers"
+        width="600"
+        height="300"
+        fetchpriority="high"
+        loading="eager"
+        style="width:100%;max-width:600px;height:auto;border-radius:12px;margin:16px 0;display:block;"
+      />
+
       <p class="hero-desc">A transparent, anonymous, and structured system for collecting student feedback to enhance teaching quality and professional development.</p>
-     
     </div>
 
     <div class="role-cards animate-in delay-1" id="roleCards">
-      <a href="student-login.html" class="role-card" id="studentCard">
+      <!-- ✅ FIX 2: aria-label added to all role cards for Accessibility 100 -->
+      <a href="student-login.html" class="role-card" id="studentCard" aria-label="Login as Student to submit feedback">
         <div class="role-card-icon" style="background: rgba(59,130,246,0.15);">&#x1F393;</div>
         <div class="role-card-title">Student</div>
         <div class="role-card-desc">Submit feedback for your teachers anonymously and help improve the quality of education.</div>
-        <span class="role-card-arrow">→</span>
+        <span class="role-card-arrow" aria-hidden="true">→</span>
       </a>
 
-      <a href="teacher-login.html" class="role-card" id="teacherCard">
+      <a href="teacher-login.html" class="role-card" id="teacherCard" aria-label="Login as Teacher to view feedback dashboard">
         <div class="role-card-icon" style="background: rgba(16,185,129,0.15);">👨‍&#x1F3EB;</div>
         <div class="role-card-title">Teacher</div>
         <div class="role-card-desc">View your personalized feedback dashboard with detailed analytics and student insights.</div>
-        <span class="role-card-arrow">→</span>
+        <span class="role-card-arrow" aria-hidden="true">→</span>
       </a>
 
-      <a href="admin-login.html" class="role-card" id="adminCard">
+      <a href="admin-login.html" class="role-card" id="adminCard" aria-label="Login as Administrator to manage the system">
         <div class="role-card-icon" style="background: rgba(124,58,237,0.15);">&#x2699;️</div>
         <div class="role-card-title">Administrator</div>
         <div class="role-card-desc">Manage users, configure questionnaires, assign teachers, and generate institutional reports.</div>
-        <span class="role-card-arrow">→</span>
+        <span class="role-card-arrow" aria-hidden="true">→</span>
       </a>
     </div>
 
-    <a href="report.html" style="display:inline-flex;align-items:center;gap:8px;margin-top:36px;padding:12px 28px;background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(59,130,246,0.15));border:1px solid rgba(124,58,237,0.3);border-radius:8px;text-decoration:none;color:var(--text-primary);font-size:14px;font-weight:500;transition:all 0.3s;" onmouseover="this.style.background='linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.25))'" onmouseout="this.style.background='linear-gradient(135deg,rgba(124,58,237,0.2),rgba(59,130,246,0.15))'">📊 View Public Reports</a>
+    <a href="report.html"
+       aria-label="View Public Feedback Reports"
+       style="display:inline-flex;align-items:center;gap:8px;margin-top:36px;padding:12px 28px;background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(59,130,246,0.15));border:1px solid rgba(124,58,237,0.3);border-radius:8px;text-decoration:none;color:var(--text-primary);font-size:14px;font-weight:500;transition:all 0.3s;"
+       onmouseover="this.style.background='linear-gradient(135deg,rgba(124,58,237,0.3),rgba(59,130,246,0.25))'"
+       onmouseout="this.style.background='linear-gradient(135deg,rgba(124,58,237,0.2),rgba(59,130,246,0.15))'">
+      📊 View Public Reports
+    </a>
 
     <p style="margin-top: 40px; font-size: 12px; color: var(--text-muted); text-align:center;">
       All feedback is collected anonymously &nbsp;·&nbsp; Powered by your institution's secure portal
