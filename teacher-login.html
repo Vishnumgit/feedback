@@ -11,6 +11,12 @@
   <meta property="og:type" content="website" />
   <link rel="canonical" href="https://mgitfeedback.me/teacher-login.html" />
   <title>Teacher Login — Feedback System</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👨‍🏫</text></svg>" />
+  <!-- Preconnect for Google Fonts (reduces FCP) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Preload main stylesheet (reduces render-blocking) -->
+  <link rel="preload" href="css/style.css?v=2" as="style" />
   <link rel="stylesheet" href="css/style.css?v=2" />
 </head>
 <body>
@@ -75,14 +81,16 @@
         </div>
         <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border-light);text-align:center;">
           <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">&#11088; Rate This Website</div>
-          <div id="starRating" style="display:flex;justify-content:center;gap:4px;margin-bottom:10px;">
-            <span onclick="setRating(1)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
-            <span onclick="setRating(2)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
-            <span onclick="setRating(3)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
-            <span onclick="setRating(4)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
-            <span onclick="setRating(5)" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+          <div id="starRating" style="display:flex;justify-content:center;gap:4px;margin-bottom:10px;" role="group" aria-label="Star rating">
+            <span onclick="setRating(1)" role="button" tabindex="0" aria-label="1 star" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(2)" role="button" tabindex="0" aria-label="2 stars" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(3)" role="button" tabindex="0" aria-label="3 stars" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(4)" role="button" tabindex="0" aria-label="4 stars" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
+            <span onclick="setRating(5)" role="button" tabindex="0" aria-label="5 stars" style="font-size:28px;cursor:pointer;color:var(--border);">&#9733;</span>
           </div>
+          <label for="reviewName" class="sr-only">Your name (optional)</label>
           <input id="reviewName" type="text" placeholder="Your name (optional)" style="width:100%;padding:10px 14px;border:1.5px solid var(--border-light);border-radius:10px;background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;margin-bottom:8px;outline:none;" />
+          <label for="reviewComment" class="sr-only">Your review comment</label>
           <textarea id="reviewComment" placeholder="Share your thoughts..." rows="2" style="width:100%;padding:10px 14px;border:1.5px solid var(--border-light);border-radius:10px;background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;outline:none;"></textarea>
           <button onclick="submitReview()" style="margin-top:8px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Submit Review</button>
           <div id="reviewMsg" style="font-size:12px;color:var(--success);margin-top:6px;display:none;"></div>

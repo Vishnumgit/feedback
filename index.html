@@ -10,10 +10,13 @@
   <!-- Canonical URL -->
   <link rel="canonical" href="https://mgitfeedback.me/" />
   
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+
   <!-- Open Graph Tags -->
   <meta property="og:title" content="MGIT Student Feedback System" />
   <meta property="og:description" content="Student Feedback Form for Teachers — Enhance educational quality through structured, anonymous feedback." />
-  <meta property="og:image" content="https://mgitfeedback.me/images/preview.png" />
+  <meta property="og:image" content="https://mgitfeedback.me/images/image.png" />
   <meta property="og:url" content="https://mgitfeedback.me/" />
   <meta property="og:type" content="website" />
   
@@ -26,7 +29,17 @@
     "description": "Student feedback management system for MGIT"
   }
   </script>
+
+  <!-- Preconnect for Google Fonts (reduces FCP) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Preload main stylesheet (reduces render-blocking) -->
+  <link rel="preload" href="css/style.css?v=2" as="style" />
   <link rel="stylesheet" href="css/style.css?v=2" />
+
+  <!-- Preload hero image for LCP -->
+  <link rel="preload" href="images/image.png" as="image" fetchpriority="high" />
 </head>
 <body>
 <div class="bg-orbs"></div>
@@ -37,6 +50,17 @@
       <div class="hero-tag">&#x1F393; Educational Quality Platform</div>
       <h1 class="hero-title">Student Feedback<br><span>for Teachers</span></h1>
       <p class="hero-desc">A transparent, anonymous, and structured system for collecting student feedback to enhance teaching quality and professional development.</p>
+      <img
+        src="images/image.png"
+        srcset="images/image.png 1920w"
+        sizes="(max-width: 600px) 100vw, (max-width: 1200px) 80vw, 640px"
+        alt="MGIT Feedback System — student feedback platform for teachers at Mahatma Gandhi Institute of Technology"
+        class="hero-image"
+        loading="eager"
+        fetchpriority="high"
+        width="640"
+        height="400"
+      />
     </div>
 
     <div class="role-cards animate-in delay-1" id="roleCards">

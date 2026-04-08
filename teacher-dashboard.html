@@ -11,6 +11,12 @@
   <meta property="og:type" content="website" />
   <link rel="canonical" href="https://mgitfeedback.me/teacher-dashboard.html" />
   <title>Teacher Dashboard — Feedback System</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👨‍🏫</text></svg>" />
+  <!-- Preconnect for Google Fonts (reduces FCP) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Preload main stylesheet (reduces render-blocking) -->
+  <link rel="preload" href="css/style.css?v=2" as="style" />
   <link rel="stylesheet" href="css/style.css?v=2" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
   function showToast(msg, type) {
@@ -55,7 +61,7 @@
         <div class="user-role" id="sidebarSubject">Teacher</div>
         <div id="sidebarDeptSection" style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;"></div>
       </div>
-      <button class="btn-logout" onclick="logout()" title="Logout">⬡</button>
+      <button class="btn-logout" onclick="logout()" title="Logout" aria-label="Logout">⬡</button>
     </div>
 
   </nav>
