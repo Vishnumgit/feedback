@@ -13,6 +13,12 @@
   <meta property="og:type" content="website" />
   <link rel="canonical" href="https://mgitfeedback.me/admin-dashboard.html" />
   <title>Admin Dashboard – Feedback System</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>" />
+  <!-- Preconnect for Google Fonts (reduces FCP) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Preload main stylesheet (reduces render-blocking) -->
+  <link rel="preload" href="css/style.css?v=2" as="style" />
   <link rel="stylesheet" href="css/style.css?v=2" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -59,7 +65,7 @@
           <div class="user-name" id="sidebarName">Admin</div>
           <div class="user-role">Administrator</div>
         </div>
-        <button class="btn-logout" onclick="logout()" title="Logout">⇥</button>
+        <button class="btn-logout" onclick="logout()" title="Logout" aria-label="Logout">⇥</button>
       </div>
     </nav>
 
@@ -971,7 +977,7 @@
           return '<div style="padding:8px;border-bottom:1px solid var(--border-light);font-size:12px;">' +
             '<div style="display:flex;justify-content:space-between;">' +
               '<span style="font-weight:600;">' + n.title + '</span>' +
-              '<button onclick="deleteNotification(\'' + n.id + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
+              '<button onclick="deleteNotification(\'' + n.id + '\')" aria-label="Delete notification" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
             '</div>' +
             '<div style="color:var(--text-muted);font-size:11px;">' + n.category + ' | ' + new Date(n.timestamp).toLocaleString() + '</div>' +
           '</div>';
@@ -1026,7 +1032,7 @@
           return '<div style="padding:8px;border-bottom:1px solid var(--border-light);font-size:12px;">' +
             '<div style="display:flex;justify-content:space-between;">' +
               '<span style="font-weight:600;">' + t.title + '</span>' +
-              '<button onclick="deleteTimetable(\'' + t.id + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
+              '<button onclick="deleteTimetable(\'' + t.id + '\')" aria-label="Delete timetable" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
             '</div>' +
             '<div style="color:var(--text-muted);font-size:11px;">' + (t.department || 'All') + (t.section ? ' - ' + t.section : '') + ' | ' + new Date(t.timestamp).toLocaleString() + '</div>' +
           '</div>';
@@ -1071,7 +1077,7 @@
             '<div style="font-weight:600;font-size:14px;">' + (r.name || 'Anonymous') + '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
               '<span style="font-size:11px;color:var(--text-muted);">' + (r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '') + '</span>' +
-              '<button onclick="deleteReview(\'' + r.id + '\')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;">&#128465;</button>' +
+              '<button onclick="deleteReview(\'' + r.id + '\')" aria-label="Delete review" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;">&#128465;</button>' +
             '</div>' +
           '</div>' +
           '<div style="margin-bottom:6px;">' + stars + '</div>' +
@@ -1189,7 +1195,7 @@
         <td>${u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-xs" onclick="openEditUser('${u.id}')">&#9999;&#65039; Edit</button>
-          <button class="btn btn-danger btn-xs" onclick="removeUser('${u.id}')">&#128465;&#65039;</button>
+          <button class="btn btn-danger btn-xs" onclick="removeUser('${u.id}')" aria-label="Delete user">&#128465;&#65039;</button>
         </td>
       </tr>`;
     }).join('')}</tbody></table>`;
@@ -1310,7 +1316,7 @@ function renderSubjects() {
           </div>
           <div style="display:flex; gap:8px;">
             <button class="btn btn-secondary btn-sm" onclick="openQModal('${sub.id}')">&#9999;&#65039; Edit Questionnaire</button>
-            <button class="btn btn-danger btn-sm" onclick="removeSubject('${sub.id}')">&#128465;&#65039;</button>
+            <button class="btn btn-danger btn-sm" onclick="removeSubject('${sub.id}')" aria-label="Delete subject">&#128465;&#65039;</button>
           </div>
         </div>
         ${teachers.length ? `<div class="section-card-body" style="padding-top:0;">
@@ -1368,7 +1374,7 @@ function renderQEditor(subjectId) {
         ${sec.questions.map((q, qi) => `
           <div class="q-item" id="qitem_${si}_${qi}">
             <input type="text" id="qtext_${si}_${qi}" value="${q}" placeholder="Question ${qi+1}" />
-            <button class="btn btn-danger btn-xs" onclick="removeQuestion(${si},${qi})">&#10004;</button>
+            <button class="btn btn-danger btn-xs" onclick="removeQuestion(${si},${qi})" aria-label="Remove question">&#10004;</button>
           </div>`).join('')}
       </div>
       <button class="btn btn-secondary btn-xs" style="margin-top:8px;" onclick="addQuestion(${si})">+ Add Question</button>
