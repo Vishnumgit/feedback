@@ -260,3 +260,72 @@ exports.confirmPasswordReset = onCall(async (request) => {
     throw new HttpsError('internal', 'Failed to reset password. Please try again.');
   }
 });
+
+
+// ============================================================
+// sendPushNotification({ fcm_token, title, body, data })
+// ============================================================
+// Callable Cloud Function to send FCM push notifications.
+// Uses Firebase Admin SDK — no external dependencies needed.
+// Auto-cleans stale tokens from fcm_tokens collection.
+// ============================================================
+exports.sendPushNotification = onCall(async (request) => {
+  const { fcm_token, title, body, data } = request.data || {};
+
+  if (!fcm_token || !title) {
+    throw new HttpsError('invalid-argument', 'fcm_token and title are required.');
+  }
+
+  const message = {
+    token: fcm_token,
+    notification: { title: title, body: body || '' },
+    data: Object.fromEntries(
+      Object.entries(data || {}).map(([k, v]) => [k, String(v)])
+    ),
+    webpush: {
+      headers: { Urgency: 'high' },
+      notification: {
+        title: title,
+        body: body || '',
+        icon: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>\u{1F514}</text></svg>',
+        requireInteraction: true
+      },
+      fcm_options: {
+        link: data && data.url
+          ? 'https://mgitfeedback.me' + data.url
+          : 'https://mgitfeedback.me/student-dashboard.html#notifications'
+      }
+    }
+  };
+
+  try {
+    const result = await admin.messaging().send(message);
+    console.log('[Push] Sent:', result);
+    return { success: true, messageId: result };
+  } catch (err) {
+    console.error('[Push] Error:', err.code, err.message);
+
+    // Auto-cleanup stale tokens
+    if (
+      err.code === 'messaging/invalid-registration-token' ||
+      err.code === 'messaging/registration-token-not-registered'
+    ) {
+      try {
+        const snapshot = await db.collection('fcm_tokens')
+          .where('token', '==', fcm_token).get();
+        const batch = db.batch();
+        snapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        console.log('[Push] Cleaned up', snapshot.size, 'stale token(s)');
+      } catch (e) { console.warn('[Push] Cleanup failed:', e.message); }
+
+      return {
+        success: false,
+        error: 'TOKEN_EXPIRED',
+        message: 'Student token expired. They need to re-open the student dashboard.'
+      };
+    }
+
+    throw new HttpsError('internal', 'Push failed: ' + err.message);
+  }
+});
