@@ -770,6 +770,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/data.js"></script>
   <script src="js/auth.js"></script>
@@ -777,6 +778,7 @@
   <script src="js/firebase-sync.js"></script>
   <script>
     fbInit();
+  var sendPushFn = firebase.app().functions('us-central1').httpsCallable('sendPushNotification');
     const session = requireAuth('admin');
     startSessionListener();
     document.getElementById('sidebarName').textContent = session.name;
@@ -913,24 +915,15 @@
             if (data.token) {
               var studentName = data.name || 'Student';
               console.log('[Push] Sending notification to ' + studentName);
-              var p = fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-api-key': 'cwk-7823a045f520e66cea8bb225e49afa87562157bc0c788c53785b5784825f48d0' },
-                body: JSON.stringify({
+              var p = sendPushFn({
                   fcm_token: data.token,
                   title: title,
                   body: message,
-                  data: {
-                    type: notifType,
-                    category: category
-                  }
-                })
-              }).then(function(r) { return r.json(); })
-                .then(function(result) {
-                  console.log('[Push] Result for ' + studentName + ':', result);
-                  return { success: true, name: studentName };
-                })
-                .catch(function(err) {
+                  data: { type: notifType, category: category }
+                }).then(function(res) {
+                  console.log('[Push] Result for ' + studentName + ':', res.data);
+                  return { success: res.data.success !== false, name: studentName };
+                }).catch(function(err) {
                   console.warn('[Push] Error sending to ' + studentName + ':', err.message);
                   return { success: false, name: studentName };
                 });
@@ -1695,12 +1688,9 @@ function saveAssignments() {
             ? teacherName + ' (' + teacherSubject + ') has been assigned to you for feedback. Open your dashboard to submit!'
             : teacherName + ' has been assigned to you for feedback. Open your dashboard to submit!';
           // Call CodeWords FCM Push Notifier service with type metadata
-          fetch('https://runtime.codewords.ai/run/fcm_push_notifier_3b1eed8d/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': 'cwk-7823a045f520e66cea8bb225e49afa87562157bc0c788c53785b5784825f48d0' },
-            body: JSON.stringify({
+          sendPushFn({
               fcm_token: fcmToken,
-              title: '🎓 New Teacher Assigned: ' + teacherName,
+              title: '\ud83c\udf93 New Teacher Assigned: ' + teacherName,
               body: notifBody,
               data: {
                 type: 'assignment',
@@ -1708,10 +1698,12 @@ function saveAssignments() {
                 teacherSubject: teacherSubject,
                 url: '/feedback/student-dashboard.html#teachers'
               }
-            })
-          }).then(function(r) { return r.json(); })
-            .then(function(result) { console.log('[Push] Result:', result); })
-            .catch(function(err) { console.warn('[Push] Error:', err.message); });
+            }).then(function(res) {
+              console.log('[Push] Result:', res.data);
+              if (res.data && res.data.error === 'TOKEN_EXPIRED') {
+                console.warn('[Push] Token expired, auto-cleaned from Firestore');
+              }
+            }).catch(function(err) { console.warn('[Push] Error:', err.message); });
         } else {
           console.log('[Push] No FCM token for student (not registered or missing):', sId);
         }
