@@ -69,7 +69,7 @@ async function sendResetEmail(toEmail, resetLink) {
 // ============================================================
 // Called from Step 1 (Forgot Password form).
 // Always returns { success: true } to prevent account enumeration.
-exports.requestPasswordReset = onCall(async (request) => {
+exports.requestPasswordReset = onCall({ cors: true }, async (request) => {
   const email = ((request.data && request.data.email) || '').toLowerCase().trim();
 
   // Always return success — prevents account enumeration
@@ -130,7 +130,7 @@ exports.requestPasswordReset = onCall(async (request) => {
 // ============================================================
 // Called from Step 2 (reset-password.html on load with ?token=).
 // Returns { valid: true, email } or { valid: false }.
-exports.verifyResetToken = onCall(async (request) => {
+exports.verifyResetToken = onCall({ cors: true }, async (request) => {
   const token = (request.data && request.data.token) || '';
 
   if (!token) {
@@ -164,7 +164,7 @@ exports.verifyResetToken = onCall(async (request) => {
 // Hashes the password with bcrypt (server-side), updates Firestore,
 // updates Firebase Auth, marks the token as used, and returns
 // the user's profile fields so the client can update localStorage.
-exports.confirmPasswordReset = onCall(async (request) => {
+exports.confirmPasswordReset = onCall({ cors: true }, async (request) => {
   const token       = (request.data && request.data.token)       || '';
   const newPassword = (request.data && request.data.newPassword) || '';
 
@@ -269,7 +269,7 @@ exports.confirmPasswordReset = onCall(async (request) => {
 // Uses Firebase Admin SDK — no external dependencies needed.
 // Auto-cleans stale tokens from fcm_tokens collection.
 // ============================================================
-exports.sendPushNotification = onCall(async (request) => {
+exports.sendPushNotification = onCall({ cors: true }, async (request) => {
   const { fcm_token, title, body, data } = request.data || {};
 
   if (!fcm_token || !title) {
