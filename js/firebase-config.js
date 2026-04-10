@@ -1,24 +1,15 @@
 // ============================================================
 // firebase-config.js — Firebase Initialization (Compat SDK)
 // ============================================================
-// Credentials are loaded from window.ENV which is populated by
-// js/env-loader.js reading a git-ignored .env file.
-// See .env.example for the required variables.
 
-var _env = window.ENV || {};
 const firebaseConfig = {
-  apiKey:             _env.FIREBASE_API_KEY             || "",
-  authDomain:         _env.FIREBASE_AUTH_DOMAIN         || "",
-  projectId:          _env.FIREBASE_PROJECT_ID          || "",
-  storageBucket:      _env.FIREBASE_STORAGE_BUCKET      || "",
-  messagingSenderId:  _env.FIREBASE_MESSAGING_SENDER_ID || "",
-  appId:              _env.FIREBASE_APP_ID              || ""
+  apiKey: "AIzaSyC9R2FKE9gwinvVocs92EtPjoFHG2TfDWM",
+  authDomain: "student-feedback-form-489916.firebaseapp.com",
+  projectId: "student-feedback-form-489916",
+  storageBucket: "student-feedback-form-489916.firebasestorage.app",
+  messagingSenderId: "592918420084",
+  appId: "1:592918420084:web:2a263dafcd489826c2cf21"
 };
-
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.error('[Firebase] Missing credentials. Copy .env.example to .env and fill in your Firebase credentials.');
-  throw new Error('Firebase credentials not configured. See .env.example for setup instructions.');
-}
 
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
