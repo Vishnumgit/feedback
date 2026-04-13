@@ -63,14 +63,45 @@
   .ct-fix{background:rgba(239,68,68,0.2);color:#fca5a5;}
   .back-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;background:rgba(124,58,237,0.2);border:1.5px solid rgba(124,58,237,0.4);color:#c4b5fd;border-radius:10px;text-decoration:none;font-weight:700;font-size:13px;margin-bottom:20px;transition:all 0.2s;}
   .back-btn:hover{background:rgba(124,58,237,0.35);}
+  .pdf-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;background:rgba(34,197,94,0.2);border:1.5px solid rgba(34,197,94,0.4);color:#86efac;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;margin-bottom:20px;margin-left:10px;transition:all 0.2s;font-family:inherit;}
+  .pdf-btn:hover{background:rgba(34,197,94,0.35);}
   .footer{text-align:center;padding:24px 0;margin-top:16px;border-top:2px solid rgba(124,58,237,0.2);font-size:11px;color:#64748b;}
-  @media(max-width:700px){.stats-grid,.arch-grid{grid-template-columns:1fr 1fr;}.feat-grid{grid-template-columns:1fr;}}
-  @media print{body{background:#fff;color:#1e293b;}.stat-card,.arch-card,.feat-card{border-color:#e2e8f0;background:#f8fafc;}.stat-card .num{color:#7c3aed;}.section-title{color:#1e293b;}.back-btn{display:none;}}
+  /* Line-by-line analysis styles */
+  .analysis-file{background:rgba(15,23,42,0.9);border:1.5px solid rgba(124,58,237,0.25);border-radius:16px;margin-bottom:20px;overflow:hidden;}
+  .analysis-file-header{background:rgba(124,58,237,0.18);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .analysis-file-name{font-size:14px;font-weight:800;color:#c4b5fd;font-family:monospace;}
+  .analysis-file-meta{font-size:11px;color:#94a3b8;}
+  .analysis-body{padding:0;}
+  .line-group{border-bottom:1px solid rgba(100,116,139,0.1);}
+  .line-group:last-child{border-bottom:none;}
+  .line-range{display:flex;align-items:flex-start;gap:0;}
+  .line-nums{background:rgba(124,58,237,0.08);color:#7c3aed;font-family:monospace;font-size:11px;font-weight:700;padding:10px 14px;min-width:90px;text-align:right;white-space:nowrap;flex-shrink:0;border-right:1.5px solid rgba(124,58,237,0.15);}
+  .line-desc{padding:10px 16px;font-size:12px;color:#cbd5e1;line-height:1.65;}
+  .line-desc strong{color:#e2e8f0;font-weight:700;}
+  .line-desc code{background:rgba(124,58,237,0.15);color:#c4b5fd;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:11px;}
+  @media(max-width:700px){.stats-grid,.arch-grid{grid-template-columns:1fr 1fr;}.feat-grid{grid-template-columns:1fr;}.line-nums{min-width:60px;}}
+  @media print{
+    @page{margin:15mm 12mm;}
+    body{background:#fff!important;color:#1e293b!important;}
+    .stat-card,.arch-card,.feat-card,.analysis-file{border-color:#e2e8f0!important;background:#f8fafc!important;}
+    .stat-card .num{color:#7c3aed!important;}
+    .section-title{color:#1e293b!important;border-bottom-color:#7c3aed!important;}
+    .back-btn,.pdf-btn{display:none!important;}
+    .header{background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(59,130,246,0.06))!important;border-color:rgba(124,58,237,0.4)!important;}
+    .header h1{-webkit-text-fill-color:#4c1d95!important;background:none!important;color:#4c1d95!important;}
+    .header .sub,.info-table td,.file-table td,.arch-card li,.commit-msg,.line-desc{color:#374151!important;}
+    .analysis-file-header{background:rgba(124,58,237,0.12)!important;}
+    .line-nums{background:rgba(124,58,237,0.06)!important;color:#6d28d9!important;}
+    .flow-box{background:rgba(124,58,237,0.08)!important;color:#4c1d95!important;border-color:rgba(124,58,237,0.4)!important;}
+    .section{page-break-inside:avoid;}
+    .analysis-file{page-break-inside:avoid;}
+  }
 </style>
 </head>
 <body>
 <div class="container">
   <a href="index.html" class="back-btn">&#8592; Back to Home</a>
+  <button class="pdf-btn" onclick="window.print()">&#128196; Download as PDF</button>
   <div class="header">
     <h1>&#128202; Feedback System &mdash; Project Report</h1>
     <div class="sub">Student, Teacher &amp; Admin Portal &middot; Built by P Vishnuvardhan Reddy</div>
@@ -215,6 +246,152 @@
       <div class="arch-card"><h4>DevOps / Tools</h4><ul><li>GitHub (Version Control)</li><li>CodeWords (AI Automation)</li><li>Pipedream (GitHub API)</li><li>20 Commits in 1 Day</li><li>Zero-framework approach</li><li>No build step needed</li></ul></div>
     </div>
   </div>
+  <div class="section">
+    <div class="section-title">&#128269; Detailed File Analysis — Line by Line</div>
+
+    <!-- data.js -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">js/data.js</span>
+        <span class="analysis-file-meta">309 lines &middot; 17 KB &middot; localStorage Data Layer</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–13</div><div class="line-desc"><strong>DB key constants</strong> — Defines the <code>DB</code> object mapping 7 collection names (<code>USERS</code>, <code>SUBJECTS</code>, <code>QUESTIONNAIRES</code>, <code>ENROLLMENTS</code>, <code>RESPONSES</code>, <code>ATTENDANCE</code>, <code>SETTINGS</code>) to their <code>sfft_*</code> localStorage keys. Centralises all key strings to prevent typos across the codebase.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">15–21</div><div class="line-desc"><strong>CRUD helpers</strong> — Four tiny arrow functions: <code>get()</code>/<code>set()</code> parse/stringify JSON arrays, <code>getObj()</code>/<code>setObj()</code> do the same for plain objects. Used by every higher-level function to read/write localStorage.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">24–82</div><div class="line-desc"><strong>Password hashing (<code>hashPassword</code>)</strong> — Async function. Tries <code>crypto.subtle.digest('SHA-256')</code> (available only on HTTPS). Falls back to a self-contained pure-JS SHA-256 implementation for HTTP environments. Returns a lowercase hex string. Both admin, teacher and student default demo passwords are pre-hashed with this function.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">85–187</div><div class="line-desc"><strong>Database initialisation (<code>initDB</code>)</strong> — Runs once per device (guarded by <code>sfft_initialized</code> flag). Seeds: 1 admin + 3 sample teachers + 5 sample students with SHA-256 hashed passwords; 5 subjects; detailed 5-section questionnaires per subject (Math, Physics, English, CS, Chemistry); empty arrays for enrollments, attendance and responses; default settings object with college domain, name and minimum score threshold.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">188–199</div><div class="line-desc"><strong>Settings CRUD</strong> — <code>getSettings()</code> returns the settings object; <code>saveSettings(s)</code> persists it. Used by admin panel to store/read college name, email domain and min threshold.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">200–240</div><div class="line-desc"><strong>User CRUD</strong> — <code>getUsers()</code>, <code>getUserByEmail()</code> (case-insensitive), <code>getUserById()</code>. <code>saveUser(u)</code> upserts by id. <code>deleteUser(id)</code> removes a user and cascades deletion of their enrollments and responses. <code>getTeachers()</code>/<code>getStudents()</code> are role-filtered views.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">241–260</div><div class="line-desc"><strong>Enrollment functions</strong> — <code>getEnrollments()</code> returns all enrollment records. <code>getTeachersForStudent(studentId)</code> returns teacher objects augmented with <code>_enrolledSubjectId</code> — one entry per teacher-subject pair. <code>getStudentsForTeacher(teacherId)</code> returns matching student objects.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">261–310</div><div class="line-desc"><strong>Feedback response functions</strong> — <code>hasSubmitted(studentId, teacherId, subjectId)</code> checks if feedback already exists for the specific teacher+subject pair. <code>saveResponse(r)</code> inserts a response only if no duplicate exists. <code>getResponsesForTeacher(teacherId)</code> returns all responses for a teacher. <code>getTeacherStats(teacherId)</code> computes overall average, per-section averages, rating distribution histogram, trend data and comment list from the stored responses.</div></div></div>
+      </div>
+    </div>
+
+    <!-- auth.js -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">js/auth.js</span>
+        <span class="analysis-file-meta">320 lines &middot; 3 KB &middot; Authentication &amp; Session Management</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–13</div><div class="line-desc"><strong>Session key + token generator</strong> — <code>SESSION_KEY</code> constant for sessionStorage. <code>generateSessionToken()</code> creates a random token (timestamp base-36 + random suffix) to detect concurrent logins.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">15–47</div><div class="line-desc"><strong>Firestore user fetch fallback (<code>fetchUserFromFirestore</code>)</strong> — When a user logs in on a new device and their data isn't in localStorage yet, this async function queries the Firestore <code>users</code> collection by email and merges the result into localStorage. Handles case-sensitivity differences in stored emails.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">49–130</div><div class="line-desc"><strong>Email/password login (<code>login</code>)</strong> — Resolves the local user, then calls Firebase <code>auth.signInWithEmailAndPassword</code>. If the Firebase account doesn't exist yet (first login after admin setup), it auto-creates a Firebase Auth account using the supplied password (<em>auto-migration</em>). Falls back to anonymous sign-in if creation fails. Writes the user doc to Firestore as a non-blocking background operation (errors are caught and logged as console warnings), stores Firebase UID in localStorage, and saves a session object in sessionStorage.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">132–186</div><div class="line-desc"><strong>Google Sign-In (<code>googleLogin</code>, <code>googleLoginWithPopup</code>)</strong> — <code>googleLogin</code> decodes the Google JWT, looks up the user by email, signs in with Firebase <code>signInWithCredential</code>, and creates a session. <code>googleLoginWithPopup</code> wraps Google Identity Services (GIS) one-tap prompt with a rendered fallback button if the prompt is suppressed.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">216–246</div><div class="line-desc"><strong>Session concurrency listener (<code>startSessionListener</code>)</strong> — Writes the session token to the Firestore user doc, then subscribes to real-time updates. If another device changes the token, the listener signs the current session out and redirects to the home page with an alert.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">248–270</div><div class="line-desc"><strong>Logout &amp; auth guards</strong> — <code>logout()</code> clears sessionStorage and Firebase Auth state. <code>getSession()</code> reads the current session. <code>requireAuth(expectedRole)</code> redirects to home if no session or role mismatch — called at the top of every dashboard.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">271–320</div><div class="line-desc"><strong>Password management</strong> — <code>changePassword()</code> verifies the current password (hashed), updates Firebase Auth password, rehashes and saves the new password in localStorage and Firestore. <code>adminResetPassword()</code> skips the current-password check (admin only). <code>validateCollegeEmail()</code> checks that the email domain matches the configured college domain.</div></div></div>
+      </div>
+    </div>
+
+    <!-- firebase-sync.js -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">js/firebase-sync.js</span>
+        <span class="analysis-file-meta">237 lines &middot; 10 KB &middot; Firestore Background Sync</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–27</div><div class="line-desc"><strong>Firestore write helpers</strong> — <code>fsSetDoc(collection, docId, data)</code> strips <code>password</code> and <code>passwordHash</code> fields before writing (security). For the <code>users</code> collection it prefers the Firebase UID as the document key. <code>fsDeleteDoc(collection, docId)</code> deletes a Firestore document; both functions catch errors and log console warnings without propagating them, so the UI is never blocked by sync failures.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">29–60</div><div class="line-desc"><strong>Merge helpers</strong> — <code>mergeById(arr, item)</code> upserts an item into an array matching on <code>id</code> or <code>email</code> (fallback). <code>mergeByField(arr, item, field)</code> does the same for arbitrary fields (used for enrollments and attendance). Prevents duplicates when Firestore snapshots arrive out of order.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">62–120</div><div class="line-desc"><strong>Role-based pull sync</strong> — <code>syncFromFirestore(role, userId)</code> fetches only the data relevant to the logged-in role. Students fetch their own enrollments and responses. Teachers fetch responses for their teacher ID. Admins fetch all collections. A 5-minute timestamp cache prevents redundant Firestore reads.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">121–180</div><div class="line-desc"><strong>Push sync (localStorage → Firestore)</strong> — <code>pushToFirestore()</code> reads every localStorage collection and writes each item to Firestore as a separate document. Called non-blocking (not awaited) after any write operation so the UI stays responsive.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">181–237</div><div class="line-desc"><strong>Real-time listener setup</strong> — <code>setupRealtimeSync(role, userId)</code> attaches Firestore <code>onSnapshot</code> listeners so that changes made by an admin (new users, enrollments, settings) propagate to other open sessions without a page reload. Updates are merged into localStorage via the helper functions above.</div></div></div>
+      </div>
+    </div>
+
+    <!-- charts.js -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">js/charts.js</span>
+        <span class="analysis-file-meta">125 lines &middot; 4 KB &middot; Chart.js Rendering Helpers</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–9</div><div class="line-desc"><strong>Instance registry</strong> — <code>chartInstances</code> object tracks live Chart.js instances by canvas ID. <code>destroyChart(id)</code> destroys an existing chart before re-rendering to prevent memory leaks and duplicate canvas contexts.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">11–38</div><div class="line-desc"><strong><code>renderRadar(canvasId, teacherId)</code></strong> — Calls <code>getTeacherStats()</code> from <code>data.js</code>, extracts section labels and averages, and renders a purple radar chart showing performance across teaching categories (e.g., Teaching Methodology, Communication Skills, etc.).</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">40–65</div><div class="line-desc"><strong><code>renderBar(canvasId, teacherId)</code></strong> — Renders a stacked bar chart showing the distribution of 1–5 star ratings for a teacher. Each bar is colour-coded (red → green → purple) for quick visual interpretation of feedback quality.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">67–96</div><div class="line-desc"><strong><code>renderTrend(canvasId, teacherId)</code></strong> — Renders a filled line (area) chart of average score over time (each submission as a data point). Uses the <code>trendData</code> array from <code>getTeacherStats()</code> to show performance evolution.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">98–125</div><div class="line-desc"><strong><code>renderInstitutionBar(canvasId)</code></strong> — Admin-only chart. Calls <code>getInstitutionStats()</code> (returns per-teacher averages) and renders a bar chart comparing all teachers side-by-side. Cycles through 6 purple shades for visual variety.</div></div></div>
+      </div>
+    </div>
+
+    <!-- feedback-form.html -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">feedback-form.html</span>
+        <span class="analysis-file-meta">261 lines &middot; 12 KB &middot; Student Feedback Submission</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–30</div><div class="line-desc"><strong>Head &amp; dependencies</strong> — Loads <code>style.css</code>, Firebase SDK, <code>data.js</code>, <code>auth.js</code> and <code>firebase-sync.js</code>. All scripts deferred so the form HTML is parsed first.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">31–80</div><div class="line-desc"><strong>Attendance gate</strong> — On page load, calls <code>requireAuth('student')</code>, then reads the teacher and subject IDs from URL params. Fetches the student's attendance record and compares it against <code>ATTENDANCE_THRESHOLD</code> (75%). If below threshold, replaces the form with a locked message showing the student's actual percentage.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">81–140</div><div class="line-desc"><strong>Already-submitted guard</strong> — Calls <code>hasSubmitted(studentId, teacherId, subjectId)</code>. If true, shows a "Feedback already submitted" banner and hides the form. Prevents duplicate responses for the same teacher-subject pair.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">141–200</div><div class="line-desc"><strong>Dynamic form builder</strong> — Reads the questionnaire for the selected subject from <code>data.js</code>. For each section, generates a card with the section title and a 1–5 star rating input (<code>radio</code> buttons styled as stars) for each question. All sections are rendered dynamically — no hardcoded questions in HTML.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">201–261</div><div class="line-desc"><strong>Submission handler</strong> — Collects all star-rating values, validates that every question has been answered, builds a response object (<code>{ studentId, teacherId, subjectId, scores, comment, anonymous, timestamp }</code>), calls <code>saveResponse()</code> and <code>fsSetDoc()</code> to persist locally and to Firestore. Redirects back to the student dashboard on success.</div></div></div>
+      </div>
+    </div>
+
+    <!-- student-dashboard.html -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">student-dashboard.html</span>
+        <span class="analysis-file-meta">489 lines &middot; 25 KB &middot; Student Portal</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–40</div><div class="line-desc"><strong>Head / sidebar setup</strong> — Standard dashboard shell: loads <code>style.css</code>, Firebase, data/auth/sync scripts, and renders a sidebar with the student's name and role badge.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">41–120</div><div class="line-desc"><strong>Profile tab</strong> — Displays the student's name, email, roll number, department and section. Shows a list of enrolled teachers with their subject. Roll numbers are sorted ascending before rendering (CSE-101 before CSE-201).</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">121–250</div><div class="line-desc"><strong>Feedback status tab</strong> — Iterates over each teacher-subject pair returned by <code>getTeachersForStudent()</code>. For each pair, checks <code>hasSubmitted()</code> and renders a green "Submitted ✓" badge or a "Give Feedback" button. The button navigates to <code>feedback-form.html</code> with the teacher and subject IDs as URL query parameters.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">251–400</div><div class="line-desc"><strong>Notifications tab</strong> — Reads the push-notification permission state. Shows a "Enable Notifications" toggle that calls the Firebase Cloud Messaging subscription flow. Displays recent notification history from localStorage.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">401–489</div><div class="line-desc"><strong>Init logic</strong> — <code>requireAuth('student')</code> guard, Firestore sync, then calls render functions for each tab. Handles tab switching via sidebar nav items. Change-password modal and logout are in the header area.</div></div></div>
+      </div>
+    </div>
+
+    <!-- teacher-dashboard.html -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">teacher-dashboard.html</span>
+        <span class="analysis-file-meta">877 lines &middot; 49 KB &middot; Teacher Analytics Portal</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–50</div><div class="line-desc"><strong>Head + Chart.js</strong> — Loads Chart.js 4.4.0 CDN, <code>style.css</code>, <code>data.js</code>, <code>charts.js</code>, <code>auth.js</code>, <code>firebase-sync.js</code>. Script load order matters: <code>data.js</code> must come before <code>charts.js</code> since charts call <code>getTeacherStats()</code>.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">51–180</div><div class="line-desc"><strong>Overview tab</strong> — Shows 4 stat cards (overall avg, total responses, top category, response count). Renders radar chart (section breakdown), bar chart (rating distribution) and trend line chart using the <code>charts.js</code> helpers. A status banner shows green/amber/red based on the score relative to the minimum threshold from settings.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">181–350</div><div class="line-desc"><strong>Category breakdown tab</strong> — For each feedback section, renders a horizontal progress bar showing the section average out of 5, colour-coded (green ≥4, amber ≥3, red &lt;3). Clicking a section expands an accordion showing individual question averages.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">351–550</div><div class="line-desc"><strong>Student responses tab</strong> — A filterable table of all submitted feedback. Columns: student (or "Anonymous"), subject, overall score, date, expandable row for per-question scores and comment. Filter dropdown by subject.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">551–750</div><div class="line-desc"><strong>Report generator</strong> — The <code>generateReport()</code> function builds a self-contained HTML string with inline SVG bar/radar charts, a summary card grid, a full data table and a comments section. Opens in a new tab via <code>window.open()</code> (note: may be blocked by the browser's popup blocker — users should allow popups for the site). The report uses <code>@media print</code> so it can be saved as PDF from the browser print dialog.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">751–877</div><div class="line-desc"><strong>Init &amp; change password</strong> — <code>requireAuth('teacher')</code> guard, then <code>syncFromFirestore('teacher')</code>. Renders all tabs. Change-password modal POSTs to <code>changePassword()</code> in <code>auth.js</code>. Logout clears the session and redirects to <code>index.html</code>.</div></div></div>
+      </div>
+    </div>
+
+    <!-- admin-dashboard.html -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">admin-dashboard.html</span>
+        <span class="analysis-file-meta">1,968 lines &middot; 104 KB &middot; Full Admin Panel (7 Tabs)</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–60</div><div class="line-desc"><strong>Head + dependencies</strong> — Loads Chart.js, all JS modules. Defines the 7-tab sidebar navigation: Dashboard, Website Reviews, User Management, Subjects &amp; Questionnaires, Teacher Assignment, Feedback Oversight, Reports &amp; Analytics, Attendance, Settings.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">61–250</div><div class="line-desc"><strong>Dashboard tab</strong> — Institution-wide stats (total users, teachers, students, responses). Renders the institution-wide bar chart (<code>renderInstitutionBar()</code>). Shows per-teacher summary cards with average score, response count and a colour-coded performance badge.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">251–500</div><div class="line-desc"><strong>User Management tab</strong> — Full CRUD for students and teachers. Add/edit user modal with fields: name, email, password, role, department, section, roll number. Bulk CSV import (normalises column headers, generates unique IDs). "Delete Selected" with checkboxes + "Select All". All operations cascade to Firestore via <code>fsSetDoc</code>/<code>fsDeleteDoc</code>. Table sorted by roll number for students.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">501–750</div><div class="line-desc"><strong>Subjects &amp; Questionnaires tab</strong> — Add/delete subjects. For each subject, a questionnaire editor: add sections, add questions per section, reorder or delete questions. Changes saved to <code>sfft_questionnaires</code> localStorage key and synced to Firestore.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">751–1000</div><div class="line-desc"><strong>Teacher Assignment tab</strong> — Visual card grid of teachers. Each card expands a student checklist showing all students with checkboxes (sorted by roll number). Selecting students and clicking Save creates enrollment records linking student IDs to the teacher and their subject ID. Supports multi-subject assignment per teacher.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">1001–1250</div><div class="line-desc"><strong>Feedback Oversight tab</strong> — Table of all submitted responses with filters by teacher and date range. "Select All" checkbox, "Delete Selected" and "Clear All" buttons. Deletions sync to Firestore. Export button generates a CSV with per-section scores, overall average, comment and a summary row.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">1251–1500</div><div class="line-desc"><strong>Reports &amp; Analytics tab</strong> — Admin-level HTML report generator: institution-wide SVG bar chart, per-teacher breakdown table with section averages, top/bottom performers highlighted. Downloadable as a self-contained HTML file. Also renders a doughnut chart for role distribution.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">1501–1700</div><div class="line-desc"><strong>Attendance tab</strong> — CSV upload to bulk-import attendance records (columns: email/rollNo, percentage). Validates that each row has a numeric percentage. Stores records in <code>sfft_attendance</code>. "Clear All Attendance" button with Firestore sync. Used by the feedback form's attendance gate.</div></div></div>
+        <div class="line-group"><div class="line-range"><div class="line-nums">1701–1968</div><div class="line-desc"><strong>Settings tab &amp; init</strong> — Editable fields: college name, email domain, minimum score threshold. Saved to <code>sfft_settings</code> and Firestore. The init block at the bottom runs <code>requireAuth('admin')</code>, <code>syncFromFirestore('admin')</code>, seeds demo data via <code>initDB()</code>, and renders the default tab. Also registers the service worker for push notifications.</div></div></div>
+      </div>
+    </div>
+
+    <!-- firebase-config.js -->
+    <div class="analysis-file">
+      <div class="analysis-file-header">
+        <span class="analysis-file-name">js/firebase-config.js</span>
+        <span class="analysis-file-meta">18 lines &middot; 646 B &middot; Firebase Initialisation</span>
+      </div>
+      <div class="analysis-body">
+        <div class="line-group"><div class="line-range"><div class="line-nums">1–18</div><div class="line-desc"><strong>Firebase app init</strong> — Contains the Firebase project config object (apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId). Calls <code>firebase.initializeApp(firebaseConfig)</code> and exports <code>db = firebase.firestore()</code> and <code>auth = firebase.auth()</code> as global variables used by all other scripts. Uses the Firebase Compat SDK (v8 API) to avoid ES module bundling requirements.</div></div></div>
+      </div>
+    </div>
+
+  </div>
+
   <div class="footer">
     <div style="font-weight:600;color:#94a3b8;">&#128202; Feedback System Project Report</div>
     
