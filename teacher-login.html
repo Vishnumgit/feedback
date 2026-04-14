@@ -115,7 +115,19 @@
 <script src="js/firebase-sync.js"></script>
 <script>
   fbInit();
-  if (getSession()?.role === 'teacher') window.location.href = 'teacher-dashboard.html';
+  if (getSession()?.role === 'teacher') // Wait for Firebase Auth to persist before navigating
+      (async function() {
+        try {
+          await new Promise(function(resolve) {
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+              if (user && !user.isAnonymous && !done) { done = true; unsub(); resolve(); }
+            });
+            setTimeout(function() { if (!done) { done = true; resolve(); } }, 3000);
+          });
+        } catch(e) {}
+        window.location.href = 'teacher-dashboard.html';
+      })();
 
   async function handleGooglePopup() {
     const errEl = document.getElementById('googleErr');
@@ -125,7 +137,19 @@
     btn.style.opacity = '0.7';
     try {
       await googleLoginWithPopup('teacher');
-      window.location.href = 'teacher-dashboard.html';
+      // Wait for Firebase Auth to persist before navigating
+      (async function() {
+        try {
+          await new Promise(function(resolve) {
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+              if (user && !user.isAnonymous && !done) { done = true; unsub(); resolve(); }
+            });
+            setTimeout(function() { if (!done) { done = true; resolve(); } }, 3000);
+          });
+        } catch(e) {}
+        window.location.href = 'teacher-dashboard.html';
+      })();
     } catch(err) {
       if (err.code === 'auth/popup-closed-by-user') return;
       errEl.textContent = err.message;
@@ -154,7 +178,19 @@
     try {
       const s = await login(email, password);
       if (s.role !== 'teacher') { loginErr.textContent = 'This portal is for teachers only.'; loginErr.classList.add('show'); logout(); return; }
-      window.location.href = 'teacher-dashboard.html';
+      // Wait for Firebase Auth to persist before navigating
+      (async function() {
+        try {
+          await new Promise(function(resolve) {
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+              if (user && !user.isAnonymous && !done) { done = true; unsub(); resolve(); }
+            });
+            setTimeout(function() { if (!done) { done = true; resolve(); } }, 3000);
+          });
+        } catch(e) {}
+        window.location.href = 'teacher-dashboard.html';
+      })();
     } catch(err) { loginErr.textContent = err.message; loginErr.classList.add('show'); }
   });
 </script>
