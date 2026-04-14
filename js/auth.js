@@ -46,7 +46,7 @@ async function fetchUserFromFirestore(email) {
   }
 }
 
-// ---- Firebase Auth Login ----
+// ---- Firebase Auth Login (Optimized — local-first, Firebase in background) ----
 async function login(email, password) {
   var localUser = getUserByEmail(email);
   if (!localUser) {
@@ -57,58 +57,53 @@ async function login(email, password) {
   if (!localUser) throw new Error('No account found with this email.');
   if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
 
+  // ---- FAST PATH: Verify password locally first (no network call) ----
+  var inputHash = await hashPassword(password);
+  var localAuthPassed = false;
+
+  if (localUser.passwordHash) {
+    if (localUser.passwordHash !== inputHash) throw new Error('Incorrect password.');
+    localAuthPassed = true;
+  } else if (localUser.password) {
+    if (localUser.password !== password) throw new Error('Incorrect password.');
+    localAuthPassed = true;
+  }
+
+  // If local auth passed, create session IMMEDIATELY (no waiting for Firebase)
+  if (localAuthPassed) {
+    var session = {
+      userId: localUser.id,
+      firebaseUid: localUser.firebaseUid || null,
+      role: localUser.role,
+      email: localUser.email,
+      name: localUser.name,
+      department: localUser.department || '',
+      section: localUser.section || '',
+      loginAt: Date.now(),
+      sessionToken: generateSessionToken()
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+    // ---- BACKGROUND: Sync with Firebase Auth (non-blocking) ----
+    syncFirebaseAuth(email, password, localUser, session).catch(function(e) {
+      console.warn('[Auth] Background Firebase sync:', e.message);
+    });
+
+    return session;
+  }
+
+  // ---- FALLBACK: No local password hash — must use Firebase Auth directly ----
   var userCredential;
   try {
     userCredential = await auth.signInWithEmailAndPassword(email, password);
   } catch(e) {
-    if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
-      // Auto-migrate: user in localStorage but not Firebase Auth
-      var inputHash = await hashPassword(password);
-      // Support both legacy plaintext and new hashed passwords
-      if (localUser.passwordHash) {
-        if (localUser.passwordHash !== inputHash) throw new Error('Incorrect password.');
-      } else if (localUser.password !== password) {
-        throw new Error('Incorrect password.');
-      }
-      console.log('[Auth] Auto-migrating user to Firebase Auth:', email);
-      try {
-        userCredential = await auth.createUserWithEmailAndPassword(email, password);
-      } catch(createErr) {
-        if (createErr.code === 'auth/email-already-in-use') {
-          // Password was changed outside Firebase Auth (e.g. admin reset)
-          // Fall back to anonymous auth — app still works
-          console.log('[Auth] Password mismatch with Firebase Auth, using anonymous fallback');
-          try { await auth.signInAnonymously(); } catch(ae) {}
-          userCredential = { user: auth.currentUser || { uid: 'anon_' + localUser.id } };
-        } else {
-          throw createErr;
-        }
-      }
-    } else if (e.code === 'auth/wrong-password') {
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
       throw new Error('Incorrect password.');
-    } else {
-      throw new Error('Login failed: ' + e.message);
     }
+    throw new Error('Login failed: ' + e.message);
   }
 
   var firebaseUid = userCredential.user.uid;
-
-  // Write Firestore user doc — fire-and-forget (non-blocking for faster login)
-  db.collection('users').doc(firebaseUid).set({
-    customId: localUser.id,
-    email: localUser.email,
-    name: localUser.name,
-    role: localUser.role,
-    department: localUser.department || '',
-    section: localUser.section || '',
-    subjectId: localUser.subjectId || null,
-    active: localUser.active,
-    lastLogin: Date.now()
-  }, { merge: true }).catch(function(fsErr) {
-    console.warn('[Auth] Firestore user doc write failed:', fsErr.message);
-  });
-
-  // Save Firebase UID mapping in localStorage
   if (!localUser.firebaseUid || localUser.firebaseUid !== firebaseUid) {
     localUser.firebaseUid = firebaseUid;
     saveUser(localUser);
@@ -127,6 +122,60 @@ async function login(email, password) {
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
+}
+
+// ---- Background Firebase Auth Sync (runs after instant login) ----
+async function syncFirebaseAuth(email, password, localUser, session) {
+  try {
+    var userCredential;
+    try {
+      userCredential = await auth.signInWithEmailAndPassword(email, password);
+    } catch(e) {
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+        console.log('[Auth] Background: auto-migrating to Firebase Auth');
+        try {
+          userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        } catch(createErr) {
+          if (createErr.code === 'auth/email-already-in-use') {
+            try { await auth.signInAnonymously(); } catch(ae) {}
+            userCredential = { user: auth.currentUser || { uid: 'anon_' + localUser.id } };
+          } else {
+            throw createErr;
+          }
+        }
+      } else {
+        throw e;
+      }
+    }
+
+    var firebaseUid = userCredential.user.uid;
+
+    // Update session with real Firebase UID if needed
+    if (session.firebaseUid !== firebaseUid) {
+      session.firebaseUid = firebaseUid;
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+
+    // Save Firebase UID mapping
+    if (!localUser.firebaseUid || localUser.firebaseUid !== firebaseUid) {
+      localUser.firebaseUid = firebaseUid;
+      saveUser(localUser);
+    }
+
+    // Write Firestore user doc
+    db.collection('users').doc(firebaseUid).set({
+      customId: localUser.id, email: localUser.email, name: localUser.name,
+      role: localUser.role, department: localUser.department || '',
+      section: localUser.section || '', subjectId: localUser.subjectId || null,
+      active: localUser.active, lastLogin: Date.now()
+    }, { merge: true }).catch(function(fsErr) {
+      console.warn('[Auth] Firestore user doc write failed:', fsErr.message);
+    });
+
+    console.log('[Auth] Background Firebase sync complete');
+  } catch(e) {
+    console.warn('[Auth] Background Firebase sync failed (login still works):', e.message);
+  }
 }
 
 // ---- Google Sign-In ----
