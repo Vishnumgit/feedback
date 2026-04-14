@@ -205,32 +205,44 @@ async function googleLogin(credential, expectedRole) {
     throw new Error('This portal is for ' + expectedRole + 's only.\nYour account role is: ' + localUser.role + '.');
   }
 
-  var firebaseUid = null;
-  try {
-    var googleCred = firebase.auth.GoogleAuthProvider.credential(credential);
-    var userCredential = await auth.signInWithCredential(googleCred);
-    firebaseUid = userCredential.user.uid;
-
-    await db.collection('users').doc(firebaseUid).set({
-      customId: localUser.id, email: localUser.email, name: localUser.name,
-      role: localUser.role, department: localUser.department || '',
-      section: localUser.section || '', active: localUser.active, lastLogin: Date.now()
-    }, { merge: true });
-
-    localUser.firebaseUid = firebaseUid;
-    saveUser(localUser);
-  } catch(e) {
-    console.warn('[Auth] Google Firebase auth fallback:', e.message);
-    try { await auth.signInAnonymously(); } catch(ae) {}
-  }
-
+  // ---- FAST PATH: Create session immediately, Firebase in background ----
   var session = {
-    userId: localUser.id, firebaseUid: firebaseUid, role: localUser.role,
+    userId: localUser.id, firebaseUid: localUser.firebaseUid || null, role: localUser.role,
     email: localUser.email, name: localUser.name, department: localUser.department || '',
     section: localUser.section || '', loginAt: Date.now(), viaGoogle: true,
     sessionToken: generateSessionToken()
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+  // ---- BACKGROUND: Sync Google credential with Firebase (non-blocking) ----
+  (async function() {
+    try {
+      var googleCred = firebase.auth.GoogleAuthProvider.credential(credential);
+      var userCredential = await auth.signInWithCredential(googleCred);
+      var firebaseUid = userCredential.user.uid;
+
+      // Update session with real Firebase UID
+      session.firebaseUid = firebaseUid;
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+      localUser.firebaseUid = firebaseUid;
+      saveUser(localUser);
+
+      db.collection('users').doc(firebaseUid).set({
+        customId: localUser.id, email: localUser.email, name: localUser.name,
+        role: localUser.role, department: localUser.department || '',
+        section: localUser.section || '', active: localUser.active, lastLogin: Date.now()
+      }, { merge: true }).catch(function(fsErr) {
+        console.warn('[Auth] Google Firestore write failed:', fsErr.message);
+      });
+
+      console.log('[Auth] Background Google Firebase sync complete');
+    } catch(e) {
+      console.warn('[Auth] Google Firebase auth background sync failed (login still works):', e.message);
+      try { await auth.signInAnonymously(); } catch(ae) {}
+    }
+  })();
+
   return session;
 }
 
