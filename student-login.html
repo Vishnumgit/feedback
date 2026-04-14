@@ -121,7 +121,19 @@
 <script>
   fbInit();
   const session = getSession();
-  if (session && session.role === 'student') window.location.href = 'student-dashboard.html';
+  if (session && session.role === 'student') // Wait for Firebase Auth to persist before navigating
+      (async function() {
+        try {
+          await new Promise(function(resolve) {
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+              if (user && !user.isAnonymous && !done) { done = true; unsub(); resolve(); }
+            });
+            setTimeout(function() { if (!done) { done = true; resolve(); } }, 3000);
+          });
+        } catch(e) {}
+        window.location.href = 'student-dashboard.html';
+      })();
 
   // Google Sign-In via Firebase popup
   async function handleGooglePopup() {
@@ -132,7 +144,19 @@
     btn.style.opacity = '0.7';
     try {
       await googleLoginWithPopup('student');
-      window.location.href = 'student-dashboard.html';
+      // Wait for Firebase Auth to persist before navigating
+      (async function() {
+        try {
+          await new Promise(function(resolve) {
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+              if (user && !user.isAnonymous && !done) { done = true; unsub(); resolve(); }
+            });
+            setTimeout(function() { if (!done) { done = true; resolve(); } }, 3000);
+          });
+        } catch(e) {}
+        window.location.href = 'student-dashboard.html';
+      })();
     } catch(err) {
       if (err.code === 'auth/popup-closed-by-user') return;
       errEl.textContent = err.message;
@@ -192,7 +216,19 @@
     try {
       const s = await login(email, password);
       if (s.role !== 'student') { loginErr.textContent = 'This portal is for students only.'; loginErr.classList.add('show'); logout(); return; }
-      window.location.href = 'student-dashboard.html';
+      // Wait for Firebase Auth to persist before navigating
+      (async function() {
+        try {
+          await new Promise(function(resolve) {
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+              if (user && !user.isAnonymous && !done) { done = true; unsub(); resolve(); }
+            });
+            setTimeout(function() { if (!done) { done = true; resolve(); } }, 3000);
+          });
+        } catch(e) {}
+        window.location.href = 'student-dashboard.html';
+      })();
     } catch(err) {
       loginErr.textContent = err.message; loginErr.classList.add('show');
     } finally {
@@ -219,7 +255,19 @@
     // Redirect to appropriate dashboard
     if (role === 'admin') window.location.href = 'admin-dashboard.html';
     else if (role === 'teacher') window.location.href = 'teacher-dashboard.html';
-    else window.location.href = 'student-dashboard.html';
+    else // Wait for Firebase Auth to persist before navigating
+      (async function() {
+        try {
+          await new Promise(function(resolve) {
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+              if (user && !user.isAnonymous && !done) { done = true; unsub(); resolve(); }
+            });
+            setTimeout(function() { if (!done) { done = true; resolve(); } }, 3000);
+          });
+        } catch(e) {}
+        window.location.href = 'student-dashboard.html';
+      })();
   }
   
   // Review System
