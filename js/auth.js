@@ -331,8 +331,18 @@ function startSessionListener() {
   if (session.isDemo) return; // Skip Firestore session tracking in demo mode
   if (typeof db === 'undefined') return;
 
-  // Use session.userId for session token tracking — it's consistent across devices
-  // (firebaseUid can differ per device due to anonymous auth fallback)
+  // Wait for real Firebase auth before Firestore operations
+  if (typeof realAuthReadyPromise !== 'undefined') {
+    realAuthReadyPromise.then(function(user) {
+      if (user) _startSessionListenerInner(session);
+    });
+    return;
+  }
+
+  _startSessionListenerInner(session);
+}
+
+function _startSessionListenerInner(session) {
   var docId = session.userId;
   var myToken = session.sessionToken;
 
