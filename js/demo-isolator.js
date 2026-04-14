@@ -92,7 +92,7 @@
 
     // --- Users ---
     var users = [
-      { id: 'demo_admin', email: 'admin@demo.edu', passwordHash: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', role: 'admin', name: 'Demo Admin', department: 'Administration', active: true },
+      { id: 'demo_admin', email: 'admin@demo.edu', passwordHash: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', role: 'admin', name: 'Admin', department: 'Administration', active: true },
       { id: 'demo_t1', email: 'singh@demo.edu', passwordHash: 'cde383eee8ee7a4400adf7a15f716f179a2eb97646b37e089eb8d6d04e663416', role: 'teacher', name: 'Prof. Demo Singh', department: 'CSE', subjectId: 'demo_sub1', active: true },
       { id: 'demo_t2', email: 'patel@demo.edu', passwordHash: 'cde383eee8ee7a4400adf7a15f716f179a2eb97646b37e089eb8d6d04e663416', role: 'teacher', name: 'Dr. Demo Patel', department: 'ECE', subjectId: 'demo_sub3', active: true },
       { id: 'demo_s1', email: 'rahul@demo.edu', passwordHash: '703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b', role: 'student', name: 'Rahul Kumar', department: 'CSE', section: 'CSE-1', rollNo: 'D001', active: true },
