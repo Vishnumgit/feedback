@@ -7,6 +7,23 @@
 // ============================================================
 
 const SESSION_KEY = 'sfft_session';
+const GOOGLE_EMAIL_MAP_KEY = 'sfft_google_email_map';
+
+// Cache: maps Google email → local user ID for instant repeat Google logins
+function getGoogleEmailMap() {
+  try { return JSON.parse(localStorage.getItem(GOOGLE_EMAIL_MAP_KEY) || '{}'); } catch(e) { return {}; }
+}
+function setGoogleEmailMap(googleEmail, userId) {
+  var map = getGoogleEmailMap();
+  map[googleEmail.toLowerCase()] = userId;
+  localStorage.setItem(GOOGLE_EMAIL_MAP_KEY, JSON.stringify(map));
+}
+function getUserByGoogleEmail(googleEmail) {
+  var map = getGoogleEmailMap();
+  var userId = map[googleEmail.toLowerCase()];
+  if (userId) return getUserById(userId);
+  return null;
+}
 
 function generateSessionToken() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
@@ -208,7 +225,8 @@ async function googleLogin(credential, expectedRole) {
   var payload = decodeGoogleJWT(credential);
   var email = (payload.email || '').toLowerCase();
 
-  var localUser = getUserByEmail(email);
+  // Fast path: check Google email cache first (instant for repeat logins)
+  var localUser = getUserByGoogleEmail(email) || getUserByEmail(email);
   if (!localUser) {
     // User may not have been synced to localStorage yet — try Firestore directly
     console.log('[Auth] Google user not in localStorage, trying Firestore for:', email);
@@ -228,6 +246,9 @@ async function googleLogin(credential, expectedRole) {
     sessionToken: generateSessionToken()
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  
+  // Cache Google email → user ID for instant repeat logins
+  setGoogleEmailMap(email, localUser.id);
 
   // ---- BACKGROUND: Sync Google credential with Firebase (non-blocking) ----
   (async function() {
