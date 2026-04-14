@@ -28,19 +28,13 @@ var authReadyPromise = new Promise(function(resolve) {
 });
 
 auth.onAuthStateChanged(function(user) {
-  if (!user) {
-    // No user signed in — auto sign-in anonymously so that authenticated
-    // Firestore collections remain accessible from other pages.
-    auth.signInAnonymously().catch(function(e) {
-      console.warn('[Auth] Anonymous sign-in failed:', e.message);
-      // Still resolve so the app doesn't hang
-      if (!_authReady) { _authReady = true; _authReadyResolve(null); }
-    });
-    return; // onAuthStateChanged will fire again after anonymous sign-in
-  }
+  // SECURITY FIX: No longer auto-signs in anonymously.
+  // Anonymous auth combined with permissive Firestore rules gave
+  // unauthenticated visitors full database access.
+  // Now: only real login (email/password or Google) grants Firestore access.
   if (!_authReady) {
     _authReady = true;
-    _authReadyResolve(user);
+    _authReadyResolve(user || null);
   }
 });
 
