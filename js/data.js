@@ -94,7 +94,7 @@ function initDB() {
   // ----- Users: 1 Admin + 3 Teachers + 5 Students -----
   const users = [
     // Admin
-    { id: 'u_admin', email: 'admin@college.edu', passwordHash: ADMIN_HASH, role: 'admin', name: 'Demo Admin', department: 'Administration', active: true },
+    { id: 'u_admin', email: 'admin@college.edu', passwordHash: ADMIN_HASH, role: 'admin', name: 'Admin', department: 'Administration', active: true },
     // Teachers
     { id: 'u_t1', email: 'teacher1@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Sample Teacher 1', department: 'Science', subjectId: 'sub_math', active: true },
     { id: 'u_t2', email: 'teacher2@college.edu', passwordHash: TEACHER_HASH, role: 'teacher', name: 'Sample Teacher 2', department: 'Technology', subjectId: 'sub_cs', active: true },
