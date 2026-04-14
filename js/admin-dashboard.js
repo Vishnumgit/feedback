@@ -1,0 +1,1946 @@
+// ============================================================
+// admin-dashboard.js — Admin Dashboard Application Logic
+// ============================================================
+// Extracted from admin-dashboard.html for better caching & performance
+// ============================================================
+
+
+    fbInit();
+  var sendPushFn = firebase.app().functions('us-central1').httpsCallable('sendPushNotification');
+    const session = requireAuth('admin');
+    startSessionListener();
+    document.getElementById('sidebarName').textContent = session.name;
+    document.getElementById('collegeName').textContent = getSettings().collegeName;
+
+    // ---- Tab Switching ----
+    function switchTab(tab, skipHistory) {
+      const tabs = ['dashboard', 'users', 'subjects', 'assign', 'feedback', 'reports', 'reviews', 'settings', 'attendance'];
+      tabs.forEach(t => {
+        document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? '' : 'none';
+        document.getElementById('nav' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+      });
+      if (tab === 'dashboard') renderDashboard();
+      if (tab === 'users') { refreshUserCounts(); renderUserTable('student'); }
+      if (tab === 'subjects') renderSubjects();
+      if (tab === 'assign') renderAssignTab();
+      if (tab === 'feedback') initFeedbackFilters();
+      if (tab === 'reports') renderReports();
+      if (tab === 'reviews') renderWebsiteReviews();
+      if (tab === 'settings') { loadSettings(); renderNotifHistory(); renderTTHistory(); }
+      if (tab === 'attendance') { populateAttendanceSections(); renderAttendanceRecords(); }
+    }
+
+
+    // ==================== DASHBOARD ====================
+    function renderDashboard() {
+      var students = getStudents();
+      var teachers = getTeachers();
+      var subjects = typeof getSubjects === 'function' ? getSubjects() : [];
+      var responses = typeof getResponses === 'function' ? getResponses() : [];
+      var enrollments = typeof getEnrollments === 'function' ? getEnrollments() : [];
+      var depts = new Set(); students.forEach(function(s) { if (s.department) depts.add(s.department); });
+
+      document.getElementById('dashStudents').textContent = students.length;
+      document.getElementById('dashTeachers').textContent = teachers.length;
+      document.getElementById('dashSubjects').textContent = subjects.length;
+      document.getElementById('dashFeedbacks').textContent = responses.length;
+      document.getElementById('dashEnrollments').textContent = enrollments.length;
+      document.getElementById('dashDepts').textContent = depts.size;
+
+      // Recent feedback activity
+      var recentEl = document.getElementById('dashRecentActivity');
+      var recent = responses.slice(-10).reverse();
+      if (recent.length) {
+        recentEl.innerHTML = recent.map(function(r) {
+          var student = getUserById(r.studentId);
+          var teacher = getUserById(r.teacherId);
+          return '<div style="padding:8px 0;border-bottom:1px solid var(--border-light);font-size:12px;">' +
+            '<span style="font-weight:600;">' + (student ? student.name : 'Unknown') + '</span>' +
+            ' &#10140; <span style="color:var(--accent-light);">' + (teacher ? teacher.name : 'Unknown') + '</span>' +
+            (r.timestamp ? '<span style="float:right;color:var(--text-muted);font-size:11px;">' + new Date(r.timestamp).toLocaleDateString() + '</span>' : '') +
+          '</div>';
+        }).join('');
+      } else {
+        recentEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px;">No feedback submissions yet</div>';
+      }
+
+      // Top teachers by enrolled students
+      var topEl = document.getElementById('dashTopTeachers');
+      var teacherCounts = {};
+      enrollments.forEach(function(e) {
+        teacherCounts[e.teacherId] = (teacherCounts[e.teacherId] || 0) + 1;
+      });
+      var sorted = Object.entries(teacherCounts).sort(function(a,b) { return b[1] - a[1]; }).slice(0, 8);
+      if (sorted.length) {
+        topEl.innerHTML = sorted.map(function(entry) {
+          var t = getUserById(entry[0]);
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);">' +
+            '<span style="font-weight:600;font-size:13px;">' + (t ? t.name : 'Unknown') + '</span>' +
+            '<span class="badge badge-purple" style="font-size:11px;">&#128101; ' + entry[1] + ' students</span>' +
+          '</div>';
+        }).join('');
+      } else {
+        topEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px;">No enrollments yet</div>';
+      }
+
+      // Department breakdown
+      var deptEl = document.getElementById('dashDeptBreakdown');
+      var deptCounts = {};
+      students.forEach(function(s) { var d = s.department || 'Unassigned'; deptCounts[d] = (deptCounts[d] || 0) + 1; });
+      var deptEntries = Object.entries(deptCounts).sort(function(a,b) { return b[1] - a[1]; });
+      var maxCount = deptEntries.length ? deptEntries[0][1] : 1;
+      deptEl.innerHTML = deptEntries.map(function(entry) {
+        var pct = Math.round((entry[1] / maxCount) * 100);
+        return '<div style="margin-bottom:12px;">' +
+          '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">' +
+            '<span style="font-weight:600;">' + entry[0] + '</span>' +
+            '<span style="color:var(--text-muted);">' + entry[1] + ' students</span>' +
+          '</div>' +
+          '<div style="height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;">' +
+            '<div style="height:100%;width:' + pct + '%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent-light));transition:width 0.5s;"></div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+
+    // ==================== ADMIN: PUSH NOTIFICATIONS ====================
+    function pushNotification() {
+      var title = document.getElementById('notifTitle').value.trim();
+      var message = document.getElementById('notifMessage').value.trim();
+      var category = document.getElementById('notifCategory').value;
+      if (!title || !message) { showToast('Please fill title and message', 'error'); return; }
+      var notifs = [];
+      try { notifs = JSON.parse(localStorage.getItem('sf_notifications') || '[]'); } catch(e) {}
+      notifs.push({
+        id: 'notif_' + Date.now(),
+        title: title,
+        message: message,
+        category: category,
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('sf_notifications', JSON.stringify(notifs));
+      // Sync new notification to Firestore so students on other devices can see it
+      var latest = notifs[notifs.length - 1];
+      if (latest && typeof fsSetDoc === 'function') fsSetDoc('notifications', latest.id, latest);
+      document.getElementById('notifTitle').value = '';
+      document.getElementById('notifMessage').value = '';
+
+      // Count total active students
+      var totalStudents = 0;
+      if (typeof getStudents === 'function') {
+        totalStudents = getStudents().length;
+      }
+
+      // Send FCM push notification to ALL registered student devices
+      if (typeof db !== 'undefined') {
+        // Map notification category to type for richer client-side handling
+        var notifType = category === 'Urgent' ? 'urgent' : 'general';
+        db.collection('fcm_tokens').get().then(function(snapshot) {
+          var pushPromises = [];
+          snapshot.forEach(function(doc) {
+            var data = doc.data();
+            if (data.token) {
+              var studentName = data.name || 'Student';
+              console.log('[Push] Sending notification to ' + studentName);
+              var p = sendPushFn({
+                  fcm_token: data.token,
+                  title: title,
+                  body: message,
+                  data: { type: notifType, category: category }
+                }).then(function(res) {
+                  console.log('[Push] Result for ' + studentName + ':', res.data);
+                  return { success: res.data.success !== false, name: studentName };
+                }).catch(function(err) {
+                  console.warn('[Push] Error sending to ' + studentName + ':', err.message);
+                  return { success: false, name: studentName };
+                });
+              pushPromises.push(p);
+            }
+          });
+          if (pushPromises.length > 0) {
+            Promise.all(pushPromises).then(function(results) {
+              var sent = results.filter(function(r) { return r.success; }).length;
+              var failed = results.filter(function(r) { return !r.success; }).length;
+              console.log('[Push] Completed: ' + sent + ' sent, ' + failed + ' failed out of ' + results.length + ' student(s)');
+              var msg = 'Notification saved! Push sent to ' + sent + '/' + totalStudents + ' students';
+              if (failed > 0) {
+                msg += ' (' + failed + ' failed)';
+              }
+              if (sent < totalStudents) {
+                msg += '. Others will see it when they log in.';
+              }
+              showToast(msg, sent > 0 ? 'success' : 'warning');
+            });
+          } else {
+            console.log('[Push] No registered FCM tokens found');
+            showToast('Notification saved! ' + totalStudents + ' students will see it when they log in.', 'success');
+          }
+        }).catch(function(err) {
+          console.warn('[Push] Failed to query FCM tokens:', err.message);
+          showToast('Notification saved! Students will see it when they log in.', 'warning');
+        });
+      } else {
+        showToast('Notification saved! Students will see it when they log in.', 'success');
+      }
+
+      renderNotifHistory();
+    }
+
+    function renderNotifHistory() {
+      var notifs = [];
+      try { notifs = JSON.parse(localStorage.getItem('sf_notifications') || '[]'); } catch(e) {}
+      var el = document.getElementById('notifHistory');
+      if (!el) return;
+      if (!notifs.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;">No notifications sent yet</div>'; return; }
+      el.innerHTML = '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">Recent Notifications (' + notifs.length + ')</div>' +
+        notifs.slice(-5).reverse().map(function(n) {
+          return '<div style="padding:8px;border-bottom:1px solid var(--border-light);font-size:12px;">' +
+            '<div style="display:flex;justify-content:space-between;">' +
+              '<span style="font-weight:600;">' + n.title + '</span>' +
+              '<button onclick="deleteNotification(\'' + n.id + '\')" aria-label="Delete notification" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
+            '</div>' +
+            '<div style="color:var(--text-muted);font-size:11px;">' + n.category + ' | ' + new Date(n.timestamp).toLocaleString() + '</div>' +
+          '</div>';
+        }).join('');
+    }
+
+    function deleteNotification(id) {
+      var notifs = [];
+      try { notifs = JSON.parse(localStorage.getItem('sf_notifications') || '[]'); } catch(e) {}
+      notifs = notifs.filter(function(n) { return n.id !== id; });
+      localStorage.setItem('sf_notifications', JSON.stringify(notifs));
+      // Sync deletion to Firestore
+      if (typeof fsDeleteDoc === 'function') fsDeleteDoc('notifications', id);
+      renderNotifHistory();
+      showToast('Notification deleted', 'info');
+    }
+
+    // ==================== ADMIN: UPLOAD TIMETABLE ====================
+    function uploadTimetable() {
+      var title = document.getElementById('ttTitle').value.trim();
+      var content = document.getElementById('ttContent').value.trim();
+      var dept = document.getElementById('ttDept').value.trim();
+      var section = document.getElementById('ttSection').value.trim();
+      if (!title || !content) { showToast('Please fill title and content', 'error'); return; }
+      var timetables = [];
+      try { timetables = JSON.parse(localStorage.getItem('sf_timetables') || '[]'); } catch(e) {}
+      timetables.push({
+        id: 'tt_' + Date.now(),
+        title: title,
+        content: content,
+        department: dept,
+        section: section,
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('sf_timetables', JSON.stringify(timetables));
+      document.getElementById('ttTitle').value = '';
+      document.getElementById('ttContent').value = '';
+      document.getElementById('ttDept').value = '';
+      document.getElementById('ttSection').value = '';
+      showToast('Timetable uploaded!', 'success');
+      renderTTHistory();
+    }
+
+    function renderTTHistory() {
+      var tts = [];
+      try { tts = JSON.parse(localStorage.getItem('sf_timetables') || '[]'); } catch(e) {}
+      var el = document.getElementById('ttHistory');
+      if (!el) return;
+      if (!tts.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;">No timetables uploaded yet</div>'; return; }
+      el.innerHTML = '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">Uploaded Timetables (' + tts.length + ')</div>' +
+        tts.slice(-5).reverse().map(function(t) {
+          return '<div style="padding:8px;border-bottom:1px solid var(--border-light);font-size:12px;">' +
+            '<div style="display:flex;justify-content:space-between;">' +
+              '<span style="font-weight:600;">' + t.title + '</span>' +
+              '<button onclick="deleteTimetable(\'' + t.id + '\')" aria-label="Delete timetable" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:11px;">&#128465;</button>' +
+            '</div>' +
+            '<div style="color:var(--text-muted);font-size:11px;">' + (t.department || 'All') + (t.section ? ' - ' + t.section : '') + ' | ' + new Date(t.timestamp).toLocaleString() + '</div>' +
+          '</div>';
+        }).join('');
+    }
+
+    function deleteTimetable(id) {
+      var tts = [];
+      try { tts = JSON.parse(localStorage.getItem('sf_timetables') || '[]'); } catch(e) {}
+      tts = tts.filter(function(t) { return t.id !== id; });
+      localStorage.setItem('sf_timetables', JSON.stringify(tts));
+      renderTTHistory();
+      showToast('Timetable deleted', 'info');
+    }
+
+
+    // ==================== WEBSITE REVIEWS ====================
+    function renderWebsiteReviews() {
+      var reviews = JSON.parse(localStorage.getItem('sfft_website_reviews') || '[]');
+      reviews.sort(function(a,b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+      
+      // Stats
+      var total = reviews.length;
+      var avg = total ? (reviews.reduce(function(s,r) { return s + r.rating; }, 0) / total).toFixed(1) : '0';
+      var fiveStar = total ? Math.round(reviews.filter(function(r) { return r.rating === 5; }).length / total * 100) : 0;
+      
+      document.getElementById('reviewTotalCount').textContent = total;
+      document.getElementById('reviewAvgRating').textContent = avg + '/5';
+      document.getElementById('review5StarPct').textContent = fiveStar + '%';
+      
+      var el = document.getElementById('reviewsList');
+      if (!reviews.length) {
+        el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);"><div style="font-size:36px;margin-bottom:8px;">&#11088;</div><div style="font-weight:600;">No reviews yet</div><div style="font-size:13px;margin-top:4px;">Reviews from login pages will appear here</div></div>';
+        return;
+      }
+      
+      el.innerHTML = reviews.map(function(r) {
+        var stars = '';
+        for (var i = 0; i < 5; i++) stars += '<span style="color:' + (i < r.rating ? '#d97706' : 'var(--border-light)') + ';font-size:16px;">&#9733;</span>';
+        return '<div style="padding:16px;border-bottom:1px solid var(--border-light);">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+            '<div style="font-weight:600;font-size:14px;">' + (r.name || 'Anonymous') + '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<span style="font-size:11px;color:var(--text-muted);">' + (r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '') + '</span>' +
+              '<button onclick="deleteReview(\'' + r.id + '\')" aria-label="Delete review" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;">&#128465;</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-bottom:6px;">' + stars + '</div>' +
+          (r.comment ? '<div style="font-size:13px;color:var(--text-sub);line-height:1.5;">' + r.comment + '</div>' : '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">No comment</div>') +
+          '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;">From: ' + (r.page || 'Unknown page') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+    
+    function deleteReview(id) {
+      var reviews = JSON.parse(localStorage.getItem('sfft_website_reviews') || '[]');
+      reviews = reviews.filter(function(r) { return r.id !== id; });
+      localStorage.setItem('sfft_website_reviews', JSON.stringify(reviews));
+      renderWebsiteReviews();
+      showToast('Review deleted', 'info');
+    }
+    
+    function clearAllReviews() {
+      if (!confirm('Delete all website reviews?')) return;
+      localStorage.setItem('sfft_website_reviews', '[]');
+      renderWebsiteReviews();
+      showToast('All reviews cleared', 'info');
+    }
+
+    // ---- Toast ----
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`; t.textContent = msg; c.appendChild(t);
+      setTimeout(() => t.remove(), 3800);
+    }
+
+    // ---- Modal Helpers ----
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+
+    // ==================== USERS TAB ====================
+    function refreshUserCounts() {
+      document.getElementById('countStudents').textContent = getStudents().length;
+      document.getElementById('countTeachers').textContent = getTeachers().length;
+      document.getElementById('countResponses').textContent = getResponses().length;
+    }
+
+    let currentUserRole = 'student';
+    function renderUserTable(role, btn) {
+      currentUserRole = role;
+      if (btn) document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      const allUsers = getUsers().filter(u => u.role === role);
+      const wrap = document.getElementById('userTableWrap');
+
+      // Build unique dept and section lists
+      const depts = [...new Set(allUsers.map(u => u.department).filter(Boolean))].sort();
+      const sections = [...new Set(allUsers.map(u => u.section).filter(Boolean))].sort();
+
+      // Read current filter values
+      const deptVal = (document.getElementById('userFilterDept') || {}).value || '';
+      const sectVal = (document.getElementById('userFilterSect') || {}).value || '';
+      const searchVal = (document.getElementById('userSearchInput') || {}).value || '';
+
+      // Filter
+      let users = allUsers;
+      if (deptVal) users = users.filter(u => u.department === deptVal);
+      if (sectVal) users = users.filter(u => u.section === sectVal);
+      if (searchVal) { const q = searchVal.toLowerCase(); users = users.filter(u => (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q) || (u.rollNo||'').toLowerCase().includes(q)); }
+
+      // Sort by roll number
+      users.sort(function(a, b) { return (a.rollNo || '').localeCompare(b.rollNo || '', undefined, {numeric: true}); });
+
+      if (!allUsers.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">${role === 'student' ? "&#127891;" : "&#128104;‍&#127979;"}</div><div class="empty-title">No ${role}s yet</div><div class="empty-desc">Click "Add User" to create a ${role} account.</div></div>`;
+  return; 
+  }
+
+  // Filter bar
+  const filterBar = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border-light);">
+    <input id="userSearchInput" type="search" autocomplete="one-time-code" placeholder="&#128269; Search name, email, roll no..." oninput="renderUserTable('${role}')" value="${searchVal}" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;width:220px;" />
+    <span style="font-size:12px;font-weight:600;color:var(--text-muted);">Filter:</span>
+    <select id="userFilterDept" onchange="renderUserTable('${role}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">
+      <option value="">All Departments</option>
+      ${depts.map(d => `<option value="${d}" ${d===deptVal?'selected':''}>${d}</option>`).join('')}
+    </select>
+    <select id="userFilterSect" onchange="renderUserTable('${role}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer;">
+      <option value="">All Sections</option>
+      ${sections.map(s => `<option value="${s}" ${s===sectVal?'selected':''}>${s}</option>`).join('')}
+    </select>
+    <span style="font-size:11px;color:var(--text-muted);margin-left:auto;">${users.length} of ${allUsers.length} users shown</span>
+  </div>`;
+
+  if (!users.length) {
+    wrap.innerHTML = filterBar + `<div class="empty-state"><div class="empty-icon">&#128269;</div><div class="empty-title">No matches</div><div class="empty-desc">Try different filter values.</div></div>`;
+    if (searchVal) { requestAnimationFrame(function() { var si = document.getElementById('userSearchInput'); if (si) { si.focus(); si.setSelectionRange(searchVal.length, searchVal.length); } }); }
+    return;
+  }
+
+  wrap.innerHTML = filterBar + `<table><thead><tr>
+      <th style="width:32px;"><input type="checkbox" onclick="toggleSelectAll(this)" title="Select All" /></th><th>Name</th><th>Email</th><th>Dept / Section</th>
+      ${role==='student' ? '<th>Roll No</th>' : ''}
+      ${role==='teacher' ? '<th>Subject</th>' : ''}
+      <th>Status</th><th>Actions</th>
+    </tr></thead>
+    <tbody>${users.map(u => {
+      const subs = (u.subjectIds || (u.subjectId ? [u.subjectId] : [])).map(function(id){ return getSubjectById(id); }).filter(Boolean);
+      return `<tr>
+        <td><input type="checkbox" class="user-select-cb" value="${u.id}" /></td>
+        <td><div style="font-weight:600;">${u.name}</div></td>
+        <td style="color:var(--text-muted);font-size:13px;">${u.email}</td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${u.department ? `<span class="badge badge-blue" style="font-size:11px;">&#127979; ${u.department}</span>` : '<span style="color:var(--text-muted);font-size:12px">–</span>'}
+            ${u.section ? `<span class="badge badge-purple" style="font-size:11px;">&#127991; ${u.section}</span>` : ''}
+          </div>
+        </td>
+        ${role==='student' ? `<td style="font-weight:600;font-size:13px;">${u.rollNo || '—'}</td>` : ''}
+        ${role==='teacher' ? `<td>${subs.length ? subs.map(s => `<span class="badge badge-purple" style="margin:2px;">&#128218; ${s.name}</span>`).join('') : '<span class="badge badge-gray">No subject</span>'}</td>` : ''}
+        <td>${u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-xs" onclick="openEditUser('${u.id}')">&#9999;&#65039; Edit</button>
+          <button class="btn btn-danger btn-xs" onclick="removeUser('${u.id}')" aria-label="Delete user">&#128465;&#65039;</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  // Refocus search input after re-render (prevents losing focus on every keystroke)
+  if (searchVal) {
+    requestAnimationFrame(function() {
+      var si = document.getElementById('userSearchInput');
+      if (si) { si.focus(); si.setSelectionRange(searchVal.length, searchVal.length); }
+    });
+  }
+}
+
+
+function openAddUserModal() {
+  document.getElementById('userModalTitle').textContent = '&#10133; Add User';
+  ['uName','uEmail','uPassword','uDept','uSection'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('uRole').value = 'student';
+  document.getElementById('editUserId').value = '';
+  document.getElementById('userModalErr').textContent = '';
+  populateSubjectCheckboxes([]);
+  toggleSubjectField();
+  openModal('userModal');
+}
+
+function openEditUser(userId) {
+  const u = getUserById(userId);
+  if (!u) return;
+  document.getElementById('userModalTitle').textContent = '&#9999;&#65039; Edit User';
+  document.getElementById('uName').value = u.name;
+  document.getElementById('uEmail').value = u.email;
+  document.getElementById('uPassword').value = u.password;
+  document.getElementById('uRole').value = u.role;
+  document.getElementById('uDept').value = u.department || '';
+  document.getElementById('uSection').value = u.section || '';
+  document.getElementById('editUserId').value = u.id;
+  document.getElementById('userModalErr').textContent = '';
+  populateSubjectCheckboxes(u.subjectIds || (u.subjectId ? [u.subjectId] : []));
+  toggleSubjectField();
+  openModal('userModal');
+}
+
+function toggleSubjectField() {
+  const isTeacher = document.getElementById('uRole').value === 'teacher';
+  document.getElementById('subjectFieldWrap').style.display = isTeacher ? '' : 'none';
+}
+
+function submitUserModal() {
+  const errEl = document.getElementById('userModalErr');
+  errEl.textContent = '';
+  const name     = document.getElementById('uName').value.trim();
+  const email    = document.getElementById('uEmail').value.trim();
+  const password = document.getElementById('uPassword').value.trim();
+  const role     = document.getElementById('uRole').value;
+  const dept     = document.getElementById('uDept').value.trim();
+  const section  = document.getElementById('uSection').value.trim();
+  const subjectIds = Array.from(document.querySelectorAll('.subj-cb:checked')).map(function(cb){ return cb.value; });
+  const rollNo   = document.getElementById('uRollNo').value.trim();
+  const editId   = document.getElementById('editUserId').value;
+
+  if (!name || !email || !password) { errEl.textContent = 'Name, email and password are required.'; return; }
+  if (!validateCollegeEmail(email) && !email.endsWith('@admin.com')) { errEl.textContent = `Email must use @${getSettings().collegeDomain}`; return; }
+
+  try {
+    if (editId) {
+      const u = getUserById(editId);
+      u.name = name; u.email = email; u.password = password;
+      u.department = dept; u.section = section;
+      u.rollNo = role === 'student' ? rollNo : (u.rollNo || '');
+      u.subjectIds = role === 'teacher' ? subjectIds : []; u.subjectId = (subjectIds.length ? subjectIds[0] : null);
+      saveUser(u);
+      showToast('User updated successfully.', 'success');
+    } else {
+      addUser({ role, name, email, password, department: dept, section, rollNo: role === 'student' ? rollNo : '', subjectIds: role === 'teacher' ? subjectIds : [], subjectId: role === 'teacher' && subjectIds.length ? subjectIds[0] : null });
+      showToast('User created successfully.', 'success');
+    }
+    closeModal('userModal');
+    refreshUserCounts();
+    renderUserTable(editId ? getUserById(editId)?.role || role : role);
+  } catch(e) { errEl.textContent = e.message; }
+}
+
+function removeUser(userId) {
+  const u = getUserById(userId);
+  if (!u) return;
+  if (!confirm(`Delete ${u.name}? This will also remove their enrollments.`)) return;
+  deleteUser(userId);
+  refreshUserCounts();
+  renderUserTable(u.role);
+  showToast('User deleted.', 'info');
+}
+
+function populateSubjectCheckboxes(selectedIds) {
+  if (!selectedIds) selectedIds = [];
+  if (typeof selectedIds === "string") selectedIds = selectedIds ? [selectedIds] : [];
+  const container = document.getElementById("uSubjectCheckboxes");
+  const subs = getSubjects();
+  container.innerHTML = subs.map(function(s) {
+    var checked = selectedIds.indexOf(s.id) > -1 ? "checked" : "";
+    return '<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-size:13px;">' +
+      '<input type="checkbox" class="subj-cb" value="' + s.id + '" ' + checked + '> ' + s.name + '</label>';
+  }).join("");
+  if (!subs.length) container.innerHTML = "<div style=\"font-size:12px;color:var(--text-muted);\">No subjects. Add subjects first.</div>";
+}
+
+// ==================== SUBJECTS TAB ====================
+function renderSubjects() {
+  const subs = getSubjects();
+  const container = document.getElementById('subjectsList');
+  if (!subs.length) { container.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128218;</div><div class="empty-title">No subjects yet</div></div>'; return; }
+  container.innerHTML = subs.map(sub => {
+    const teachers = getTeachers().filter(t => (t.subjectIds || []).indexOf(sub.id) > -1 || t.subjectId === sub.id);
+    return `
+      <div class="section-card" style="margin-bottom:14px;">
+        <div class="section-card-header">
+          <div>
+            <div class="section-card-title">&#128218; ${sub.name}</div>
+            <div style="font-size:12px; color:var(--text-muted);">${sub.department} &nbsp;&middot;&nbsp; ${teachers.length} teacher(s)</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" onclick="openQModal('${sub.id}')">&#9999;&#65039; Edit Questionnaire</button>
+            <button class="btn btn-danger btn-sm" onclick="removeSubject('${sub.id}')" aria-label="Delete subject">&#128465;&#65039;</button>
+          </div>
+        </div>
+        ${teachers.length ? `<div class="section-card-body" style="padding-top:0;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+            ${teachers.map(t => `<span class="badge badge-green">&#128104;&#8205;&#127979; ${t.name}</span>`).join('')}
+          </div>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function openAddSubjectModal() { document.getElementById('subName').value = ''; document.getElementById('subDept').value = ''; openModal('subjectModal'); }
+
+function submitSubjectModal() {
+  const name = document.getElementById('subName').value.trim();
+  const dept = document.getElementById('subDept').value.trim();
+  if (!name) { showToast('Subject name is required.', 'error'); return; }
+  addSubject({ name, department: dept });
+  closeModal('subjectModal');
+  renderSubjects();
+  showToast('Subject added!', 'success');
+}
+
+function removeSubject(id) {
+  const sub = getSubjectById(id);
+  if (!confirm(`Delete subject "${sub?.name}"?`)) return;
+  deleteSubject(id);
+  renderSubjects();
+  showToast('Subject deleted.', 'info');
+}
+
+// ---- Questionnaire Editor ----
+function openQModal(subjectId) {
+  const sub = getSubjectById(subjectId);
+  document.getElementById('qModalTitle').textContent = `&#128214; ${sub.name} – Questionnaire`;
+  document.getElementById('qSubjectId').value = subjectId;
+  renderQEditor(subjectId);
+  openModal('qModal');
+}
+
+function renderQEditor(subjectId) {
+  const q = getQuestionnaire(subjectId);
+  const container = document.getElementById('qEditorContainer');
+  container.innerHTML = (q.sections || []).map((sec, si) => `
+    <div class="q-section-block" id="qsec_${si}">
+      <div class="q-section-block-header">
+        <div style="font-size:13px; font-weight:700; color:var(--accent-light);">Section ${si+1}</div>
+        <button class="btn btn-danger btn-xs" onclick="removeSection(${si})">Remove Section</button>
+      </div>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label>Section Title</label>
+        <input type="text" id="secTitle_${si}" value="${sec.title}" placeholder="e.g. Teaching Methodology" />
+      </div>
+      <div id="qItems_${si}">
+        ${sec.questions.map((q, qi) => `
+          <div class="q-item" id="qitem_${si}_${qi}">
+            <input type="text" id="qtext_${si}_${qi}" value="${q}" placeholder="Question ${qi+1}" />
+            <button class="btn btn-danger btn-xs" onclick="removeQuestion(${si},${qi})" aria-label="Remove question">&#10004;</button>
+          </div>`).join('')}
+      </div>
+      <button class="btn btn-secondary btn-xs" style="margin-top:8px;" onclick="addQuestion(${si})">+ Add Question</button>
+    </div>`).join('');
+}
+
+function addQSection() {
+  const subjectId = document.getElementById('qSubjectId').value;
+  const q = getQuestionnaire(subjectId);
+  q.sections.push({ title: 'New Section', questions: [''] });
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
+  renderQEditor(subjectId);
+}
+
+function removeSection(si) {
+  const subjectId = document.getElementById('qSubjectId').value;
+  const q = getQuestionnaire(subjectId);
+  q.sections.splice(si, 1);
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
+  renderQEditor(subjectId);
+}
+
+function addQuestion(si) {
+  const subjectId = document.getElementById('qSubjectId').value;
+  const q = getQuestionnaire(subjectId);
+  q.sections[si].questions.push('');
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
+  renderQEditor(subjectId);
+}
+
+function removeQuestion(si, qi) {
+  const subjectId = document.getElementById('qSubjectId').value;
+  const q = getQuestionnaire(subjectId);
+  q.sections[si].questions.splice(qi, 1);
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
+  renderQEditor(subjectId);
+}
+
+function saveQEditorChanges() {
+  const subjectId = document.getElementById('qSubjectId').value;
+  const q = getQuestionnaire(subjectId);
+  q.sections.forEach((sec, si) => {
+    const titleEl = document.getElementById(`secTitle_${si}`);
+    if (titleEl) sec.title = titleEl.value.trim();
+    sec.questions = sec.questions.map((_, qi) => {
+      const el = document.getElementById(`qtext_${si}_${qi}`);
+      return el ? el.value.trim() : '';
+    }).filter(Boolean);
+  });
+  const all = JSON.parse(localStorage.getItem('sfft_questionnaires') || '{}');
+  all[subjectId] = q;
+  localStorage.setItem('sfft_questionnaires', JSON.stringify(all));
+  fsSetDoc('questionnaires', subjectId, q);
+  closeModal('qModal');
+  showToast('Questionnaire saved!', 'success');
+}
+
+// ==================== ASSIGN TAB ====================
+let selectedTeacherId = null;
+var selectedSubjectIds = [];
+
+function renderAssignTab() {
+  selectedTeacherId = null;
+  selectedSubjectIds = [];
+  document.getElementById('saveAssignBtn').style.display = 'none';
+  document.getElementById('studentCheckPanel').style.display = 'none';
+  document.getElementById('subjectPickPanel').style.display = 'none';
+  renderTeacherPicker();
+}
+
+function renderTeacherPicker() {
+  const teachers = getTeachers();
+  const grid = document.getElementById('teacherPickGrid');
+  const noMsg = document.getElementById('noTeachersMsg');
+  if (!teachers.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
+  noMsg.style.display = 'none';
+  grid.innerHTML = teachers.map(t => {
+    const teacherSubs = (t.subjectIds || (t.subjectId ? [t.subjectId] : [])).map(function(id){ return getSubjectById(id); }).filter(Boolean);
+    const assignedCount = getEnrollments().filter(e => e.teacherId === t.id).length;
+    const isSelected = t.id === selectedTeacherId;
+    return `
+      <div onclick="selectTeacher('${t.id}')" style="
+        padding:16px; border-radius:var(--radius-sm); cursor:pointer;
+        border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border-light)'};
+        background:${isSelected ? 'rgba(124,58,237,0.15)' : 'var(--surface)'};
+        transition:var(--transition);
+      ">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;flex-shrink:0;">
+            ${t.name.charAt(0).toUpperCase()}
+          </div>
+          <div style="min-width:0;">
+            <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:2.8em;" title="${teacherSubs.length ? teacherSubs.map(function(s){return s.name;}).join(', ') : 'No subject'}">${teacherSubs.length ? teacherSubs.map(function(s){return s.name;}).join(', ') : 'No subject'}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="badge badge-purple" style="font-size:11px;">&#128101; ${assignedCount} student${assignedCount!==1?'s':''}</span>
+          ${isSelected ? '<span style="color:var(--accent-light);font-size:18px;">&#10004;&#65039;</span>' : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function selectTeacher(teacherId) {
+  selectedTeacherId = teacherId;
+  selectedSubjectIds = [];
+  renderTeacherPicker();
+  document.getElementById('studentCheckPanel').style.display = 'none';
+  document.getElementById('saveAssignBtn').style.display = 'none';
+  renderSubjectPicker(teacherId);
+  document.getElementById('subjectPickPanel').style.display = '';
+  document.getElementById('subjectPickPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderSubjectPicker(teacherId) {
+  var teacher = getUserById(teacherId);
+  document.getElementById('assignSubjectTeacherName').textContent = teacher ? teacher.name : '';
+  var teacherSubIds = teacher.subjectIds || (teacher.subjectId ? [teacher.subjectId] : []);
+  var subjects = teacherSubIds.map(function(id){ return getSubjectById(id); }).filter(Boolean);
+  var grid = document.getElementById('subjectPickGrid');
+  var noMsg = document.getElementById('noSubjectsMsg');
+  if (!subjects.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
+  noMsg.style.display = 'none';
+  var html = subjects.map(function(sub) {
+    var isChecked = selectedSubjectIds.indexOf(sub.id) !== -1;
+    return '<label style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:var(--radius-sm);' +
+      'border:2px solid ' + (isChecked ? 'var(--accent)' : 'var(--border-light)') + ';' +
+      'background:' + (isChecked ? 'rgba(124,58,237,0.15)' : 'var(--surface)') + ';' +
+      'cursor:pointer;transition:var(--transition);">' +
+      '<input type="checkbox" onchange="toggleSubject(\'' + sub.id + '\')" ' + (isChecked ? 'checked' : '') +
+      ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;" />' +
+      '<div style="display:flex;align-items:center;gap:8px;">' +
+        '<span style="font-size:22px;">&#128218;</span>' +
+        '<span style="font-weight:700;font-size:13px;word-break:break-word;line-height:1.3;">' + sub.name + '</span>' +
+      '</div>' +
+    '</label>';
+  }).join('');
+  html += '<div style="grid-column:1/-1;margin-top:10px;display:flex;align-items:center;gap:12px;">' +
+    '<button class="btn btn-primary btn-sm" onclick="proceedToStudents()" id="proceedSubjectsBtn"' +
+    (selectedSubjectIds.length ? '' : ' disabled style="opacity:0.5;pointer-events:none;"') +
+    '>&#10145; Proceed to Students (' + selectedSubjectIds.length + ' selected)</button>' +
+    '<span style="font-size:12px;color:var(--text-muted);">Select one or more subjects, then proceed</span>' +
+  '</div>';
+  grid.innerHTML = html;
+}
+
+function toggleSubject(subjectId) {
+  var idx = selectedSubjectIds.indexOf(subjectId);
+  if (idx === -1) { selectedSubjectIds.push(subjectId); } else { selectedSubjectIds.splice(idx, 1); }
+  renderSubjectPicker(selectedTeacherId);
+}
+
+function proceedToStudents() {
+  if (!selectedSubjectIds.length) return;
+  renderStudentChecklist(selectedTeacherId);
+  document.getElementById('studentCheckPanel').style.display = '';
+  document.getElementById('saveAssignBtn').style.display = '';
+  document.getElementById('studentCheckPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderStudentChecklist(teacherId) {
+  const teacher = getUserById(teacherId);
+  var subNames = selectedSubjectIds.map(function(id) { var s = getSubjectById(id); return s ? s.name : ''; }).filter(Boolean);
+  var subLabel = subNames.length ? ' (' + subNames.join(', ') + ')' : '';
+  document.getElementById('assignTeacherName').textContent = teacher ? teacher.name + subLabel : '';
+  const allStudents = getStudents();
+
+  // Check if student is enrolled for ANY of the currently selected subjects
+  const enrolledForSubjects = new Set();
+  getEnrollments()
+    .filter(e => e.teacherId === teacherId)
+    .forEach(e => {
+      // Check if enrollment has any of the selected subjects
+      const enrollmentSubjects = e.subjectIds || [];
+      const hasSelectedSubject = selectedSubjectIds.some(subId => enrollmentSubjects.includes(subId));
+      if (hasSelectedSubject) {
+        enrolledForSubjects.add(e.studentId);
+      }
+    });
+
+  const grid = document.getElementById('studentCheckGrid');
+  const noMsg = document.getElementById('noStudentsMsg');
+  if (!allStudents.length) { grid.innerHTML = ''; noMsg.style.display = ''; return; }
+  noMsg.style.display = 'none';
+
+  // Populate department & section filter dropdowns
+  var deptSet = new Set(); var secSet = new Set();
+  allStudents.forEach(function(s) { if (s.department) deptSet.add(s.department); if (s.section) secSet.add(s.section); });
+  var deptSel = document.getElementById('filterDept');
+  var secSel = document.getElementById('filterSection');
+  var curDept = deptSel ? deptSel.value : '';
+  var curSec = secSel ? secSel.value : '';
+  if (deptSel) { deptSel.innerHTML = '<option value="">All Departments</option>' + Array.from(deptSet).sort().map(function(d) { return '<option value="' + d + '"' + (d === curDept ? ' selected' : '') + '>' + d + '</option>'; }).join(''); }
+  if (secSel) { secSel.innerHTML = '<option value="">All Sections</option>' + Array.from(secSet).sort().map(function(s) { return '<option value="' + s + '"' + (s === curSec ? ' selected' : '') + '>' + s + '</option>'; }).join(''); }
+
+  // Apply filters
+  var assignSearch = (document.getElementById('assignSearchInput') || {}).value || '';
+  var students = allStudents.filter(function(s) {
+    if (curDept && s.department !== curDept) return false;
+    if (curSec && s.section !== curSec) return false;
+    if (assignSearch) { var q = assignSearch.toLowerCase(); if (!((s.name||'').toLowerCase().indexOf(q)!==-1 || (s.email||'').toLowerCase().indexOf(q)!==-1 || (s.rollNo||'').toLowerCase().indexOf(q)!==-1)) return false; }
+    return true;
+  });
+  var countEl = document.getElementById('filterCount');
+  if (countEl) countEl.textContent = 'Showing ' + students.length + ' of ' + allStudents.length + ' students';
+
+  // Group students by section
+  const groups = {};
+  students.forEach(s => {
+    const key = s.section ? `${s.department || 'No Dept'} – ${s.section}` : (s.department || 'Unassigned');
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  });
+
+  grid.innerHTML = Object.entries(groups).sort().map(([group, grpStudents]) => {
+    return `
+      <div style="grid-column:1/-1; font-size:11px; font-weight:700; color:var(--accent-light); text-transform:uppercase; letter-spacing:0.8px; padding:6px 0 4px; border-bottom:1px solid var(--border-light); margin-bottom:4px;">
+        &#127991; ${group} <span style="font-weight:400;color:var(--text-muted)">(${grpStudents.length} student${grpStudents.length!==1?'s':''})</span>
+      </div>
+      ${grpStudents.map(s => {
+        const checked = enrolledForSubjects.has(s.id);
+        return `<label style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid ${checked ? 'var(--accent)' : 'var(--border-light)'};background:${checked ? 'rgba(124,58,237,0.1)' : 'var(--surface)'};cursor:pointer;transition:var(--transition);">
+          <input type="checkbox" id="ck_${s.id}" value="${s.id}" ${checked ? 'checked' : ''}
+            style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;"
+            onchange="this.closest('label').style.borderColor=this.checked?'var(--accent)':'var(--border-light)';
+                      this.closest('label').style.background=this.checked?'rgba(124,58,237,0.1)':'var(--surface)';" />
+          <div style="min-width:0;flex:1;">
+            <div style="font-weight:600;font-size:13px;">${s.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.email}</div>
+            ${s.rollNo ? `<div style="font-size:11px;color:var(--accent-light);font-weight:600;margin-top:1px;">&#127991; Roll No: ${s.rollNo}</div>` : ''}
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:3px;">
+              ${s.department ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(59,130,246,0.15);color:#93c5fd;">&#127962; ${s.department}</span>` : ''}
+              ${s.section ? `<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:rgba(124,58,237,0.15);color:var(--accent-light);">&#127991; ${s.section}</span>` : ''}
+            </div>
+          </div>
+          ${checked ? '<span class="badge badge-green" style="margin-left:auto;flex-shrink:0;font-size:10px;">Enrolled</span>' : ''}
+        </label>`;
+      }).join('')}`;
+  }).join('');
+  // Refocus assignment search after re-render
+  if (assignSearch) {
+    requestAnimationFrame(function() {
+      var asi = document.getElementById('assignSearchInput');
+      if (asi) { asi.focus(); asi.setSelectionRange(assignSearch.length, assignSearch.length); }
+    });
+  }
+}
+
+function tickAll(state) {
+  document.querySelectorAll('#studentCheckGrid input[type=checkbox]').forEach(cb => {
+    cb.checked = state;
+    const lbl = cb.closest('label');
+    if (lbl) { lbl.style.borderColor=state?'var(--accent)':'var(--border-light)'; lbl.style.background=state?'rgba(124,58,237,0.1)':'var(--surface)'; }
+  });
+}
+
+function saveAssignments() {
+  if (!selectedTeacherId) return;
+  const checkboxes = document.querySelectorAll('#studentCheckGrid input[type=checkbox]');
+  let added = 0, removed = 0;
+  var newlyEnrolledIds = []; // track only students being enrolled for the first time in this save
+  checkboxes.forEach(cb => {
+    const sId = cb.value;
+    const isChecked = cb.checked;
+
+    // Check if student is currently enrolled for ANY of the selected subjects
+    const enrollment = getEnrollments().find(e => e.studentId === sId && e.teacherId === selectedTeacherId);
+    const enrollmentSubjects = enrollment ? (enrollment.subjectIds || []) : [];
+    const hasAnySelectedSubject = selectedSubjectIds.some(subId => enrollmentSubjects.includes(subId));
+
+    if (isChecked && !hasAnySelectedSubject) {
+      // Enroll student with the selected subjects
+      enroll(sId, selectedTeacherId, selectedSubjectIds);
+      added++;
+      newlyEnrolledIds.push(sId);
+    } else if (!isChecked && hasAnySelectedSubject) {
+      // Unenroll student from the selected subjects
+      unenroll(sId, selectedTeacherId, selectedSubjectIds);
+      removed++;
+    }
+  });
+  renderTeacherPicker(); // refresh count badges
+  renderStudentChecklist(selectedTeacherId); // refresh enrolled badges
+  // Auto-clear old feedback for newly assigned students so they can submit fresh
+  if (added > 0) {
+    var allResponses = getResponses();
+    var cleared = 0;
+    newlyEnrolledIds.forEach(function(sId) {
+      var oldResp = allResponses.filter(function(r) { return r.studentId === sId && r.teacherId === selectedTeacherId; });
+      oldResp.forEach(function(r) { deleteResponse(r.id); cleared++; });
+    });
+    if (cleared) console.log('[Admin] Cleared ' + cleared + ' old feedback response(s) for resubmission');
+    // Send push notifications to newly enrolled students only
+    var teacher = getUserById(selectedTeacherId);
+    var teacherName = teacher ? teacher.name : 'a teacher';
+    var teacherSubject = teacher ? (teacher.subject || '') : '';
+    newlyEnrolledIds.forEach(function(sId) {
+      // Look up the student's FCM token from Firestore and send push
+      db.collection('fcm_tokens').doc(sId).get().then(function(doc) {
+        if (doc.exists && doc.data().token) {
+          var fcmToken = doc.data().token;
+          var studentName = doc.data().name || 'Student';
+          console.log('[Push] Sending notification to ' + studentName);
+          var notifBody = teacherSubject
+            ? teacherName + ' (' + teacherSubject + ') has been assigned to you for feedback. Open your dashboard to submit!'
+            : teacherName + ' has been assigned to you for feedback. Open your dashboard to submit!';
+          // Call CodeWords FCM Push Notifier service with type metadata
+          sendPushFn({
+              fcm_token: fcmToken,
+              title: '\ud83c\udf93 New Teacher Assigned: ' + teacherName,
+              body: notifBody,
+              data: {
+                type: 'assignment',
+                teacherName: teacherName,
+                teacherSubject: teacherSubject,
+                url: '/feedback/student-dashboard.html#teachers'
+              }
+            }).then(function(res) {
+              console.log('[Push] Result:', res.data);
+              if (res.data && res.data.error === 'TOKEN_EXPIRED') {
+                console.warn('[Push] Token expired, auto-cleaned from Firestore');
+              }
+            }).catch(function(err) { console.warn('[Push] Error:', err.message); });
+        } else {
+          console.log('[Push] No FCM token for student (not registered or missing):', sId);
+        }
+      }).catch(function(err) { console.warn('[Push] Token lookup failed:', err.message); });
+    });
+  }
+  let msg = [];
+  if (added) msg.push(`&#10004; ${added} student${added>1?'s':''} enrolled`);
+  if (removed) msg.push(`&#128465;&#65039; ${removed} student${removed>1?'s':''} removed`);
+  if (!msg.length) msg.push('No changes made.');
+  showToast(msg.join(' &middot; '), added||removed ? 'success' : 'info');
+}
+
+function resetAllForTeacher() {
+  if (!selectedTeacherId) return;
+
+  const teacher = getUserById(selectedTeacherId);
+  const teacherName = teacher ? teacher.name : 'this teacher';
+
+  if (!confirm(`Are you sure you want to remove ALL student enrollments for ${teacherName}? This will clear all assignments and allow you to start fresh.`)) {
+    return;
+  }
+
+  // Get all enrollments for this teacher
+  const enrollments = getEnrollments().filter(e => e.teacherId === selectedTeacherId);
+  let removed = 0;
+
+  // Remove all enrollments for this teacher
+  enrollments.forEach(e => {
+    unenroll(e.studentId, selectedTeacherId, []); // Pass empty array to remove entire enrollment
+    removed++;
+  });
+
+  // Clear all feedback responses for this teacher
+  const allResponses = getResponses();
+  const teacherResponses = allResponses.filter(r => r.teacherId === selectedTeacherId);
+  teacherResponses.forEach(r => deleteResponse(r.id));
+
+  // Refresh UI
+  renderTeacherPicker(); // refresh count badges
+  renderStudentChecklist(selectedTeacherId); // refresh student list
+
+  showToast(`&#128260; Reset complete: ${removed} student${removed!==1?'s':''} removed, ${teacherResponses.length} feedback response${teacherResponses.length!==1?'s':''} cleared`, 'success');
+}
+
+// ==================== FEEDBACK TAB ====================
+function initFeedbackFilters() {
+  const tSel = document.getElementById('filterTeacher');
+  const sSel = document.getElementById('filterSubject');
+  tSel.innerHTML = '<option value="">All Teachers</option>' + getTeachers().map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  sSel.innerHTML = '<option value="">All Subjects</option>' + getSubjects().map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  renderFeedbackTable();
+}
+
+function renderFeedbackTable() {
+  const tFilter = document.getElementById('filterTeacher').value;
+  const sFilter = document.getElementById('filterSubject').value;
+  const aFilter = document.getElementById('filterAnon').value;
+  let responses = getResponses();
+  if (tFilter) responses = responses.filter(r => r.teacherId === tFilter);
+  if (sFilter) responses = responses.filter(r => r.subjectId === sFilter);
+  if (aFilter === '1') responses = responses.filter(r => r.anonymous);
+  if (aFilter === '0') responses = responses.filter(r => !r.anonymous);
+
+  const wrap = document.getElementById('feedbackTable');
+  if (!responses.length) { wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128172;</div><div class="empty-title">No feedback matching filters</div></div>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th style="width:36px;"><input type="checkbox" onchange="toggleAllFeedbackCb(this)" title="Select All"></th><th>Teacher</th><th>Student</th><th>Subject</th><th>Avg Score</th><th>Anonymous</th><th>Date</th></tr></thead>
+    <tbody>${responses.map(r => {
+      const t = getUserById(r.teacherId); const s = getUserById(r.studentId); const sub = getSubjectById(r.subjectId);
+      const all = Object.values(r.scores||{}).flat();
+      const avg = all.length ? (all.reduce((a,b)=>a+b,0)/all.length).toFixed(1) : 'N/A';
+      return `<tr>
+        <td><input type="checkbox" class="fb-select-cb" value="${r.id}"></td>
+        <td>${t ? t.name : 'Unknown Teacher'}</td>
+        <td>${r.anonymous ? "<span class=\"badge badge-blue\">&#128274; Anonymous</span>" : (s ? s.name : "&mdash;")}</td>
+        <td>${sub ? sub.name : 'Unknown Subject'}</td>
+        <td><span class="badge badge-purple">&#x2B50; ${avg}/5</span></td>
+        <td>${r.anonymous ? '<span class="badge badge-blue">Yes</span>' : '<span class="badge badge-gray">No</span>'}</td>
+        <td>${new Date(r.submittedAt).toLocaleDateString()}</td>
+        <td><button class="btn btn-danger btn-xs" onclick="clearSingleFeedback('${r.id}')" title="Clear so student can resubmit">&#x1F5D1; Clear</button></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function clearSingleFeedback(responseId) {
+  if (!confirm('Delete this feedback? The student will be able to resubmit.')) return;
+  deleteResponse(responseId);
+  renderFeedbackTable();
+  showToast('Feedback cleared. Student can now resubmit.', 'success');
+}
+
+function resetFilters() {
+  ['filterTeacher','filterSubject','filterAnon'].forEach(id => document.getElementById(id).value = '');
+  renderFeedbackTable();
+}
+
+function toggleAllFeedbackCb(el) {
+  document.querySelectorAll('.fb-select-cb').forEach(function(cb){ cb.checked = el.checked; });
+}
+
+function clearSelectedFeedback() {
+  var selected = [];
+  document.querySelectorAll('.fb-select-cb:checked').forEach(function(cb){ selected.push(cb.value); });
+  if (!selected.length) { showToast('No feedback selected.', 'error'); return; }
+  if (!confirm('Delete ' + selected.length + ' selected feedback response(s)? This cannot be undone.')) return;
+  var idSet = {};
+  selected.forEach(function(id){ idSet[id] = true; });
+  var all = getResponses();
+  var remaining = all.filter(function(r){ return !idSet[r.id]; });
+  if (typeof fsDeleteDoc === 'function') {
+    selected.forEach(function(id){ fsDeleteDoc('responses', id); });
+  }
+  localStorage.setItem('sfft_responses', JSON.stringify(remaining));
+  renderFeedbackTable();
+  showToast('Deleted ' + selected.length + ' feedback response(s).', 'success');
+}
+
+function clearAllFeedback() {
+  var all = getResponses();
+  if (!all.length) { showToast('No feedback to clear.', 'info'); return; }
+  if (!confirm('Delete ALL ' + all.length + ' feedback responses? This will also erase them from the database. This cannot be undone.')) return;
+  if (typeof fsDeleteDoc === 'function') {
+    all.forEach(function(r){ fsDeleteDoc('responses', r.id); });
+  }
+  localStorage.setItem('sfft_responses', JSON.stringify([]));
+  renderFeedbackTable();
+  showToast('All ' + all.length + ' feedback responses cleared from app and database!', 'success');
+}
+
+// ==================== REPORTS TAB ====================
+let _deptChart = null, _instDistChart = null;
+function renderReports() {
+  const stats = getInstitutionStats();
+  const wrap = document.getElementById('reportTable');
+  const threshold = getSettings().minThreshold || 3.5;
+
+  if (!stats.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128203;</div><div class="empty-title">No feedback data yet</div><div class="empty-desc">Feedback data will appear here once students submit their forms.</div></div>';
+    document.getElementById('perTeacherCharts').innerHTML = '';
+    return;
+  }
+
+  // "?"? Summary Table "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
+  wrap.innerHTML = `<table><thead><tr>
+    <th>Teacher</th><th>Dept / Section</th><th>Subject</th>
+    <th>Responses</th><th>Avg Score</th><th>Best Category</th><th>Status</th>
+  </tr></thead><tbody>${stats.map(item => {
+    const best = Object.entries(item.stats.sectionAverages).sort((a,b)=>b[1]-a[1])[0];
+    const isUnder = item.stats.overallAvg < threshold;
+    const color = isUnder ? 'var(--danger)' : (item.stats.overallAvg >= 4 ? 'var(--success)' : 'var(--warning)');
+    return `<tr style="${isUnder ? 'background:rgba(239,68,68,0.05);' : ''}">
+      <td><div style="font-weight:600;">${item.teacher.name}</div></td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap;">
+        ${item.teacher.department ? `<span class="badge badge-blue" style="font-size:10px;">${item.teacher.department}</span>` : ''}
+        ${item.teacher.section ? `<span class="badge badge-purple" style="font-size:10px;">${item.teacher.section}</span>` : ''}
+      </div></td>
+      <td>${item.subject ? `<span class="badge badge-purple">&#128218; ${item.subject.name}</span>` : '–'}</td>
+      <td>${item.stats.totalResponses}</td>
+      <td><span style="font-weight:700;color:${color};">${item.stats.overallAvg}/5</span></td>
+      <td style="font-size:12px;">${best ? best[0] + ' (' + best[1] + ')' : '–'}</td>
+      <td>${isUnder ? '<span class="badge badge-orange">&#9888;️ Needs Improvement</span>' : '<span class="badge badge-green">&#10004; On Track</span>'}</td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+
+  setTimeout(() => {
+    // "?"? Chart 1: Institution overview bar "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
+    renderInstitutionBar('instChart');
+
+    // "?"? Chart 2: Department-wise average (polar / doughnut) "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
+    const deptMap = {};
+    stats.forEach(item => {
+      const d = item.teacher.department || 'Unknown';
+      if (!deptMap[d]) deptMap[d] = [];
+      deptMap[d].push(item.stats.overallAvg);
+    });
+    const deptLabels = Object.keys(deptMap);
+    const deptAvgs = deptLabels.map(d => parseFloat((deptMap[d].reduce((a,b)=>a+b,0)/deptMap[d].length).toFixed(2)));
+    if (_deptChart) _deptChart.destroy();
+    _deptChart = new Chart(document.getElementById('deptChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: deptLabels,
+        datasets: [{
+          label: 'Avg Score',
+          data: deptAvgs,
+          backgroundColor: deptLabels.map((_,i) => `hsla(${i*60+220},80%,65%,0.7)`),
+          borderColor: deptLabels.map((_,i) => `hsla(${i*60+220},80%,65%,1)`),
+          borderWidth: 2, borderRadius: 8,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: true,
+        scales: {
+          x: { min:0, max:5, ticks:{color:'rgba(255,255,255,0.6)',font:{size:11}}, grid:{color:'rgba(255,255,255,0.07)'} },
+          y: { ticks:{color:'rgba(255,255,255,0.8)',font:{size:11}}, grid:{display:false} }
+        },
+        plugins: {
+          legend: {display:false},
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x}/5 avg` } }
+        }
+      }
+    });
+
+    // "?"? Chart 3: Score distribution (1-5) across all responses "?"?"?"?"?"?"?"?"?"?"?"?
+    const allResponses = getResponses();
+    const freq = {1:0,2:0,3:0,4:0,5:0};
+    allResponses.forEach(r => Object.values(r.scores||{}).flat().forEach(v => { if(freq[v]!==undefined) freq[v]++; }));
+    if (_instDistChart) _instDistChart.destroy();
+    _instDistChart = new Chart(document.getElementById('instDistChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['1 - Poor','2 - Fair','3 - Good','4 - Very Good','5 - Excellent'],
+        datasets: [{
+          data: Object.values(freq),
+          backgroundColor: ['rgba(239,68,68,0.8)','rgba(249,115,22,0.8)','rgba(234,179,8,0.8)','rgba(34,197,94,0.8)','rgba(124,58,237,0.8)'],
+          borderColor: 'rgba(0,0,0,0.2)', borderWidth:2, hoverOffset:8
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:true, cutout:'60%',
+        plugins: { legend:{position:'bottom', labels:{color:'rgba(255,255,255,0.7)',font:{size:10},padding:10}} }
+      }
+    });
+
+    // "?"? Per-teacher individual charts "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
+    const ptContainer = document.getElementById('perTeacherCharts');
+    ptContainer.innerHTML = stats.map(item => {
+      const t = item.teacher;
+      const avg = item.stats.overallAvg;
+      const isUnder = avg < threshold;
+      const color = isUnder ? '#ef4444' : (avg >= 4 ? '#22c55e' : '#f59e0b');
+      const initials = t.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+      return `
+        <div class="section-card animate-in">
+          <div class="section-card-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;flex-shrink:0;">${initials}</div>
+              <div>
+                <div class="section-card-title" style="margin:0;">${t.name}</div>
+                <div style="font-size:12px;color:var(--text-muted);">
+                  ${item.subject ? '&#128218; '+item.subject.name : ''}
+                  ${t.department ? ' &middot; &#127962; '+t.department : ''}
+                  ${t.section ? ' &middot; &#127991; '+t.section : ''}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:22px;font-weight:900;color:${color};">${avg}/5</span>
+              ${isUnder ? '<span class="badge badge-orange">&#9888;&#65039; Below Threshold</span>' : '<span class="badge badge-green">&#10004; On Track</span>'}
+            </div>
+          </div>
+          <div class="section-card-body">
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+              <span class="badge badge-purple" style="font-size:11px;">&#128172; ${item.stats.totalResponses} responses</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">&#127919; CATEGORY RADAR</div>
+                <div style="height:200px;"><canvas id="rpt_radar_${t.id}"></canvas></div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">&#128202; CATEGORY AVERAGES</div>
+                <div style="height:200px;"><canvas id="rpt_bar_${t.id}"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Render each teacher's radar + bar
+    stats.forEach(item => {
+      const entries = Object.entries(item.stats.sectionAverages);
+      if (!entries.length) return;
+      const labels = entries.map(([k])=>k);
+      const vals   = entries.map(([,v])=>v);
+
+      // Radar
+      new Chart(document.getElementById(`rpt_radar_${item.teacher.id}`).getContext('2d'), {
+        type: 'radar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Avg Score',
+            data: vals,
+            backgroundColor: 'rgba(124,58,237,0.25)',
+            borderColor: 'rgba(139,92,246,1)',
+            pointBackgroundColor: 'rgba(139,92,246,1)',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false,
+          scales: { r: { min:0,max:5, ticks:{display:false,stepSize:1}, grid:{color:'rgba(255,255,255,0.1)'}, pointLabels:{color:'rgba(255,255,255,0.7)',font:{size:9}} } },
+          plugins: { legend:{display:false} }
+        }
+      });
+
+      // Horizontal Bar
+      new Chart(document.getElementById(`rpt_bar_${item.teacher.id}`).getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Avg Score',
+            data: vals,
+            backgroundColor: vals.map(v => v>=4?'rgba(34,197,94,0.7)':v>=3?'rgba(234,179,8,0.7)':'rgba(239,68,68,0.7)'),
+            borderColor:  vals.map(v => v>=4?'rgba(34,197,94,1)':v>=3?'rgba(234,179,8,1)':'rgba(239,68,68,1)'),
+            borderWidth:2, borderRadius:6,
+          }]
+        },
+        options: {
+          indexAxis:'y',
+          responsive:true, maintainAspectRatio:false,
+          scales: {
+            x:{min:0,max:5,ticks:{color:'rgba(255,255,255,0.6)',font:{size:9}},grid:{color:'rgba(255,255,255,0.07)'}},
+            y:{ticks:{color:'rgba(255,255,255,0.7)',font:{size:9}},grid:{display:false}}
+          },
+          plugins:{legend:{display:false}}
+        }
+      });
+    });
+  }, 150);
+
+      // Close sidebar on mobile
+      document.querySelector('.sidebar').classList.remove('open');
+      document.querySelector('.sidebar-overlay').classList.remove('show');
+      // Push browser history so back button works
+      if (!skipHistory) history.pushState({tab: tab}, '', '#' + tab);
+    }
+
+
+    // Handle browser back button
+    window.addEventListener('popstate', function(e) {
+      if (e.state && e.state.tab) switchTab(e.state.tab, true);
+    });
+    // Set initial history state
+    history.replaceState({tab: 'users'}, '', '#users');
+
+function downloadAdminReport() {
+  const stats = getInstitutionStats();
+  if (!stats.length) { showToast('No feedback data to generate report.', 'error'); return; }
+  const settings = getSettings();
+  const threshold = settings.minThreshold || 3.5;
+  const collegeName = settings.collegeName || 'Institution';
+  const reportDate = new Date().toLocaleDateString('en-IN', {year:'numeric',month:'long',day:'numeric'});
+  const allResponses = getResponses();
+  const totalResponses = allResponses.length;
+
+  // Institution-wide averages
+  const allScores = allResponses.flatMap(function(r){ return Object.values(r.scores||{}).flat(); });
+  const instAvg = allScores.length ? (allScores.reduce(function(a,b){return a+b;},0)/allScores.length).toFixed(2) : '0';
+  const isInstUnder = parseFloat(instAvg) < threshold;
+
+  // Dept aggregation
+  const deptMap = {};
+  stats.forEach(function(item){
+    var d = item.teacher.department || 'Unknown';
+    if(!deptMap[d]) deptMap[d]={total:0,count:0,teachers:0};
+    deptMap[d].total += item.stats.overallAvg;
+    deptMap[d].count++;
+    deptMap[d].teachers++;
+  });
+  var deptLabels = Object.keys(deptMap);
+  var deptAvgs = deptLabels.map(function(d){ return (deptMap[d].total/deptMap[d].count).toFixed(2); });
+
+  // Score distribution
+  var dist = [0,0,0,0,0];
+  allScores.forEach(function(v){ if(v>=1&&v<=5) dist[Math.round(v)-1]++; });
+  var maxDist = Math.max.apply(null, dist.concat([1]));
+
+  // Colors
+  var barColors = ['#ef4444','#f97316','#eab308','#22c55e','#10b981'];
+  var catColors = ['#7c3aed','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6'];
+
+  // Teacher perf bar chart (SVG)
+  var tBarH=28, tGap=10;
+  var tChartH = stats.length*(tBarH+tGap)+10;
+  var tSVG = '<svg width="100%" height="'+tChartH+'" viewBox="0 0 650 '+tChartH+'">';
+  stats.forEach(function(item,i){
+    var val=item.stats.overallAvg; var pct=(val/5)*400;
+    var y=i*(tBarH+tGap)+5;
+    var color=val>=4?'#22c55e':val>=threshold?'#f59e0b':'#ef4444';
+    tSVG+='<rect x="180" y="'+y+'" width="'+pct+'" height="'+tBarH+'" rx="5" fill="'+color+'" opacity="0.85"/>';
+    var nm=item.teacher.name; if(nm.length>22)nm=nm.slice(0,22)+'...';
+    tSVG+='<text x="175" y="'+(y+tBarH/2+5)+'" text-anchor="end" font-size="11" fill="#334155" font-weight="600">'+nm+'</text>';
+    tSVG+='<text x="'+(182+pct+6)+'" y="'+(y+tBarH/2+5)+'" font-size="12" fill="#1e293b" font-weight="700">'+val+'/5</text>';
+  });
+  tSVG+='</svg>';
+
+  // Dept bar chart (SVG)
+  var dBarH=32, dGap=14;
+  var dChartH=deptLabels.length*(dBarH+dGap)+10;
+  var dSVG='<svg width="100%" height="'+dChartH+'" viewBox="0 0 600 '+dChartH+'">';
+  deptLabels.forEach(function(d,i){
+    var val=parseFloat(deptAvgs[i]); var pct=(val/5)*380;
+    var y=i*(dBarH+dGap)+5;
+    var color=catColors[i%catColors.length];
+    dSVG+='<rect x="160" y="'+y+'" width="'+pct+'" height="'+dBarH+'" rx="6" fill="'+color+'" opacity="0.85"/>';
+    dSVG+='<text x="155" y="'+(y+dBarH/2+5)+'" text-anchor="end" font-size="12" fill="#334155" font-weight="600">'+d+'</text>';
+    dSVG+='<text x="'+(162+pct+6)+'" y="'+(y+dBarH/2+5)+'" font-size="13" fill="#1e293b" font-weight="700">'+val+'/5</text>';
+  });
+  dSVG+='</svg>';
+
+  // Distribution bar chart (SVG)
+  var distBarW=70,distGap=20,distHt=150;
+  var distChartW=5*(distBarW+distGap)+40;
+  var distSVG='<svg width="100%" height="'+(distHt+40)+'" viewBox="0 0 '+distChartW+' '+(distHt+40)+'">';
+  dist.forEach(function(count,i){
+    var h=maxDist>0?(count/maxDist)*(distHt-20):0;
+    var x=i*(distBarW+distGap)+30;
+    var y2=distHt-h;
+    distSVG+='<rect x="'+x+'" y="'+y2+'" width="'+distBarW+'" height="'+h+'" rx="6" fill="'+barColors[i]+'" opacity="0.85"/>';
+    distSVG+='<text x="'+(x+distBarW/2)+'" y="'+(y2-6)+'" text-anchor="middle" font-size="14" fill="#1e293b" font-weight="700">'+count+'</text>';
+    distSVG+='<text x="'+(x+distBarW/2)+'" y="'+(distHt+18)+'" text-anchor="middle" font-size="13" fill="#64748b">'+(i+1)+' Star'+(i>0?'s':'')+'</text>';
+  });
+  distSVG+='<line x1="25" y1="'+distHt+'" x2="'+(distChartW-10)+'" y2="'+distHt+'" stroke="#e2e8f0" stroke-width="1"/>';
+  distSVG+='</svg>';
+
+  // Per-teacher detail cards
+  var teacherCards = stats.map(function(item){
+    var t=item.teacher; var avg=item.stats.overallAvg;
+    var isUnder=avg<threshold;
+    var color=isUnder?'#ef4444':(avg>=4?'#22c55e':'#f59e0b');
+    var entries=Object.entries(item.stats.sectionAverages);
+    var best=entries.sort(function(a,b){return b[1]-a[1];})[0];
+    var worst=entries[entries.length-1];
+    // Category bars
+    var cBarH2=24,cGap2=8;
+    var cH2=entries.length*(cBarH2+cGap2)+10;
+    var cSVG2='<svg width="100%" height="'+cH2+'" viewBox="0 0 500 '+cH2+'">';
+    entries.forEach(function(e,j){
+      var nm2=e[0]; var v2=e[1]; var pct2=(v2/5)*300;
+      var y3=j*(cBarH2+cGap2)+5;
+      var c2=v2>=4?'#22c55e':v2>=3?'#f59e0b':'#ef4444';
+      cSVG2+='<rect x="140" y="'+y3+'" width="'+pct2+'" height="'+cBarH2+'" rx="5" fill="'+c2+'" opacity="0.8"/>';
+      var sn=nm2.length>18?nm2.slice(0,18)+'...':nm2;
+      cSVG2+='<text x="135" y="'+(y3+cBarH2/2+4)+'" text-anchor="end" font-size="11" fill="#334155" font-weight="500">'+sn+'</text>';
+      cSVG2+='<text x="'+(142+pct2+5)+'" y="'+(y3+cBarH2/2+4)+'" font-size="11" fill="#1e293b" font-weight="700">'+v2+'/5</text>';
+    });
+    cSVG2+='</svg>';
+
+    return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:18px;page-break-inside:avoid;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">'+
+        '<div>'+
+          '<div style="font-size:16px;font-weight:700;color:#1e293b;">'+t.name+'</div>'+
+          '<div style="font-size:12px;color:#64748b;">'+(item.subject?item.subject.name:'')+
+            (t.department?' &middot; '+t.department:'')+
+            (t.section?' &middot; Section '+t.section:'')+'</div>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:10px;">'+
+          '<span style="font-size:22px;font-weight:800;color:'+color+';">'+avg+'/5</span>'+
+          '<span style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:'+(isUnder?'#fee2e2;color:#dc2626':'#dcfce7;color:#16a34a')+'">'+(isUnder?'Needs Improvement':'On Track')+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:auto auto auto;gap:14px;margin-bottom:14px;">'+
+        '<div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:18px;font-weight:800;color:#7c3aed;">'+item.stats.totalResponses+'</div><div style="font-size:10px;color:#64748b;font-weight:600;">RESPONSES</div></div>'+
+        '<div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:14px;font-weight:700;color:#10b981;">'+(best?best[0]:'N/A')+'</div><div style="font-size:10px;color:#64748b;font-weight:600;">BEST: '+(best?best[1]+'/5':'')+'</div></div>'+
+        '<div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:14px;font-weight:700;color:#ef4444;">'+(worst?worst[0]:'N/A')+'</div><div style="font-size:10px;color:#64748b;font-weight:600;">LOWEST: '+(worst?worst[1]+'/5':'')+'</div></div>'+
+      '</div>'+
+      '<div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;">CATEGORY-WISE PERFORMANCE</div>'+
+      cSVG2+
+    '</div>';
+  }).join('');
+
+  // Build final HTML
+  var html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>Institution Feedback Report - '+collegeName+'</title>'+
+  '<style>'+
+  "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');"+
+  '*{margin:0;padding:0;box-sizing:border-box;}'+
+  "body{font-family:'Inter',system-ui,sans-serif;color:#1e293b;background:#fff;padding:0;}"+
+  '@media print{body{padding:0;}.no-print{display:none!important;}}'+
+  '.container{max-width:900px;margin:0 auto;padding:30px 36px;}'+
+  '.report-header{text-align:center;padding:28px 20px;border-bottom:3px solid #7c3aed;margin-bottom:28px;}'+
+  '.report-header h1{font-size:22px;font-weight:800;color:#7c3aed;margin-bottom:4px;letter-spacing:-0.5px;}'+
+  '.report-header .college{font-size:18px;font-weight:700;color:#334155;}'+
+  '.report-header .subtitle{font-size:13px;color:#64748b;margin-top:6px;}'+
+  '.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}'+
+  '.card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;}'+
+  '.card .num{font-size:26px;font-weight:800;color:#7c3aed;}'+
+  '.card .lbl{font-size:11px;color:#64748b;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}'+
+  '.status-banner{padding:16px 20px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:14px;}'+
+  '.status-pass{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;}'+
+  '.status-fail{background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;}'+
+  '.section-title{font-size:16px;font-weight:700;color:#1e293b;margin:24px 0 14px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;display:flex;align-items:center;gap:8px;}'+
+  '.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}'+
+  '.chart-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px;}'+
+  '.chart-box h3{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}'+
+  'table{width:100%;border-collapse:collapse;font-size:12px;}'+
+  'th{background:#7c3aed;color:#fff;padding:10px 8px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.3px;}'+
+  'td{padding:9px 8px;border-bottom:1px solid #e2e8f0;}'+
+  'tr:nth-child(even){background:#f8fafc;}'+
+  '.report-footer{text-align:center;padding:20px 0;margin-top:24px;border-top:2px solid #e2e8f0;font-size:11px;color:#94a3b8;}'+
+  '.print-btn{position:fixed;top:16px;right:16px;background:#7c3aed;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;z-index:100;}'+
+  '.print-btn:hover{background:#6d28d9;}'+
+  '</style></head><body>'+
+  '<button class="print-btn no-print" onclick="window.print()">&#128424; Print / Save PDF</button>'+
+  '<div class="container">'+
+  '<div class="report-header"><h1>&#127979; Institution Feedback Report</h1><div class="college">'+collegeName+'</div><div class="subtitle">Generated on '+reportDate+'</div></div>'+
+
+  // Status Banner
+  '<div class="status-banner '+(isInstUnder?'status-fail':'status-pass')+'">'+
+    '<div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:'+(isInstUnder?'#fecaca':'#bbf7d0')+';">'+(isInstUnder?'&#9888;&#65039;':'&#9989;')+'</div>'+
+    '<div><div style="font-weight:700;font-size:15px;color:'+(isInstUnder?'#dc2626':'#16a34a')+';">'+(isInstUnder?'Institution Below Target':'Institution On Track')+'</div>'+
+    '<div style="font-size:13px;color:#475569;">Overall Average: <strong style="font-size:16px;color:'+(isInstUnder?'#dc2626':'#16a34a')+';">'+instAvg+'/5</strong> | Threshold: '+threshold+'/5 | '+stats.length+' teachers evaluated</div></div></div>'+
+
+  // Summary Cards
+  '<div class="cards">'+
+    '<div class="card"><div class="num">'+stats.length+'</div><div class="lbl">Teachers Evaluated</div></div>'+
+    '<div class="card"><div class="num">'+totalResponses+'</div><div class="lbl">Total Responses</div></div>'+
+    '<div class="card"><div class="num" style="color:'+(isInstUnder?'#ef4444':'#7c3aed')+';">'+instAvg+'/5</div><div class="lbl">Institution Average</div></div>'+
+    '<div class="card"><div class="num">'+deptLabels.length+'</div><div class="lbl">Departments</div></div>'+
+  '</div>'+
+
+  // Charts row
+  '<div class="chart-grid">'+
+    '<div class="chart-box"><h3>&#128202; Department Comparison</h3>'+dSVG+'</div>'+
+    '<div class="chart-box"><h3>&#127775; Score Distribution (1-5)</h3>'+distSVG+'</div>'+
+  '</div>'+
+
+  // Teacher Performance Chart (full width)
+  '<div class="chart-box" style="margin-bottom:24px;"><h3>&#127979; Teacher Performance Overview</h3>'+tSVG+'</div>'+
+
+  // Summary Table
+  '<div class="section-title">&#128203; Teacher Summary Table</div>'+
+  '<div style="overflow-x:auto;margin-bottom:24px;"><table><thead><tr><th>#</th><th>Teacher</th><th>Department</th><th>Subject</th><th>Responses</th><th>Avg Score</th><th>Best Category</th><th>Status</th></tr></thead><tbody>'+
+  stats.map(function(item,i){
+    var best2=Object.entries(item.stats.sectionAverages).sort(function(a,b){return b[1]-a[1];})[0];
+    var isU=item.stats.overallAvg<threshold;
+    var c3=isU?'#ef4444':(item.stats.overallAvg>=4?'#16a34a':'#f59e0b');
+    return '<tr'+(isU?' style="background:#fef2f2;"':'')+'><td style="text-align:center;font-weight:600;">'+(i+1)+'</td><td style="font-weight:600;">'+item.teacher.name+'</td><td>'+(item.teacher.department||'N/A')+'</td><td>'+(item.subject?item.subject.name:'N/A')+'</td><td style="text-align:center;">'+item.stats.totalResponses+'</td><td style="text-align:center;font-weight:700;color:'+c3+';">'+item.stats.overallAvg+'/5</td><td style="font-size:11px;">'+(best2?best2[0]+' ('+best2[1]+')':'N/A')+'</td><td><span style="display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:600;background:'+(isU?'#fee2e2;color:#dc2626':'#dcfce7;color:#16a34a')+'">'+(isU?'Needs Improvement':'On Track')+'</span></td></tr>';
+  }).join('')+
+  '</tbody></table></div>'+
+
+  // Per-teacher detailed cards
+  '<div class="section-title">&#128100; Per-Teacher Detailed Breakdown</div>'+
+  teacherCards+
+
+  '<div class="report-footer"><div style="font-weight:600;color:#64748b;">This report was auto-generated by the '+collegeName+' Feedback System</div><div style="margin-top:4px;">Confidential &mdash; For authorized use only &mdash; '+reportDate+'</div></div>'+
+  '</div></body></html>';
+
+  var blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  showToast('Institution report opened! Use Print to save as PDF.', 'success');
+}
+
+// ==================== SETTINGS TAB ====================
+function loadSettings() {
+  const s = getSettings();
+  document.getElementById('settCollegeName').value = s.collegeName || '';
+  document.getElementById('settDomain').value = s.collegeDomain || '';
+  const t = s.minThreshold || 3.5;
+  document.getElementById('settThreshold').value = t;
+  document.getElementById('settThresholdRange').value = t;
+  document.getElementById('threshPreview').textContent = parseFloat(t).toFixed(1) + '/5';
+}
+function saveSettingsForm() {
+  const tVal = parseFloat(document.getElementById('settThreshold').value) || 3.5;
+  saveSettings({
+    collegeName: document.getElementById('settCollegeName').value.trim(),
+    collegeDomain: document.getElementById('settDomain').value.trim(),
+    minThreshold: tVal
+  });
+  document.getElementById('collegeName').textContent = getSettings().collegeName;
+  showToast('Settings saved successfully', 'success');
+  // Re-render reports if they are open
+  if (document.getElementById('tabReports').style.display !== 'none') renderReports();
+}
+
+// Init
+refreshUserCounts();
+renderUserTable('student');
+
+// ==================== ATTENDANCE TAB ====================
+let attParsedRows = [];
+
+function populateAttendanceSections() {
+  const sections = [...new Set(getStudents().map(s => s.section).filter(Boolean))].sort();
+  const select1 = document.getElementById('attSectionSelect');
+  const select2 = document.getElementById('attFilterSection');
+  const opts = '<option value="">All Sections</option>' + sections.map(s => `<option value="${s}">${s}</option>`).join('');
+  select1.innerHTML = opts; select2.innerHTML = opts;
+}
+
+function handleAttDrop(e) {
+  e.preventDefault();
+  document.getElementById('attDropZone').style.borderColor = 'var(--border)';
+  if (e.dataTransfer.files[0]) processAttCSV(e.dataTransfer.files[0]);
+}
+
+function handleAttCSVFile(input) {
+  if (input.files[0]) processAttCSV(input.files[0]);
+}
+
+function processAttCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => parseAttCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseAttCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) { showAttErr('CSV must have a header and data rows.'); return; }
+  
+  const rawHeader = parseCSVLine(lines[0]).map(h => h.replace(/"/g,'').toLowerCase().trim());
+  // Normalize common column name variations
+  const colAliases = {
+    'dept': 'department', 'departmart': 'department', 'deparment': 'department', 'depart': 'department',
+    'rollno': 'roll_no', 'roll_number': 'roll_no', 'rollnumber': 'roll_no', 'roll': 'roll_no',
+    'subject': 'subject_name', 'subjectname': 'subject_name',
+  };
+  const header = rawHeader.map(h => colAliases[h] || h);
+  if (!header.includes('email') || !header.includes('section') || !header.includes('attendance_percentage')) {
+    showAttErr('Missing required columns: "email", "section", "attendance_percentage"'); return;
+  }
+  
+  const eIdx = header.indexOf('email');
+  const sIdx = header.indexOf('section');
+  const pIdx = header.indexOf('attendance_percentage');
+  const students = Object.fromEntries(getStudents().map(s => [s.email.toLowerCase(), s]));
+  
+  attParsedRows = [];
+  let errCount = 0;
+  
+  lines.slice(1).forEach((line, i) => {
+    const cols = parseCSVLine(line).map(c => c.replace(/^"|"$/g,'').trim());
+    if (!cols[eIdx] && !cols[pIdx]) return;
+    
+    const email = (cols[eIdx] || '').toLowerCase();
+    const rowSection = (cols[sIdx] || '').trim();
+    const pctStr = cols[pIdx] || '0';
+    const pct = parseFloat(pctStr);
+    
+    const row = { rowNum: i+2, email, section: rowSection, pct, error: null, studentId: null, name: '' };
+    
+    const student = students[email];
+    if (!student) row.error = 'Student not found in system';
+    else if (!rowSection) row.error = 'Section is missing for this row';
+    else if (student.section && student.section !== rowSection) row.error = `Student is in section ${student.section || 'None'}, not ${rowSection}`;
+    else if (isNaN(pct) || pct < 0 || pct > 100) row.error = 'Invalid percentage (must be 0-100)';
+    else { row.studentId = student.id; row.name = student.name; }
+    
+    if (row.error) errCount++;
+    attParsedRows.push(row);
+  });
+  
+  document.getElementById('attParseErr').style.display = 'none';
+  document.getElementById('attDropZone').style.display = 'none';
+  document.getElementById('attPreviewCard').style.display = '';
+  document.getElementById('attOkCount').innerHTML = `✔ ${(attParsedRows.length - errCount)} Valid`;
+  document.getElementById('attErrCount').innerHTML = `⚠️ ${errCount} Errors`;
+  
+  const thresh = 75; // ATTENDANCE_THRESHOLD from data.js
+  document.getElementById('attPreviewTable').innerHTML = `<table>
+    <thead><tr><th>#</th><th>Student Name</th><th>Email</th><th>Attendance</th><th>Status</th></tr></thead>
+    <tbody>${attParsedRows.map(r => {
+      const isOk = !r.error;
+      const isPass = isOk && r.pct >= thresh;
+      const statusHtml = r.error ? `<span class="badge badge-red" title="${r.error}">O Error</span>` :
+        (isPass ? '<span class="badge badge-green">&#10004; Eligible</span>' : '<span class="badge badge-orange">&#9888;️ Blocked</span>');
+      return `<tr style="${r.error ? 'opacity:0.6;background:rgba(239,68,68,0.05);' : ''}">
+        <td style="color:var(--text-muted);">${r.rowNum}</td>
+        <td style="font-weight:600;">${r.name || '?"'}</td>
+        <td style="font-size:12px;">${r.email}</td>
+        <td style="font-weight:700;color:${isOk?(isPass?'var(--success)':'var(--danger)'):'inherit'}">${isOk ? r.pct+'%' : r.pct}</td>
+        <td>${statusHtml}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function showAttErr(msg) {
+  const el = document.getElementById('attParseErr');
+  el.textContent = '&#128683; ' + msg; el.style.display = '';
+}
+
+function cancelAttPreview() {
+  document.getElementById('attPreviewCard').style.display = 'none';
+  document.getElementById('attDropZone').style.display = '';
+  document.getElementById('attCSVInput').value = '';
+  attParsedRows = [];
+}
+
+function saveAttendanceUpload() {
+  const valid = attParsedRows.filter(r => !r.error);
+  if (!valid.length) { showToast('No valid records to save.', 'error'); return; }
+  
+  const recordsToSave = valid.map(r => ({ studentId: r.studentId, percentage: r.pct, section: r.section }));
+  saveAttendanceRecords(recordsToSave);
+  
+  const savedSections = [...new Set(valid.map(r => r.section))].join(', ');
+  showToast(`&#10004; Saved ${valid.length} attendance records for sections: ${savedSections}`, 'success');
+  cancelAttPreview();
+  renderAttendanceRecords();
+}
+
+function renderAttendanceRecords() {
+  const section = document.getElementById('attFilterSection').value;
+  let records = getAttendance();
+  if (section) records = records.filter(r => r.section === section);
+  
+  const wrap = document.getElementById('attRecordsTable');
+  if (!records.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">&#128203;</div><div class="empty-title">No records found</div></div>`; return;
+  }
+  
+  records.sort((a,b) => b.uploadedAt - a.uploadedAt); // newest first
+  const thresh = 75;
+  
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Student</th><th>Email</th><th>Section</th><th>Attendance</th><th>Feedback Access</th><th>Last Updated</th></tr></thead>
+    <tbody>${records.map(r => {
+      const student = getUserById(r.studentId) || { name: 'Unknown', email: 'deleted', section: 'N/A' };
+      const isPass = r.percentage >= thresh;
+      return `<tr>
+        <td style="font-weight:600;">${student.name}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${student.email}</td>
+        <td><span class="badge badge-purple">${r.section}</span></td>
+        <td style="font-weight:700;color:${isPass?'var(--success)':'var(--danger)'};">${r.percentage}%</td>
+        <td>${isPass ? "<span class=\"badge badge-green\">&#9989; Allowed</span>" : "<span class=\"badge badge-orange\">&#128274; Blocked</span>"}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${new Date(r.uploadedAt).toLocaleDateString()}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function clearAllAttendance() {
+  var records = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
+  if (!records.length) { showToast('No attendance records to clear.', 'info'); return; }
+  if (!confirm('Clear ALL ' + records.length + ' attendance records? This cannot be undone.')) return;
+  if (typeof fsDeleteDoc === 'function') {
+    records.forEach(function(r) { fsDeleteDoc('attendance', r.studentId); });
+  }
+  localStorage.setItem('sfft_attendance', '[]');
+  renderAttendanceRecords();
+  showToast('All attendance records cleared!', 'success');
+}
+
+function downloadAttendanceTemplate() {
+  const csv = "email,section,attendance_percentage\nstudent1@institute.edu,CSE-A,85\nstudent2@institute.edu,CSE-B,60\n";
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `attendance_template.csv`; a.click();
+}
+
+// ==================== BULK IMPORT ====================
+let bulkParsedRows = [];
+
+function downloadCSVTemplate() {
+  const domain = getSettings().collegeDomain || '';
+  const subs = getSubjects();
+  const subExample = subs.length ? subs[0].name : 'Mathematics';
+  const rows = [
+    ['name','email','password','role','department','section','roll_no','subject_name'],
+    ['Amit Sharma',`amit@${domain}`,'Amit@123','student','CSE','CSE1','21CS101',''],
+    ['Sneha Patel',`sneha@${domain}`,'Sneha@123','student','CSE','CSE2','21CS102',''],
+    ['Ravi Kumar',`ravi@${domain}`,'Ravi@123','student','EEE','EEE1','21EE201',''],
+    ['Dr. Meera Joshi',`meera@${domain}`,'Meera@123','teacher','CSE','CSE1','',subExample],
+    ['Prof. Suresh R.',`suresh@${domain}`,'Suresh@123','teacher','Humanities','ENG1','','English'],
+  ];
+  const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'bulk_import_template.csv'; a.click();
+  showToast('Template downloaded! Open in Excel or Google Sheets.', 'info');
+}
+
+function openBulkModal() {
+  resetBulkModal();
+  openModal('bulkModal');
+}
+
+function resetBulkModal() {
+  bulkParsedRows = [];
+  document.getElementById('bulkStep1').style.display = '';
+  document.getElementById('bulkStep2').style.display = 'none';
+  document.getElementById('bulkImportBtn').style.display = 'none';
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('bulkParseErr').style.display = 'none';
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.csv')) processCSVFile(file);
+  else showBulkErr('Please drop a .csv file.');
+}
+
+function handleCSVFile(input) {
+  if (input.files.length) processCSVFile(input.files[0]);
+}
+
+function processCSVFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      parseAndPreviewCSV(text);
+    } catch(err) { showBulkErr('Failed to read file: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  // Handles quoted fields with commas inside
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuote = !inQuote; }
+    else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function parseAndPreviewCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) { showBulkErr('CSV file must have a header row and at least one data row.'); return; }
+
+  const rawHeader = parseCSVLine(lines[0]).map(h => h.replace(/"/g,'').replace(/\ufeff/g,'').toLowerCase().trim());
+  const colAliases = { 'dept':'department', 'departmart':'department', 'deparment':'department', 'rollno':'roll_no', 'roll_number':'roll_no', 'rollnumber':'roll_no', 'subject':'subject_name', 'subjectname':'subject_name' };
+  const header = rawHeader.map(h => colAliases[h] || h);
+  const required = ['name','email','password','role'];
+  const missing = required.filter(f => !header.includes(f));
+  if (missing.length) { showBulkErr(`Missing required columns: ${missing.join(', ')}. Please use the template.`); return; }
+
+  const idx = (col) => header.indexOf(col);
+  const domain = getSettings().collegeDomain;
+  const existingEmails = new Set(getUsers().map(u => u.email.toLowerCase()));
+  const subjects = getSubjects();
+
+  bulkParsedRows = lines.slice(1).map((line, i) => {
+    const cols = parseCSVLine(line).map(c => c.replace(/^"|"$/g,'').trim());
+    const row = {
+      rowNum: i + 2,
+      name: cols[idx('name')] || '',
+      email: (cols[idx('email')] || '').toLowerCase(),
+      password: cols[idx('password')] || '',
+      role: (cols[idx('role')] || '').toLowerCase(),
+      department: idx('department') >= 0 ? cols[idx('department')] : '',
+      section:    idx('section')    >= 0 ? cols[idx('section')]    : '',
+      rollNo:      idx('roll_no')      >= 0 ? cols[idx('roll_no')]      : '',
+      subjectName: idx('subject_name') >= 0 ? cols[idx('subject_name')] : '',
+      errors: [], warnings: [], skip: false,
+    };
+
+    if (!row.name) row.errors.push('Name is empty');
+    if (!row.email) row.errors.push('Email is empty');
+    else if (!row.email.endsWith('@' + domain)) row.errors.push(`Email must end with @${domain}`);
+    if (!row.password) row.errors.push('Password is empty');
+    else if (row.password.length < 6) row.errors.push('Password must be ?6 characters');
+    if (!['student','teacher'].includes(row.role)) row.errors.push('Role must be "student" or "teacher"');
+    if (existingEmails.has(row.email)) { row.warnings.push('Email already exists – will be skipped'); row.skip = true; }
+
+    // Resolve subject for teachers
+    if (row.role === 'teacher' && row.subjectName) {
+      const sub = subjects.find(s => s.name.toLowerCase() === row.subjectName.toLowerCase());
+      row.subjectId = sub ? sub.id : null;
+      if (!sub) row.warnings.push(`Subject "${row.subjectName}" not found – teacher will have no subject`);
+    }
+
+    if (row.errors.length) row.skip = true;
+    return row;
+  }).filter(r => r.name || r.email); // remove blank rows
+
+  if (!bulkParsedRows.length) { showBulkErr('No valid data rows found in the file.'); return; }
+
+  renderBulkPreview();
+}
+
+function renderBulkPreview() {
+  const valid = bulkParsedRows.filter(r => !r.skip);
+  const skipped = bulkParsedRows.filter(r => r.skip);
+
+  document.getElementById('bulkStep1').style.display = 'none';
+  document.getElementById('bulkStep2').style.display = '';
+  document.getElementById('bulkPreviewCount').textContent = bulkParsedRows.length;
+  document.getElementById('bulkValidCount').textContent = `o. ${valid.length} will be imported`;
+  document.getElementById('bulkSkipCount').textContent = `s️ ${skipped.length} will be skipped`;
+  document.getElementById('bulkImportBtn').style.display = valid.length ? '' : 'none';
+
+  const wrap = document.getElementById('bulkPreviewTable');
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Dept.</th><th>Section</th><th>Subject</th><th>Status</th>
+    </tr></thead>
+    <tbody>${bulkParsedRows.map(r => {
+      const statusHtml = r.skip
+        ? `<span class="badge badge-red" title="${[...r.errors,...r.warnings].join('; ')}">${r.errors.length ? '&#x1F6AB; Error' : '&#x26A0;&#xFE0F; Skip'}</span>`
+        : '<span class="badge badge-green">&#x2714; Ready</span>';
+      const rowStyle = r.skip ? 'opacity:0.5;' : '';
+      return `<tr style="${rowStyle}">
+        <td style="color:var(--text-muted);">${r.rowNum}</td>
+        <td style="font-weight:600;">${r.name}</td>
+        <td style="font-size:12px; color:var(--text-muted);">${r.email}</td>
+        <td>${r.role === 'student' ? "<span class=\"badge badge-blue\">&#127891; Student</span>" : "<span class=\"badge badge-green\">&#128104;‍&#127979; Teacher</span>"}</td>
+        <td>${r.department || '\u2014'}</td>
+        <td>${r.section ? `<span class="badge badge-purple" style="font-size:11px;">${r.section}</span>` : '\u2014'}</td>
+        <td>${r.subjectName || '\u2014'}</td>
+        <td>${statusHtml}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function showBulkErr(msg) {
+  const el = document.getElementById('bulkParseErr');
+  el.innerHTML = '⚠️ ' + msg; el.style.display = '';
+}
+
+
+function toggleSelectAll(masterCb) {
+  document.querySelectorAll('.user-select-cb').forEach(cb => cb.checked = masterCb.checked);
+}
+
+function deleteSelectedUsers() {
+  const selected = new Set([...document.querySelectorAll('.user-select-cb:checked')].map(cb => cb.value));
+  if (!selected.size) { showToast('No users selected.', 'error'); return; }
+  if (!confirm('Delete ' + selected.size + ' selected user(s)? This will also remove their enrollments and responses.')) return;
+
+  // BATCH DELETE: single read, filter, single write
+  const users = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+  const enrollments = JSON.parse(localStorage.getItem('sfft_enrollments') || '[]');
+  const responses = JSON.parse(localStorage.getItem('sfft_responses') || '[]');
+  const attendance = JSON.parse(localStorage.getItem('sfft_attendance') || '[]');
+
+  // Find enrollments to clean from Firestore
+  const enrollsToDelete = enrollments.filter(e => selected.has(e.studentId) || selected.has(e.teacherId));
+
+  // Filter out deleted users and their related data
+  const newUsers = users.filter(u => !selected.has(u.id));
+  const newEnrollments = enrollments.filter(e => !selected.has(e.studentId) && !selected.has(e.teacherId));
+  const newResponses = responses.filter(r => !selected.has(r.studentId) && !selected.has(r.teacherId));
+  const newAttendance = attendance.filter(a => !selected.has(a.studentId));
+
+  // Single batch write to localStorage
+  localStorage.setItem('sfft_users', JSON.stringify(newUsers));
+  localStorage.setItem('sfft_enrollments', JSON.stringify(newEnrollments));
+  localStorage.setItem('sfft_responses', JSON.stringify(newResponses));
+  localStorage.setItem('sfft_attendance', JSON.stringify(newAttendance));
+
+  // Find responses & attendance to delete from Firestore
+  const responsesToDelete = responses.filter(r => selected.has(r.studentId) || selected.has(r.teacherId));
+  const attendanceToDelete = attendance.filter(a => selected.has(a.studentId));
+
+  // Sync deletes to Firestore
+  if (typeof fsDeleteDoc === 'function') {
+    selected.forEach(id => fsDeleteDoc('users', id));
+    enrollsToDelete.forEach(e => fsDeleteDoc('enrollments', e.studentId + '_' + e.teacherId));
+    responsesToDelete.forEach(r => fsDeleteDoc('responses', r.id));
+    attendanceToDelete.forEach(a => fsDeleteDoc('attendance', a.studentId));
+  }
+
+  refreshUserCounts();
+  renderUserTable(currentUserRole);
+  showToast('Deleted ' + selected.size + ' user(s) and cleaned up enrollments.', 'info');
+}
+
+function executeBulkImport() {
+  const toImport = bulkParsedRows.filter(r => !r.skip);
+  if (!toImport.length) { showToast('No rows to import.', 'error'); return; }
+
+  // BATCH INSERT: read users once, add all, write once
+  const existingUsers = JSON.parse(localStorage.getItem('sfft_users') || '[]');
+  const existingEmails = new Set(existingUsers.map(u => u.email.toLowerCase()));
+  let imported = 0, skipped = 0;
+  const newUsers = [];
+
+  toImport.forEach((r, i) => {
+    if (existingEmails.has(r.email.toLowerCase())) { skipped++; return; }
+    const id = 'u_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2,4);
+    const user = {
+      id, email: r.email, password: r.password, role: r.role, name: r.name,
+      department: r.department || '', section: r.section || '',
+      rollNo: r.rollNo || '', subjectId: r.subjectId || null, active: true
+    };
+    newUsers.push(user);
+    existingEmails.add(r.email.toLowerCase());
+    imported++;
+  });
+
+  // Single write to localStorage
+  const allUsers = [...existingUsers, ...newUsers];
+  localStorage.setItem('sfft_users', JSON.stringify(allUsers));
+
+  // Sync all new users to Firestore in background
+  newUsers.forEach(u => {
+    if (typeof fsSetDoc === 'function') fsSetDoc('users', u.id, u);
+  });
+
+  closeModal('bulkModal');
+  refreshUserCounts();
+  renderUserTable(currentUserRole);
+  if (imported) showToast('Imported ' + imported + ' user(s) successfully!', 'success');
+  if (skipped) showToast(skipped + ' duplicate(s) skipped.', 'info');
+}
+  
+  function adminResetPw(userId) {
+    var newPw = prompt('Enter new password for this user (min 6 chars):');
+    if (!newPw) return;
+    if (newPw.length < 6) { alert('Password must be at least 6 characters.'); return; }
+    try {
+      adminResetPassword(userId, newPw);
+      alert('Password reset successfully!');
+    } catch(e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
