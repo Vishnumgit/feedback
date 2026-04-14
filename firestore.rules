@@ -1,58 +1,58 @@
 // =============================================================
-// firestore.rules — Firestore Security Rules (HARDENED v3)
+// firestore.rules — Firestore Security Rules (HARDENED v4)
 // =============================================================
-// Per-collection whitelist with default deny for unlisted collections.
-// All 9 app collections are explicitly listed.
+// SECURITY FIX: Rejects anonymous auth users. Only real logins
+// (email/password or Google Sign-In) get read/write access.
+// Anonymous auth provider is explicitly blocked.
 // =============================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper: true only for non-anonymous authenticated users
+    function isRealUser() {
+      return request.auth != null
+          && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
     match /users/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
     match /subjects/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
     match /questionnaires/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
     match /settings/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
     match /enrollments/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
     match /responses/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
     match /attendance/{docId} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Push notification collections
-    match /fcm_tokens/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
     match /notifications/{docId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isRealUser();
     }
 
-    // password_resets is managed exclusively by Cloud Functions (Admin SDK).
-    // Clients must never read or write it directly.
-    match /password_resets/{docId} {
-      allow read, write: if false;
+    match /timetables/{docId} {
+      allow read, write: if isRealUser();
     }
 
-    // DEFAULT DENY: block all unlisted collections
+    // Default deny for any unlisted collection
     match /{document=**} {
       allow read, write: if false;
     }
