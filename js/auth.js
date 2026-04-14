@@ -205,6 +205,11 @@ async function syncFirebaseAuth(email, password, localUser, session) {
     });
 
     console.log('[Auth] Background Firebase sync complete');
+    
+    // Now that Firebase Auth is ready, start session listener for cross-device logout
+    if (typeof startSessionListener === 'function') {
+      startSessionListener();
+    }
   } catch(e) {
     console.warn('[Auth] Background Firebase sync failed (login still works):', e.message);
   }
@@ -273,6 +278,11 @@ async function googleLogin(credential, expectedRole) {
       });
 
       console.log('[Auth] Background Google Firebase sync complete');
+      
+      // Start session listener now that Firebase Auth is ready
+      if (typeof startSessionListener === 'function') {
+        startSessionListener();
+      }
     } catch(e) {
       console.warn('[Auth] Google Firebase auth background sync failed (login still works):', e.message);
       try { await auth.signInAnonymously(); } catch(ae) {}
