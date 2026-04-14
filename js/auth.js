@@ -14,13 +14,28 @@ function generateSessionToken() {
 
 // ---- Firestore user lookup fallback ----
 // Used when a user exists in Firestore but hasn't been synced to localStorage yet.
-async function fetchUserFromFirestore(email) {
+async function fetchUserFromFirestore(email, timeoutMs) {
   try {
     if (typeof db === 'undefined') return null;
     var normalizedEmail = email.toLowerCase();
-    var snap = await db.collection('users').where('email', '==', normalizedEmail).get();
+    
+    // Race against timeout for faster UX
+    var queryPromise = db.collection('users').where('email', '==', normalizedEmail).get();
+    var snap;
+    if (timeoutMs) {
+      var timeoutPromise = new Promise(function(_, reject) {
+        setTimeout(function() { reject(new Error('Firestore timeout')); }, timeoutMs);
+      });
+      try {
+        snap = await Promise.race([queryPromise, timeoutPromise]);
+      } catch(te) {
+        console.warn('[Auth] Firestore lookup timed out after ' + timeoutMs + 'ms');
+        return null;
+      }
+    } else {
+      snap = await queryPromise;
+    }
     if (snap.empty) {
-      // Some documents may have been stored with original casing
       snap = await db.collection('users').where('email', '==', email).get();
     }
     if (snap.empty) return null;
@@ -197,7 +212,7 @@ async function googleLogin(credential, expectedRole) {
   if (!localUser) {
     // User may not have been synced to localStorage yet — try Firestore directly
     console.log('[Auth] Google user not in localStorage, trying Firestore for:', email);
-    localUser = await fetchUserFromFirestore(email);
+    localUser = await fetchUserFromFirestore(email, 2000);
   }
   if (!localUser) throw new Error('No account found for ' + email + '.\nAsk your admin to register this Google email.');
   if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
@@ -248,23 +263,35 @@ async function googleLogin(credential, expectedRole) {
 
 // ---- Google Sign-In via Google Identity Services (GIS) ----
 // Uses Google Identity Services (GIS) instead of Firebase popup for Google OAuth2.
+// GIS initialization cache — only initialize once per page load
+var _gisInitialized = false;
+var _gisCallback = null;
+
+function ensureGISInitialized() {
+  if (_gisInitialized) return;
+  _gisInitialized = true;
+  google.accounts.id.initialize({
+    client_id: '592918420084-qgj2566dvssfqboiv7bbassro1tui3eb.apps.googleusercontent.com',
+    callback: function(response) {
+      if (_gisCallback) _gisCallback(response);
+    },
+    cancel_on_tap_outside: false
+  });
+}
+
 async function googleLoginWithPopup(expectedRole) {
   return new Promise(function(resolve, reject) {
-    google.accounts.id.initialize({
-      client_id: '592918420084-qgj2566dvssfqboiv7bbassro1tui3eb.apps.googleusercontent.com',
-      callback: async function(response) {
-        try {
-          var session = await googleLogin(response.credential, expectedRole);
-          resolve(session);
-        } catch(e) {
-          reject(e);
-        }
-      },
-      cancel_on_tap_outside: false
-    });
+    ensureGISInitialized();
+    _gisCallback = async function(response) {
+      try {
+        var session = await googleLogin(response.credential, expectedRole);
+        resolve(session);
+      } catch(e) {
+        reject(e);
+      }
+    };
     google.accounts.id.prompt(function(notification) {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // Fallback: render Sign In With Google button
         google.accounts.id.renderButton(
           document.getElementById('googleSignInWrap'),
           { theme: 'outline', size: 'large', width: 320 }
