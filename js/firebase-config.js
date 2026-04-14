@@ -27,16 +27,33 @@ var authReadyPromise = new Promise(function(resolve) {
   _authReadyResolve = resolve;
 });
 
+// Gate for Firestore operations — resolves only when a REAL user is signed in
+var _realAuthResolve = null;
+var realAuthReadyPromise = new Promise(function(resolve) {
+  _realAuthResolve = resolve;
+});
+
 auth.onAuthStateChanged(function(user) {
-  // SECURITY FIX: No longer auto-signs in anonymously.
-  // Anonymous auth combined with permissive Firestore rules gave
-  // unauthenticated visitors full database access.
-  // Now: only real login (email/password or Google) grants Firestore access.
+  // SECURITY FIX: No auto anonymous sign-in.
   if (!_authReady) {
     _authReady = true;
     _authReadyResolve(user || null);
   }
+  // Resolve the real-auth gate when a non-anonymous user signs in
+  if (user && !user.isAnonymous && _realAuthResolve) {
+    _realAuthResolve(user);
+    _realAuthResolve = null; // only resolve once
+  }
 });
+
+// Timeout: if no real auth after 10s, resolve with null (skip Firestore sync)
+setTimeout(function() {
+  if (_realAuthResolve) {
+    console.log('[Auth] No real auth after 10s — skipping Firestore sync');
+    _realAuthResolve(null);
+    _realAuthResolve = null;
+  }
+}, 10000);
 
 function getFirebaseUser() {
   return auth.currentUser;
