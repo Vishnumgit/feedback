@@ -998,7 +998,7 @@ function toggleChat() {
   if (widget) widget.style.display = chatOpen ? 'flex' : 'none';
   if (fab) fab.style.display = chatOpen ? 'none' : 'flex';
   if (chatOpen && chatHistoryGlobal.length === 0) {
-    appendBotMsg("Hey there! \u{1F44B} I'm your Student Assistant. I can help you with:\n\n\u2022 \u{1F4DD} Giving feedback to teachers\n\u2022 \u{1F4CA} Checking attendance\n\u2022 \u{1F4C5} Viewing timetable\n\u2022 \u{1F514} Reading notifications\n\nWhat would you like help with?");
+    appendBotMsg("Hey there! \u{1F44B} I'm your Student Assistant. I can help you with:\n\n\u2022 \u{1F4DD} Giving feedback to teachers\n\u2022 \u{1F4CA} Checking attendance & records\n\u2022 \u{1F4C5} Viewing timetable\n\u2022 \u{1F514} Notifications & announcements\n\u2022 \u{1F464} Profile & settings\n\nWhat would you like help with?<div style=\"display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;\"><button onclick=\"sendQuickAction('feedback')\" style=\"padding:6px 12px;border-radius:20px;border:1px solid rgba(180,130,80,0.3);background:rgba(146,64,14,0.08);color:#b45309;font-size:11px;cursor:pointer;font-weight:600;\">\u{1F4DD} Feedback</button><button onclick=\"sendQuickAction('timetable')\" style=\"padding:6px 12px;border-radius:20px;border:1px solid rgba(180,130,80,0.3);background:rgba(146,64,14,0.08);color:#b45309;font-size:11px;cursor:pointer;font-weight:600;\">\u{1F4C5} Timetable</button><button onclick=\"sendQuickAction('attendance')\" style=\"padding:6px 12px;border-radius:20px;border:1px solid rgba(180,130,80,0.3);background:rgba(146,64,14,0.08);color:#b45309;font-size:11px;cursor:pointer;font-weight:600;\">\u{1F4CA} Attendance</button><button onclick=\"sendQuickAction('notifications')\" style=\"padding:6px 12px;border-radius:20px;border:1px solid rgba(180,130,80,0.3);background:rgba(146,64,14,0.08);color:#b45309;font-size:11px;cursor:pointer;font-weight:600;\">\u{1F514} Notifications</button><button onclick=\"sendQuickAction('profile')\" style=\"padding:6px 12px;border-radius:20px;border:1px solid rgba(180,130,80,0.3);background:rgba(146,64,14,0.08);color:#b45309;font-size:11px;cursor:pointer;font-weight:600;\">\u{1F464} Profile</button></div>");
   }
 }
 
@@ -1008,7 +1008,7 @@ function appendBotMsg(text) {
   if (!el) return;
   var div = document.createElement('div');
   div.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
-  div.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">\u{1F916}</div><div style="background:#1a1d28;border-radius:12px 12px 12px 2px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text.replace(/\n/g,'<br>') + '</div>';
+  div.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#92400e,#b45309);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">\u{1F916}</div><div style="background:rgba(146,64,14,0.07);border:1px solid rgba(180,130,80,0.15);border-radius:12px 12px 12px 2px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text.replace(/\n/g,'<br>') + '</div>';
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
@@ -1019,7 +1019,7 @@ function appendUserMsg(text) {
   if (!el) return;
   var div = document.createElement('div');
   div.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;justify-content:flex-end;';
-  div.innerHTML = '<div style="background:#7c3aed;color:#fff;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text + '</div>';
+  div.innerHTML = '<div style="background:linear-gradient(135deg,#92400e,#b45309);color:#fff;border-radius:12px 12px 2px 12px;padding:10px 14px;max-width:85%;font-size:13px;line-height:1.6;">' + text + '</div>';
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
@@ -1027,6 +1027,9 @@ function appendUserMsg(text) {
 function getBotReply(msg) {
   var lower = msg.toLowerCase().trim();
   var responses = {
+    profile: {kw:['profile','my info','my details','my name','who am i','account'], reply:"Your profile contains your personal and academic details.<br><br>\u{1F464} Go to <b>Profile</b> to view or edit your information.<br><br><button onclick=\"if(typeof showSection==='function'){showSection('profile')};toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:4px;\">\u27A1 View Profile</button>"},
+    settings: {kw:['setting','settings','preference','config','change','theme','password'], reply:"You can customize your experience in <b>Settings</b>.<br><br>\u2699\uFE0F Change password, preferences, and more.<br><br><button onclick=\"if(typeof showSection==='function'){showSection('settings')};toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:4px;\">\u2699\uFE0F Open Settings</button>"},
+    records: {kw:['record','records','history','past feedback','my feedback','previous'], reply:"Your academic records and past feedback submissions are available in the <b>Records</b> section.<br><br><button onclick=\"if(typeof showSection==='function'){showSection('records')};toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:4px;\">\u{1F4CB} View Records</button>"},
     feedback: {kw:['feedback','review','rate','rating','submit','evaluate','teacher'], reply:"To give feedback to a teacher:<br><br>1\uFE0F\u20E3 Go to the <b>Feedback</b> section from the sidebar<br>2\uFE0F\u20E3 Select a teacher card<br>3\uFE0F\u20E3 Rate each question using the scale<br>4\uFE0F\u20E3 Add optional comments<br>5\uFE0F\u20E3 Click <b>Submit</b><br><br>\u{1F4A1} Tip: Toggle <b>Anonymous mode</b> to submit without revealing your identity!<br><br><button onclick=\"if(typeof showSection==='function'){showSection('teachers')};toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:4px;\">\u27A1 Go to Feedback</button>"},
     attendance: {kw:['attendance','absent','present','percentage','bunking'], reply:"Your attendance is tracked by the institution.<br><br>\u{1F4CA} Go to <b>Dashboard</b> to see your attendance overview.<br><br>\u{1F4A1} Keep attendance above 75%!<br><br><button onclick=\"if(typeof showSection==='function'){showSection('dashboard')};toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:4px;\">\u27A1 View Dashboard</button>"},
     timetable: {kw:['timetable','schedule','class schedule','classes','lecture','when is'], reply:"Your timetable is uploaded by the admin.<br><br><button onclick=\"if(typeof showSection==='function'){showSection('timetable')};toggleChat()\" class=\"btn btn-primary btn-xs\" style=\"margin-top:4px;\">\u{1F4C5} View Timetable</button>"},
@@ -1063,7 +1066,7 @@ function sendChatMsg() {
     var typing = document.createElement('div');
     typing.id = 'typingIndicator';
     typing.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
-    typing.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">\u{1F916}</div><div style="background:#1a1d28;border-radius:12px;padding:10px 14px;font-size:13px;color:#64748b;">typing<span style="animation:blink 1s infinite;">...</span></div>';
+    typing.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#92400e,#b45309);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">\u{1F916}</div><div style="background:#1a1d28;border-radius:12px;padding:10px 14px;font-size:13px;color:#64748b;">typing<span style="animation:blink 1s infinite;">...</span></div>';
     el.appendChild(typing);
     el.scrollTop = el.scrollHeight;
   }
@@ -1073,10 +1076,28 @@ function sendChatMsg() {
     appendBotMsg(getBotReply(msg));
   }, 600 + Math.random() * 400);
 }
+
+function sendQuickAction(topic) {
+  appendUserMsg(topic.charAt(0).toUpperCase() + topic.slice(1));
+  var el = document.getElementById('chatMessages');
+  if (el) {
+    var typingDiv = document.createElement('div');
+    typingDiv.id = 'typingIndicator';
+    typingDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
+    typingDiv.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#92400e,#b45309);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">\u{1F916}</div><div style="background:rgba(146,64,14,0.07);border:1px solid rgba(180,130,80,0.15);border-radius:12px 12px 12px 2px;padding:10px 14px;font-size:13px;" class="typing-dots">\u2022 \u2022 \u2022</div>';
+    el.appendChild(typingDiv);
+    el.scrollTop = el.scrollHeight;
+  }
+  setTimeout(function() {
+    var ti = document.getElementById('typingIndicator');
+    if (ti) ti.remove();
+    appendBotMsg(getBotReply(topic));
+  }, 600 + Math.random() * 400);
+}
 </script>
 
 <!-- AI Chatbot FAB -->
-<div id="chatFab" onclick="toggleChat()" role="button" tabindex="0" aria-label="Open student assistant chat" style="position:fixed;bottom:24px;right:24px;z-index:99999;width:56px;height:56px;border-radius:50%;pointer-events:auto;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.5);transition:transform 0.2s;font-size:26px;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">&#x1F916;</div>
+<div id="chatFab" onclick="toggleChat()" role="button" tabindex="0" aria-label="Open student assistant chat" style="position:fixed;bottom:24px;right:24px;z-index:99999;width:56px;height:56px;border-radius:50%;pointer-events:auto;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 20px rgba(146,64,14,0.4);transition:transform 0.2s;font-size:26px;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">&#x1F916;</div>
 
 <!-- AI Chat Widget -->
 <div id="chatWidget" style="display:none;position:fixed;bottom:24px;right:24px;z-index:99999;width:380px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 80px);border-radius:20px;background:var(--surface);border:1px solid var(--border);box-shadow:0 12px 40px rgba(0,0,0,0.5);flex-direction:column;overflow:hidden;">
