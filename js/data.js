@@ -118,7 +118,7 @@ function initDB() {
   if (localStorage.getItem('sfft_initialized')) return;
 
   // ===== DEMO DATA =====
-  // Passwords: admin123, teacher123, student123 (SHA-256 hashed)
+  // Passwords: ***, ***, *** (SHA-256 hashed)
   const ADMIN_HASH = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9';
   const TEACHER_HASH = 'cde383eee8ee7a4400adf7a15f716f179a2eb97646b37e089eb8d6d04e663416';
   const STUDENT_HASH = '703b0a3d6ad75b649a28adde7d83c6251da457549263bc7ff45ec709b0a8448b';
