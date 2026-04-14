@@ -81,6 +81,38 @@ async function hashPassword(password) {
   return sha256(password);
 }
 
+// ---- Migration: Rename 'Demo Admin' -> 'Admin' in stored data ----
+(function migrateAdminName() {
+  try {
+    var usersRaw = localStorage.getItem('sfft_users');
+    if (usersRaw) {
+      var updated = usersRaw.replace(/Demo Admin/g, 'Admin');
+      if (updated !== usersRaw) {
+        localStorage.setItem('sfft_users', updated);
+        console.log('[Migration] Renamed Demo Admin -> Admin in stored users');
+      }
+    }
+    // Also fix demo-prefixed keys
+    var demoUsersRaw = localStorage.getItem('demo_sfft_users');
+    if (demoUsersRaw) {
+      var dUpdated = demoUsersRaw.replace(/Demo Admin/g, 'Admin');
+      if (dUpdated !== demoUsersRaw) {
+        localStorage.setItem('demo_sfft_users', dUpdated);
+        console.log('[Migration] Renamed Demo Admin -> Admin in demo users');
+      }
+    }
+    // Fix session too
+    var sessionRaw = sessionStorage.getItem('sfft_session');
+    if (sessionRaw) {
+      var sUpdated = sessionRaw.replace(/Demo Admin/g, 'Admin');
+      if (sUpdated !== sessionRaw) {
+        sessionStorage.setItem('sfft_session', sUpdated);
+        console.log('[Migration] Renamed Demo Admin -> Admin in session');
+      }
+    }
+  } catch(e) { /* ignore */ }
+})();
+
 // ---- Init / Seed --------------------------------------------
 function initDB() {
   if (localStorage.getItem('sfft_initialized')) return;
