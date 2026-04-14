@@ -74,6 +74,18 @@ function forceSync() {
 
 // ------ SOLUTION 1 + 2: Role-Based Filtered Sync ------
 function syncFromFirestoreInBackground() {
+  // Wait for real Firebase auth before attempting Firestore sync
+  if (typeof realAuthReadyPromise !== 'undefined') {
+    realAuthReadyPromise.then(function(user) {
+      if (user) _syncFromFirestoreInBackgroundInner();
+      else console.log('[Firebase] Skipping Firestore sync — no real auth');
+    });
+    return;
+  }
+  _syncFromFirestoreInBackgroundInner();
+}
+
+function _syncFromFirestoreInBackgroundInner() {
   // Skip sync entirely in demo mode
   if (window.__DEMO_MODE__) {
     console.log('[Firebase] Skipping sync — demo mode active');
