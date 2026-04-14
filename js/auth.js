@@ -169,8 +169,10 @@ async function syncFirebaseAuth(email, password, localUser, session) {
           userCredential = await auth.createUserWithEmailAndPassword(email, password);
         } catch(createErr) {
           if (createErr.code === 'auth/email-already-in-use') {
-            try { await auth.signInAnonymously(); } catch(ae) {}
-            userCredential = { user: auth.currentUser || { uid: 'anon_' + localUser.id } };
+            // DO NOT fall back to anonymous auth — it poisons the auth state
+            // and breaks Firestore operations (cross-device logout, sync, etc.)
+            console.warn('[Auth] Firebase Auth email-already-in-use — skipping Firebase Auth');
+            userCredential = { user: { uid: localUser.firebaseUid || localUser.id } };
           } else {
             throw createErr;
           }
@@ -285,7 +287,7 @@ async function googleLogin(credential, expectedRole) {
       }
     } catch(e) {
       console.warn('[Auth] Google Firebase auth background sync failed (login still works):', e.message);
-      try { await auth.signInAnonymously(); } catch(ae) {}
+      // Don't fall back to anonymous — it poisons auth state
     }
   })();
 
