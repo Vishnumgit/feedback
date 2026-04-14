@@ -334,29 +334,40 @@ async function googleLoginWithPopup(expectedRole) {
   });
 }
 
-// ---- Session Listener ----
+// ---- Session Listener (Event-Driven) ----
 var _sessionUnsub = null;
+var _sessionListenerStarted = false;
 
 function startSessionListener() {
   var session = getSession();
   if (!session || !session.sessionToken) return;
-  if (session.isDemo) return; // Skip Firestore session tracking in demo mode
+  if (session.isDemo) return;
   if (typeof db === 'undefined') return;
 
-  // Wait for real Firebase auth before Firestore operations
-  if (typeof realAuthReadyPromise !== 'undefined') {
-    realAuthReadyPromise.then(function(user) {
-      if (user) _startSessionListenerInner(session);
-    });
+  // If Firebase user is already available, start immediately
+  var currentUser = auth.currentUser;
+  if (currentUser && !currentUser.isAnonymous) {
+    _doStartSessionListener(session);
     return;
   }
 
-  _startSessionListenerInner(session);
+  // Otherwise, listen for auth state changes and start when real user signs in
+  var unsub = auth.onAuthStateChanged(function(user) {
+    if (user && !user.isAnonymous && !_sessionListenerStarted) {
+      unsub(); // Stop listening once we start
+      _doStartSessionListener(getSession() || session);
+    }
+  });
 }
 
-function _startSessionListenerInner(session) {
+function _doStartSessionListener(session) {
+  if (_sessionListenerStarted) return; // Idempotent — only start once
+  _sessionListenerStarted = true;
+
   var docId = session.userId;
   var myToken = session.sessionToken;
+
+  console.log('[Auth] Starting session listener for:', docId);
 
   db.collection('users').doc(docId).set({ sessionToken: myToken }, { merge: true })
     .then(function() { console.log('[Auth] Session token written'); })
