@@ -35,6 +35,14 @@ var realAuthReadyPromise = new Promise(function(resolve) {
 
 auth.onAuthStateChanged(function(user) {
   // SECURITY FIX: No auto anonymous sign-in.
+  // If a stale anonymous session persists from before, sign it out immediately
+  // so it doesn't poison Firestore operations.
+  if (user && user.isAnonymous) {
+    console.log('[Auth] Clearing stale anonymous auth');
+    auth.signOut();
+    return; // onAuthStateChanged will fire again with null
+  }
+
   if (!_authReady) {
     _authReady = true;
     _authReadyResolve(user || null);
