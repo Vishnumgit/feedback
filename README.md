@@ -27,6 +27,43 @@
 
 ---
 
+
+## 🔐 Authentication (Backend — Firebase Auth)
+
+> **Updated April 2026:** Authentication was migrated from localStorage to **Firebase Auth** as the single source of truth. Login now works reliably on any device, any browser.
+
+### How It Works
+
+| Step | What Happens |
+|------|-------------|
+| **Admin adds user** | Firebase Auth account created via REST API + profile saved to Firestore |
+| **User logs in (any device)** | `signInWithEmailAndPassword()` → profile loaded from Firestore → session created |
+| **Google Sign-In** | Firebase Auth via Google credential → profile loaded → session created |
+| **Password change** | Firebase Auth `updatePassword()` + local hash updated |
+
+### Key Files
+
+- `js/auth.js` — Login, logout, session management (Firebase Auth primary)
+- `js/data.js` — User CRUD (`addUser` creates Firebase Auth accounts)
+- `js/firebase-config.js` — Firebase initialization
+- `js/firebase-sync.js` — Firestore ↔ localStorage sync
+- `firestore.rules` — Security rules (public read on `users` + `settings`, write requires auth)
+
+### Default Passwords
+
+- **Admin** (`admin@college.edu`): `Admin@123`
+- **Students/Teachers**: `12345678`
+- Users should change their passwords after first login via the dashboard.
+
+### Firestore Security Rules
+
+```
+settings → public read, authenticated write
+users → public read, authenticated write  
+All other collections → authenticated read/write only
+```
+
+
 ## ✨ Key Highlights
 
 | Feature | Description |
