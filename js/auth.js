@@ -86,26 +86,10 @@ async function login(email, password) {
     console.log('[Auth] User not in localStorage, trying Firestore for:', email);
     localUser = await fetchUserFromFirestore(email);
   }
-  // ---- CROSS-DEVICE FIX: If local + Firestore lookups both fail,
-  // try Firebase Auth directly. If it succeeds, user is now authenticated
-  // and we can re-fetch their profile from Firestore. ----
+  // ---- CROSS-DEVICE FIX v2: users collection is now publicly readable,
+  // so Firestore lookup should succeed even without auth. ----
   if (!localUser) {
-    try {
-      var fbCred = await auth.signInWithEmailAndPassword(email, password);
-      console.log('[Auth] Firebase Auth succeeded for cross-device login, re-fetching profile...');
-      localUser = await fetchUserFromFirestore(email, 5000);
-      if (!localUser) throw new Error('Account exists in Firebase but not in system. Contact admin.');
-    } catch(fbErr) {
-      if (fbErr.code === 'auth/wrong-password' || fbErr.code === 'auth/invalid-credential') {
-        throw new Error('Incorrect password.');
-      }
-      if (fbErr.code === 'auth/user-not-found') {
-        throw new Error('No account found with this email.');
-      }
-      // Re-throw original message if it's our custom error
-      if (fbErr.message && !fbErr.code) throw fbErr;
-      throw new Error('No account found with this email.');
-    }
+    throw new Error('No account found with this email. If this is a new device, please ask your admin to sync accounts.');
   }
   if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
 
@@ -216,13 +200,16 @@ async function syncFirebaseAuth(email, password, localUser, session) {
       saveUser(localUser);
     }
 
-    // Write Firestore user doc
-    db.collection('users').doc(firebaseUid).set({
+    // Write Firestore user doc (include passwordHash for cross-device login)
+    var firestoreData = {
       customId: localUser.id, email: localUser.email, name: localUser.name,
       role: localUser.role, department: localUser.department || '',
       section: localUser.section || '', subjectId: localUser.subjectId || null,
       active: localUser.active, lastLogin: Date.now()
-    }, { merge: true }).catch(function(fsErr) {
+    };
+    // Store passwordHash in Firestore so new devices can verify locally
+    if (localUser.passwordHash) firestoreData.passwordHash = localUser.passwordHash;
+    db.collection('users').doc(firebaseUid).set(firestoreData, { merge: true }).catch(function(fsErr) {
       console.warn('[Auth] Firestore user doc write failed:', fsErr.message);
     });
 
@@ -291,11 +278,13 @@ async function googleLogin(credential, expectedRole) {
       localUser.firebaseUid = firebaseUid;
       saveUser(localUser);
 
-      db.collection('users').doc(firebaseUid).set({
+      var googleFirestoreData = {
         customId: localUser.id, email: localUser.email, name: localUser.name,
         role: localUser.role, department: localUser.department || '',
         section: localUser.section || '', active: localUser.active, lastLogin: Date.now()
-      }, { merge: true }).catch(function(fsErr) {
+      };
+      if (localUser.passwordHash) googleFirestoreData.passwordHash = localUser.passwordHash;
+      db.collection('users').doc(firebaseUid).set(googleFirestoreData, { merge: true }).catch(function(fsErr) {
         console.warn('[Auth] Google Firestore write failed:', fsErr.message);
       });
 
