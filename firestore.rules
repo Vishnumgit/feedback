@@ -1,25 +1,23 @@
 // =============================================================
-// firestore.rules — Firestore Security Rules (HARDENED v7)
+// firestore.rules — Firestore Security Rules (HARDENED v7b)
 // =============================================================
-// v7: Tightened users collection — requires authentication to read.
-//     Firebase Auth handles login, so public read is no longer needed.
-//     Settings stays public read (login pages need college domain).
+// Password hashes have been removed from all user documents.
+// Users collection allows public read (safe now — no sensitive data).
+// Firebase Auth handles all password verification server-side.
 // =============================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: true only for non-anonymous authenticated users
     function isRealUser() {
       return request.auth != null
           && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
-    // Users: authenticated read (login uses Firebase Auth, not Firestore lookup)
-    // Any signed-in user can read profiles; only real users can write
+    // Users: public read (passwordHash removed — only name/email/role/dept)
     match /users/{docId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isRealUser();
     }
 
@@ -31,7 +29,7 @@ service cloud.firestore {
       allow read, write: if isRealUser();
     }
 
-    // Settings: public read (login pages need college domain before auth)
+    // Settings: public read (college domain needed on login pages)
     match /settings/{docId} {
       allow read: if true;
       allow write: if isRealUser();
@@ -57,7 +55,6 @@ service cloud.firestore {
       allow read, write: if isRealUser();
     }
 
-    // Default deny for any unlisted collection
     match /{document=**} {
       allow read, write: if false;
     }
