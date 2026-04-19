@@ -78,57 +78,11 @@ async function fetchUserFromFirestore(email, timeoutMs) {
   }
 }
 
-// ---- Firebase Auth Login (Optimized — local-first, Firebase in background) ----
+// ---- Firebase Auth Login (Backend-first — works on ANY device) ----
+// v7: Uses Firebase Auth as the PRIMARY authentication method.
+// No localStorage password checks needed. Works cross-device reliably.
 async function login(email, password) {
-  var localUser = getUserByEmail(email);
-  if (!localUser) {
-    // User may not have been synced to localStorage yet — try Firestore directly
-    console.log('[Auth] User not in localStorage, trying Firestore for:', email);
-    localUser = await fetchUserFromFirestore(email);
-  }
-  // ---- CROSS-DEVICE FIX v2: users collection is now publicly readable,
-  // so Firestore lookup should succeed even without auth. ----
-  if (!localUser) {
-    throw new Error('No account found with this email. If this is a new device, please ask your admin to sync accounts.');
-  }
-  if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
-
-  // ---- FAST PATH: Verify password locally first (no network call) ----
-  var inputHash = await hashPassword(password);
-  var localAuthPassed = false;
-
-  if (localUser.passwordHash) {
-    if (localUser.passwordHash !== inputHash) throw new Error('Incorrect password.');
-    localAuthPassed = true;
-  } else if (localUser.password) {
-    if (localUser.password !== password) throw new Error('Incorrect password.');
-    localAuthPassed = true;
-  }
-
-  // If local auth passed, create session IMMEDIATELY (no waiting for Firebase)
-  if (localAuthPassed) {
-    var session = {
-      userId: localUser.id,
-      firebaseUid: localUser.firebaseUid || null,
-      role: localUser.role,
-      email: localUser.email,
-      name: localUser.name,
-      department: localUser.department || '',
-      section: localUser.section || '',
-      loginAt: Date.now(),
-      sessionToken: generateSessionToken()
-    };
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-
-    // ---- BACKGROUND: Sync with Firebase Auth (non-blocking) ----
-    syncFirebaseAuth(email, password, localUser, session).catch(function(e) {
-      console.warn('[Auth] Background Firebase sync:', e.message);
-    });
-
-    return session;
-  }
-
-  // ---- FALLBACK: No local password hash — must use Firebase Auth directly ----
+  // Step 1: Authenticate via Firebase Auth (works on ANY device, ANY browser)
   var userCredential;
   try {
     userCredential = await auth.signInWithEmailAndPassword(email, password);
@@ -136,15 +90,42 @@ async function login(email, password) {
     if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
       throw new Error('Incorrect password.');
     }
-    throw new Error('Login failed: ' + e.message);
+    if (e.code === 'auth/user-not-found') {
+      throw new Error('No account found with this email.');
+    }
+    if (e.code === 'auth/too-many-requests') {
+      throw new Error('Too many login attempts. Please wait and try again.');
+    }
+    if (e.code === 'auth/invalid-email') {
+      throw new Error('Invalid email address.');
+    }
+    throw new Error('Login failed: ' + (e.message || 'Unknown error'));
   }
 
   var firebaseUid = userCredential.user.uid;
+
+  // Step 2: Get user profile (localStorage fast path → Firestore fallback)
+  var localUser = getUserByEmail(email);
+  if (!localUser) {
+    console.log('[Auth] User not in localStorage, fetching from Firestore...');
+    localUser = await fetchUserFromFirestore(email, 5000);
+  }
+  if (!localUser) {
+    await auth.signOut();
+    throw new Error('Account not fully set up. Contact your admin.');
+  }
+  if (!localUser.active) {
+    await auth.signOut();
+    throw new Error('Your account has been deactivated. Contact admin.');
+  }
+
+  // Step 3: Update Firebase UID mapping
   if (!localUser.firebaseUid || localUser.firebaseUid !== firebaseUid) {
     localUser.firebaseUid = firebaseUid;
     saveUser(localUser);
   }
 
+  // Step 4: Create session
   var session = {
     userId: localUser.id,
     firebaseUid: firebaseUid,
@@ -157,6 +138,24 @@ async function login(email, password) {
     sessionToken: generateSessionToken()
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+  // Step 5: Update Firestore profile (non-blocking)
+  try {
+    db.collection('users').doc(localUser.id).set({
+      customId: localUser.id, email: localUser.email, name: localUser.name,
+      role: localUser.role, department: localUser.department || '',
+      section: localUser.section || '', active: localUser.active,
+      firebaseUid: firebaseUid, lastLogin: Date.now()
+    }, { merge: true });
+  } catch(fsErr) {
+    console.warn('[Auth] Profile update failed:', fsErr.message);
+  }
+
+  // Step 6: Start session listener (we're already authenticated)
+  if (typeof startSessionListener === 'function') {
+    startSessionListener();
+  }
+
   return session;
 }
 
@@ -474,4 +473,29 @@ async function validateCollegeEmailAsync(email) {
   var settings = await (typeof fetchSettingsFromFirestore === 'function' ? fetchSettingsFromFirestore() : Promise.resolve(getSettings()));
   var domain = settings.collegeDomain || 'college.edu';
   return email.toLowerCase().endsWith('@' + domain.toLowerCase());
+}
+
+// ---- Firebase Auth Account Creation (REST API — doesn't affect current session) ----
+async function createFirebaseAuthAccount(email, password) {
+  try {
+    var apiKey = firebaseConfig.apiKey;
+    var resp = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password, returnSecureToken: false })
+    });
+    var data = await resp.json();
+    if (data.error) {
+      if (data.error.message === 'EMAIL_EXISTS') {
+        console.log('[Auth] Firebase Auth account already exists for:', email);
+        return null; // Not an error — account exists
+      }
+      throw new Error(data.error.message);
+    }
+    console.log('[Auth] Firebase Auth account created for:', email);
+    return data.localId; // Firebase UID
+  } catch(e) {
+    console.warn('[Auth] Firebase Auth creation failed:', email, e.message);
+    return null;
+  }
 }
