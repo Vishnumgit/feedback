@@ -459,3 +459,10 @@ function validateCollegeEmail(email) {
   var domain = settings.collegeDomain || 'college.edu';
   return email.toLowerCase().endsWith('@' + domain.toLowerCase());
 }
+
+// Async version for cross-device login
+async function validateCollegeEmailAsync(email) {
+  var settings = await (typeof fetchSettingsFromFirestore === 'function' ? fetchSettingsFromFirestore() : Promise.resolve(getSettings()));
+  var domain = settings.collegeDomain || 'college.edu';
+  return email.toLowerCase().endsWith('@' + domain.toLowerCase());
+}
