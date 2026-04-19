@@ -221,6 +221,29 @@ function initDB() {
 function getSettings() { return getObj(DB.SETTINGS); }
 function saveSettings(s) { setObj(DB.SETTINGS, s); }
 
+// Cross-device fix: Fetch settings from Firestore when localStorage is empty
+async function fetchSettingsFromFirestore() {
+  try {
+    if (typeof db === 'undefined') return getSettings();
+    var local = getSettings();
+    if (local && local.collegeDomain && local.collegeDomain !== 'college.edu') return local;
+    var snap = await db.collection('settings').doc('global').get();
+    if (snap.exists) {
+      var remote = snap.data();
+      if (remote && remote.collegeDomain) {
+        var merged = Object.assign({}, local, remote);
+        setObj(DB.SETTINGS, merged);
+        console.log('[Data] Settings synced from Firestore:', remote.collegeDomain);
+        return merged;
+      }
+    }
+    return local;
+  } catch(e) {
+    console.warn('[Data] Firestore settings fetch failed:', e.message);
+    return getSettings();
+  }
+}
+
 // ---- Users --------------------------------------------------
 function getUsers() { return get(DB.USERS); }
 function getUserByEmail(email) {
