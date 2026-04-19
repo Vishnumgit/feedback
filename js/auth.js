@@ -86,7 +86,27 @@ async function login(email, password) {
     console.log('[Auth] User not in localStorage, trying Firestore for:', email);
     localUser = await fetchUserFromFirestore(email);
   }
-  if (!localUser) throw new Error('No account found with this email.');
+  // ---- CROSS-DEVICE FIX: If local + Firestore lookups both fail,
+  // try Firebase Auth directly. If it succeeds, user is now authenticated
+  // and we can re-fetch their profile from Firestore. ----
+  if (!localUser) {
+    try {
+      var fbCred = await auth.signInWithEmailAndPassword(email, password);
+      console.log('[Auth] Firebase Auth succeeded for cross-device login, re-fetching profile...');
+      localUser = await fetchUserFromFirestore(email, 5000);
+      if (!localUser) throw new Error('Account exists in Firebase but not in system. Contact admin.');
+    } catch(fbErr) {
+      if (fbErr.code === 'auth/wrong-password' || fbErr.code === 'auth/invalid-credential') {
+        throw new Error('Incorrect password.');
+      }
+      if (fbErr.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email.');
+      }
+      // Re-throw original message if it's our custom error
+      if (fbErr.message && !fbErr.code) throw fbErr;
+      throw new Error('No account found with this email.');
+    }
+  }
   if (!localUser.active) throw new Error('Your account has been deactivated. Contact admin.');
 
   // ---- FAST PATH: Verify password locally first (no network call) ----
