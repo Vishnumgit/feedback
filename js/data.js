@@ -267,7 +267,18 @@ async function addUser({ role, name, email, password, department, section, subje
   if (getUserByEmail(email)) throw new Error('Email already registered.');
   const id = 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
   const pwHash = await hashPassword(password);
-  const user = { id, email, passwordHash: pwHash, role, name, department: department || '', section: section || '', subjectId: subjectId || null, rollNo: rollNo || '', active: true };
+
+  // Create Firebase Auth account (REST API — doesn't affect current admin session)
+  var firebaseUid = null;
+  if (typeof createFirebaseAuthAccount === 'function') {
+    try {
+      firebaseUid = await createFirebaseAuthAccount(email, password);
+    } catch(e) {
+      console.warn('[Data] Firebase Auth account creation failed:', e.message);
+    }
+  }
+
+  const user = { id, email, passwordHash: pwHash, role, name, department: department || '', section: section || '', subjectId: subjectId || null, rollNo: rollNo || '', active: true, firebaseUid: firebaseUid };
   saveUser(user);
   return user;
 }
