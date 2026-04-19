@@ -171,7 +171,12 @@
 
     let ok = true;
     if (!email) { emailErr.textContent = 'Email is required.'; emailErr.classList.add('show'); ok = false; }
-    else if (!validateCollegeEmail(email)) { emailErr.textContent = `Use your college email (@${getSettings().collegeDomain}).`; emailErr.classList.add('show'); ok = false; }
+    else {
+      if (typeof fetchSettingsFromFirestore === 'function') {
+        try { await fetchSettingsFromFirestore(); } catch(e) { console.warn('[Login] Settings fetch:', e.message); }
+      }
+      if (!validateCollegeEmail(email)) { emailErr.textContent = `Use your college email (@${getSettings().collegeDomain || 'college.edu'}).`; emailErr.classList.add('show'); ok = false; }
+    }
     if (!password) { passErr.textContent = 'Password is required.'; passErr.classList.add('show'); ok = false; }
     if (!ok) return;
 
