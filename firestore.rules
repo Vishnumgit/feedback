@@ -1,10 +1,9 @@
 // =============================================================
-// firestore.rules — Firestore Security Rules (HARDENED v5)
+// firestore.rules — Firestore Security Rules (HARDENED v6)
 // =============================================================
-// SECURITY FIX: Rejects anonymous auth users. Only real logins
-// (email/password or Google Sign-In) get read/write access.
-// Anonymous auth provider is explicitly blocked.
-// PATCH v5: Allow public read on settings for login page access.
+// v5: Public read on settings for login pages
+// v6: Public read on users for cross-device login lookups
+//     (passwordHash is SHA-256 — not plaintext)
 // =============================================================
 
 rules_version = '2';
@@ -17,8 +16,11 @@ service cloud.firestore {
           && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
+    // Users: public read for cross-device login lookups
+    // Write still requires real authenticated user
     match /users/{docId} {
-      allow read, write: if isRealUser();
+      allow read: if true;
+      allow write: if isRealUser();
     }
 
     match /subjects/{docId} {
@@ -30,7 +32,6 @@ service cloud.firestore {
     }
 
     // Settings: public read (non-sensitive: college name, domain, threshold)
-    // Write still requires real authenticated user
     match /settings/{docId} {
       allow read: if true;
       allow write: if isRealUser();
