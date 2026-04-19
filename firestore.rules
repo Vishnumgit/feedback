@@ -1,9 +1,9 @@
 // =============================================================
-// firestore.rules — Firestore Security Rules (HARDENED v6)
+// firestore.rules — Firestore Security Rules (HARDENED v7)
 // =============================================================
-// v5: Public read on settings for login pages
-// v6: Public read on users for cross-device login lookups
-//     (passwordHash is SHA-256 — not plaintext)
+// v7: Tightened users collection — requires authentication to read.
+//     Firebase Auth handles login, so public read is no longer needed.
+//     Settings stays public read (login pages need college domain).
 // =============================================================
 
 rules_version = '2';
@@ -16,10 +16,10 @@ service cloud.firestore {
           && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
-    // Users: public read for cross-device login lookups
-    // Write still requires real authenticated user
+    // Users: authenticated read (login uses Firebase Auth, not Firestore lookup)
+    // Any signed-in user can read profiles; only real users can write
     match /users/{docId} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if isRealUser();
     }
 
@@ -31,7 +31,7 @@ service cloud.firestore {
       allow read, write: if isRealUser();
     }
 
-    // Settings: public read (non-sensitive: college name, domain, threshold)
+    // Settings: public read (login pages need college domain before auth)
     match /settings/{docId} {
       allow read: if true;
       allow write: if isRealUser();
