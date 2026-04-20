@@ -104,11 +104,16 @@ async function login(email, password) {
 
   var firebaseUid = userCredential.user.uid;
 
-  // Step 2: Get user profile (localStorage fast path → Firestore fallback)
-  var localUser = getUserByEmail(email);
-  if (!localUser) {
-    console.log('[Auth] User not in localStorage, fetching from Firestore...');
+  // Step 2: Get user profile — ALWAYS prefer Firestore (real data) over localStorage (may have demo data)
+  var localUser = null;
+  try {
+    console.log('[Auth] Fetching user profile from Firestore...');
     localUser = await fetchUserFromFirestore(email, 5000);
+  } catch(e) {
+    console.warn('[Auth] Firestore fetch failed, trying localStorage:', e.message);
+  }
+  if (!localUser) {
+    localUser = getUserByEmail(email);
   }
   if (!localUser) {
     await auth.signOut();
