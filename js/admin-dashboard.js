@@ -9,6 +9,20 @@
   var sendPushFn = firebase.app().functions('us-central1').httpsCallable('sendPushNotification');
     const session = requireAuth('admin');
     startSessionListener();
+
+    // Fix: Re-render dashboard when Firestore sync completes (cross-device data fix)
+    window.addEventListener('firestore-synced', function() {
+      console.log('[Dashboard] Firestore sync complete — refreshing current view');
+      var activeNav = document.querySelector('.nav-item.active');
+      if (activeNav) {
+        var tabName = activeNav.id.replace('nav', '');
+        tabName = tabName.charAt(0).toLowerCase() + tabName.slice(1);
+        switchTab(tabName, true);
+      } else {
+        renderDashboard();
+      }
+    });
+
     document.getElementById('sidebarName').textContent = session.name;
     document.getElementById('collegeName').textContent = getSettings().collegeName;
 
